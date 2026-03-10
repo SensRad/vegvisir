@@ -1,0 +1,264 @@
+// Copyright (c) Sensrad 2025-2026
+
+#pragma once
+
+#include <Eigen/Dense>
+#include <cstdint>
+#include <memory>
+#include <sophus/se3.hpp>
+#include <unordered_map>
+#include <vector>
+
+#include "LocalMapGraph.hpp"
+#include "PoseKalmanFilter.hpp"
+#include "map_closures/MapClosures.hpp"
+#include "voxel_map/VoxelMap.hpp"
+
+#include "VegvisirIO.hpp"
+#include "icp_svd/IcpSvd.hpp"
+#include "pgo/pose_graph_optimizer.hpp"
+
+namespace vegvisir {
+
+enum class Mode {
+  LOCALIZATION, // Localization-only mode (query existing map)
+  SLAM          // SLAM mode (build map and optimize pose graph)
+};
+
+// Forward declarations for backend classes
+class VegvisirBackend;
+class SlamBackend;
+class LocalizationBackend;
+
+class Vegvisir {
+public:
+  Vegvisir(const std::string &map_database_path,
+           Mode mode = Mode::LOCALIZATION);
+  ~Vegvisir();
+
+  void update(const std::vector<Eigen::VectorXd> &points,
+              const Sophus::SE3d &absolute_pose,
+              const Sophus::SE3d &delta_pose);
+
+  // Save database (SLAM mode only) - saves poses.bin, points.bin, closures, and
+  // metadata
+  bool saveDatabase();
+
+  // Get/set map metadata
+  const MapMetadata &getMapMetadata() const { return map_metadata_; }
+  void setMapMetadata(const MapMetadata &metadata) { map_metadata_ = metadata; }
+
+  /// Set the GNSS anchor transform (T_ENU_map) to be saved with the map.
+  void setGnssAnchorTransform(const Eigen::Matrix4d &T_enu_map) {
+    map_metadata_.gnss_anchor_transform = T_enu_map;
+    map_metadata_.has_gnss_anchor = true;
+  }
+
+  /// Set the GNSS origin (WGS84 coordinates) used for ENU conversion.
+  void setGnssOrigin(double lat0, double lon0, double alt0) {
+    map_metadata_.gnss_origin.lat0 = lat0;
+    map_metadata_.gnss_origin.lon0 = lon0;
+    map_metadata_.gnss_origin.alt0 = alt0;
+    map_metadata_.gnss_origin.valid = true;
+  }
+
+  /// Get the GNSS anchor transform from loaded metadata.
+  Eigen::Matrix4d getGnssAnchorTransform() const {
+    return map_metadata_.has_gnss_anchor ? map_metadata_.gnss_anchor_transform
+                                         : Eigen::Matrix4d::Identity();
+  }
+
+  /// Check if GNSS anchor data is available
+  bool hasGnssAnchor() const { return map_metadata_.has_gnss_anchor; }
+
+  /// Get the GNSS origin from loaded metadata.
+  GnssOrigin getGnssOrigin() const { return map_metadata_.gnss_origin; }
+
+  // Access to local map graph for external use (e.g., visualization)
+  const LocalMapGraph &getLocalMapGraph() const { return local_map_graph_; }
+
+  // Access to pose estimation state
+  Eigen::Matrix4d getMapToOdomTransform() const { return tf_map_odom_; }
+  Eigen::Matrix<double, 6, 6> getCovariance() const {
+    return pose_filter_.covariance();
+  }
+  Eigen::Matrix4d getBaseInMapFrame() const;
+  Sophus::SE3d getCurrentOdomBase() const { return current_odom_base_; }
+
+  // Access to map closure data for visualization and localization
+  const std::unordered_map<int, Eigen::Matrix4d> &getReferencePoses() const;
+  const Eigen::Matrix4d &getReferencePose(int map_id) const;
+  const map_closures::DensityMap &getDensityMap(int map_id) const;
+  std::vector<int> getAvailableMapIds() const;
+  const Eigen::Matrix4d &getGroundAlignment(int map_id) const;
+  const std::vector<map_closures::ClosureCandidate> &getClosures() const;
+  size_t getNumClosures() const;
+
+  // Access to local map points for ICP
+  const std::vector<Eigen::Vector3d> &getLocalMapPoints(int map_id) const;
+  bool hasLocalMapPoints(int map_id) const;
+
+  // Fine-grained per-frame pose graph optimization over the full trajectory.
+  // Returns the optimised per-frame poses.
+  std::vector<Eigen::Matrix4d> fineGrainedOptimization() const;
+
+  // Fine-grained PGO AND update internal keyposes to match optimized poses.
+  // This ensures keyposes stored in the database match the PGO-optimized
+  // trajectory.
+  std::vector<Eigen::Matrix4d> fineGrainedOptimizationAndUpdateKeyposes();
+
+  // GNSS measurement methods for pose graph optimization
+  void addGnssMeasurement(int pose_index, const Eigen::Vector3d &position_enu,
+                          const Eigen::Matrix3d &information_matrix);
+  void clearGnssMeasurements();
+  size_t getNumGnssMeasurements() const { return gnss_measurements_.size(); }
+
+  // Full SE3 GNSS pose measurement methods for pose graph optimization
+  void
+  addGnssPoseMeasurement(int pose_index, const Eigen::Matrix4d &pose_enu,
+                         const Eigen::Matrix<double, 6, 6> &information_matrix);
+  void clearGnssPoseMeasurements();
+  size_t getNumGnssPoseMeasurements() const {
+    return gnss_pose_measurements_.size();
+  }
+
+  // GNSS alignment transform methods
+  void setInitialAlignmentEstimate(const Eigen::Matrix4d &T_enu_map) {
+    initial_T_enu_map_ = T_enu_map;
+    has_initial_alignment_ = true;
+  }
+  Eigen::Matrix4d getOptimizedAlignmentTransform() const {
+    return optimized_T_enu_map_;
+  }
+
+  // Get current mode
+  Mode getMode() const { return mode_; }
+
+  // Constants accessible by backends
+  static constexpr double QUERY_DISTANCE_LOCALIZATION_M =
+      5.0; // query cadence for localization
+  static constexpr double QUERY_DISTANCE_SLAM_M =
+      50.0;                                          // query cadence for SLAM
+  static constexpr double LOCAL_MAP_RADIUS_M = 60.0; // keep this much context
+
+  // Ring buffer size (includes the active submap node).
+  // Rough heuristic: ceil(LOCAL_MAP_RADIUS_M /
+  // QUERY_DISTANCE_LOCALIZATION_M) + 2
+  static constexpr int MAX_LOCALIZATION_SUBMAPS = 8;
+
+  static constexpr int QUERY_ID_LOCALIZATION =
+      100000; // reuse constant ID in localization
+
+private:
+  // Variables for the point cloud filter
+  static constexpr double MIN_RANGE = 2.0;              // meter
+  static constexpr double MAX_RANGE = 60.0;             // meter
+  static constexpr double GROUND_PLANE_THRESHOLD = 0.4; // meter
+  static constexpr double MOTIONSTATUS = 0;             // Hard-coded for now.
+  static constexpr int OCCLUSION_STATUS = 0;            // 0 = non-occluded
+
+  static constexpr double VOXEL_SIZE = 1.0; // meter
+
+  // ICP and overlap validation parameters
+  static constexpr double ICP_REFINEMENT_VOXEL_SIZE = 0.3; // meter
+  static constexpr int ICP_MAX_ITERATIONS = 50;
+  static constexpr double ICP_CONVERGENCE_CRITERION = 5 * 1e-3;
+  static constexpr double ICP_MAX_CORRESPONDENCE_DISTANCE = 1.5; // meters
+  static constexpr double OVERLAP_THRESHOLD = 0.10; // 10% overlap required
+
+  static constexpr int INLIERS_THRESHOLD = 10;
+
+private:
+  // Shared mapping state/resources (used by both backends)
+  voxel_map::VoxelMap voxel_grid_;
+  LocalMapGraph local_map_graph_;
+
+  // Shared update state (backend sets these)
+  Eigen::Matrix4d current_pose_ = Eigen::Matrix4d::Identity();
+  double distance_since_query_ = 0.0;
+
+  // Detected closures (shared)
+  std::vector<map_closures::ClosureCandidate> closures_;
+
+  // Local map points storage (map_id -> point cloud) (shared)
+  std::unordered_map<int, std::vector<Eigen::Vector3d>> local_map_points_;
+
+  // Pose estimation state/output
+  PoseKalmanFilter pose_filter_;
+  Eigen::Matrix4d tf_map_odom_ = Eigen::Matrix4d::Identity();
+  Sophus::SE3d current_odom_base_ =
+      Sophus::SE3d(); // Current base_link pose in odom frame
+
+  // Mode selection & persistence
+  Mode mode_;
+  std::string map_database_path_; // Path to map directory for saving
+  MapMetadata map_metadata_;      // Map metadata for organized storage
+
+  // Loop closure state
+  std::unique_ptr<map_closures::MapClosures> map_closer_;
+  bool loop_closure_enabled_ = false;
+
+  // GNSS measurement storage for PGO
+  struct GnssMeasurement {
+    int pose_index;
+    Eigen::Vector3d position_enu;
+    Eigen::Matrix3d information_matrix;
+  };
+  std::vector<GnssMeasurement> gnss_measurements_;
+
+  // Full SE3 GNSS pose measurement storage for PGO
+  struct GnssPoseMeasurement {
+    int pose_index;
+    Eigen::Matrix4d pose_enu;
+    Eigen::Matrix<double, 6, 6> information_matrix;
+  };
+  std::vector<GnssPoseMeasurement> gnss_pose_measurements_;
+
+  // GNSS alignment state
+  Eigen::Matrix4d optimized_T_enu_map_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d initial_T_enu_map_ = Eigen::Matrix4d::Identity();
+  bool has_initial_alignment_ = false;
+
+  // Save state tracking (prevents redundant saves in destructor)
+  bool database_saved_ = false;
+
+  // Backend (mode-specific policy/state)
+  std::unique_ptr<VegvisirBackend> backend_;
+
+private:
+  // Shared algorithms: ICP refinement + overlap validation
+  // filterPointCloud disabled — vegvisir now accepts generic xyz point clouds.
+  // void filterPointCloud(const std::vector<Eigen::VectorXd> &input_points,
+  //                       std::vector<Eigen::Vector3d> &filtered_points);
+
+  std::pair<bool, Eigen::Matrix4d>
+  performICPRefinement(const std::vector<Eigen::Vector3d> &query_points,
+                       const std::vector<Eigen::Vector3d> &reference_points,
+                       const Eigen::Matrix4d &initial_pose);
+
+  bool validateClosurePose(const std::vector<Eigen::Vector3d> &query_points,
+                           const std::vector<Eigen::Vector3d> &reference_points,
+                           const Eigen::Matrix4d &pose);
+
+  // Shared closure processing: candidate gating + ICP refine + overlap
+  // validate. Retrieval + application are delegated to backend.
+  void
+  processLoopClosures(int query_id,
+                      const std::vector<Eigen::Vector3d> &query_points_mc,
+                      const std::vector<Eigen::Vector3d> &query_points_icp);
+
+  // Utility: transform & append points (shared helper for localization backend)
+  static void transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,
+                                       const Eigen::Matrix4d &transform_matrix,
+                                       std::vector<Eigen::Vector3d> &out);
+
+private:
+  // Allow backends to access internal state.
+  // Note: C++ friendship is not inherited, so we must friend each backend
+  // class.
+  friend class VegvisirBackend;
+  friend class SlamBackend;
+  friend class LocalizationBackend;
+};
+
+} // namespace vegvisir

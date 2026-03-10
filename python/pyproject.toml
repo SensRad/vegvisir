@@ -1,0 +1,16 @@
+# Copyright (c) Sensrad 2026
+
+[build-system]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "sensrad-vegvisir"
+version = "0.1.0"
+requires-python = ">=3.8"
+dependencies = ["numpy"]
+
+[tool.scikit-build]
+wheel.install-dir = "vegvisir/pybind"
+wheel.packages = ["vegvisir"]
+cmake.build-type = "Release"

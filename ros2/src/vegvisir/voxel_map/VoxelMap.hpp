@@ -1,0 +1,83 @@
+// Copyright (c) Sensrad 2025-2026
+//
+// MIT License
+
+// Copyright (c) 2025 Tiziano Guadagnino, Benedikt Mersch, Saurabh Gupta, Cyrill
+// Stachniss.
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+#pragma once
+
+#include <Eigen/Core>
+#include <array>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <vector>
+
+// VoxelUtils.hpp provides Voxel type, hash, and pointToVoxel — must come
+// before robin_map.h so the hash specialization is visible.
+#include "voxel_map/VoxelUtils.hpp"
+#include <tsl/robin_map.h>
+
+using Vector3dVector = std::vector<Eigen::Vector3d>;
+
+// Same default as Open3d
+static constexpr unsigned int max_points_per_normal_computation = 20;
+
+namespace voxel_map {
+
+struct VoxelBlock {
+  void emplace_back(const Eigen::Vector3d &point);
+  inline constexpr size_t size() const { return num_points; }
+  auto cbegin() const { return points.cbegin(); }
+  auto cend() const { return std::next(points.cbegin(), num_points); }
+  std::array<Eigen::Vector3d, max_points_per_normal_computation> points;
+  size_t num_points = 0;
+};
+
+struct VoxelMap {
+  explicit VoxelMap(const double voxel_size);
+
+  inline void Clear() { map_.clear(); }
+  inline bool Empty() const { return map_.empty(); }
+  void IntegrateFrame(const std::vector<Eigen::Vector3d> &points,
+                      const Eigen::Matrix4d &pose);
+  void AddPoints(const std::vector<Eigen::Vector3d> &points);
+  Vector3dVector Pointcloud() const;
+
+  void PruneFarPoints(const Eigen::Matrix4d &reference_pose,
+                      double max_distance);
+
+  size_t NumVoxels() const { return map_.size(); }
+
+  std::tuple<Vector3dVector, Vector3dVector> PerVoxelPointAndNormal() const;
+
+  // Find the closest stored point to query using bounded neighbor search.
+  // Checks center voxel first, then skips neighbor voxels whose bounding-box
+  // minimum distance already exceeds the current best. Returns
+  // {closest_point, squared_distance}.
+  std::pair<Eigen::Vector3d, double>
+  GetClosestNeighbor(const Eigen::Vector3d &query) const;
+
+  double voxel_size_;
+  double map_resolution_;
+  tsl::robin_map<Voxel, VoxelBlock> map_;
+};
+} // namespace voxel_map
