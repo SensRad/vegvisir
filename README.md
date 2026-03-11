@@ -7,16 +7,16 @@ Vegvisir operates in two modes via a pluggable backend architecture: **SLAM** fo
 
 ## Getting Started
 
-Vegvisir requires an odometry estimate to work.
+Vegvisir requires an odometry estimate of the vehicles motion to work. Depending on your sensor modality we provide different levels of integration:
 
 - **LiDAR**: We recommend starting with the ROS2 wrapper, which integrates KISS-ICP with Vegvisir. See the ROS2 README for more information.
-- **RADAR**: Sensrad provides the Oden perception software, which estimates odometry using the **Hugin D1** 4D Imaging Radar.
+- **RADAR**: Vegvisir does not come with any radar odometry algorithms integrated, requiring the user to provide such an estimate. However, Sensrad provides the Oden perception software, which estimates odometry using the **Hugin D1** 4D Imaging Radar.
 
-For commercial inquiries about the Hugin D1 and the Oden software, please contact Sensrad at sales@sensrad.com.
+For commercial inquiries about the [Hugin D1](https://www.sensrad.com/hugin-radar-d1) and the [Oden](https://www.sensrad.com/oden-drive) software, please contact [Sensrad](https://www.sensrad.com) at sales@sensrad.com.
 
 ## Acknowledgement
 
-This project is heavily inspired by and initially based upon KISS-SLAM. Vegvisir can be seen as a C++ implementation of their Python code. Please cite their work in your research.
+This project is heavily inspired by and initially based upon [KISS-SLAM](https://github.com/PRBonn/kiss-slam). Vegvisir can be seen as a C++ implementation of their Python code. Please cite [their work](https://www.ipb.uni-bonn.de/wp-content/papercite-data/pdf/kiss2025iros.pdf) in your research.
 
 ## Contributing
 
