@@ -40,7 +40,6 @@ VegvisirNode::VegvisirNode()
           "uncertainty_volume", 10);
 
   // Initialize map point cloud publisher (for SLAM mode visualization)
-  // Use transient_local QoS so late-joiners (RViz, Foxglove) receive the cloud
   auto cloud_qos = rclcpp::QoS(1);
   cloud_qos.transient_local();
   cloud_qos.reliable();
@@ -196,40 +195,75 @@ void VegvisirNode::publishMapPointCloud(const rclcpp::Time &timestamp) {
   reference_map_published_ = true;
 
   const auto &local_map_graph = vegvisir_->getLocalMapGraph();
-  size_t current_local_map_count = local_map_graph.size();
   size_t current_closure_count = vegvisir_->getNumClosures();
 
-  // Only publish if local map count or closure count changed
-  if (current_local_map_count == last_local_map_count_ &&
+  // Count finalized segments (all except lastId)
+  size_t finalized_count = 0;
+  for (const auto &[id, local_map] : local_map_graph) {
+    if (id != local_map_graph.lastId()) {
+      ++finalized_count;
+    }
+  }
+
+  // Nothing changed → early return
+  if (finalized_count == published_segment_count_ &&
       current_closure_count == last_closure_count_) {
     return;
   }
-  last_local_map_count_ = current_local_map_count;
+
+  bool closure_occurred = current_closure_count != last_closure_count_;
+
+  if (closure_occurred) {
+    // Closure changes keyposes — rebuild entire cache
+    cached_map_points_.clear();
+    for (const auto &[id, local_map] : local_map_graph) {
+      if (id == local_map_graph.lastId()) {
+        continue;
+      }
+      const Sophus::SE3d keypose(local_map.keypose());
+      for (const auto &pt : local_map.pointCloud()) {
+        cached_map_points_.push_back(keypose * pt);
+      }
+    }
+    RCLCPP_INFO(get_logger(),
+                "Closure detected — rebuilt cache with %zu segments (%zu pts)",
+                finalized_count, cached_map_points_.size());
+  } else {
+    // Only new segments — transform and append
+    size_t skipped = 0;
+    size_t new_segments = 0;
+    for (const auto &[id, local_map] : local_map_graph) {
+      if (id == local_map_graph.lastId()) {
+        continue;
+      }
+      if (skipped < published_segment_count_) {
+        ++skipped;
+        continue;
+      }
+      const Sophus::SE3d keypose(local_map.keypose());
+      for (const auto &pt : local_map.pointCloud()) {
+        cached_map_points_.push_back(keypose * pt);
+      }
+      ++new_segments;
+    }
+    if (new_segments > 0) {
+      RCLCPP_INFO(get_logger(),
+                  "Appended %zu new segments to cache (total: %zu, %zu pts)",
+                  new_segments, finalized_count, cached_map_points_.size());
+    }
+  }
+
+  published_segment_count_ = finalized_count;
   last_closure_count_ = current_closure_count;
 
-  // Collect all transformed points (skip current/last local map being built)
-  std::vector<Eigen::Vector3d> all_points;
-  for (const auto &[id, local_map] : local_map_graph) {
-    if (id == local_map_graph.lastId()) {
-      continue;
-    }
-    Sophus::SE3d keypose(local_map.keypose());
-    for (const auto &pt : local_map.pointCloud()) {
-      all_points.push_back(keypose * pt);
-    }
+  // Publish the full cached cloud in map frame
+  if (!cached_map_points_.empty()) {
+    std_msgs::msg::Header header;
+    header.stamp = timestamp;
+    header.frame_id = map_frame_;
+    map_cloud_pub_->publish(
+        ros_conversions::toPointCloud2(cached_map_points_, header));
   }
-
-  if (all_points.empty()) {
-    return;
-  }
-
-  std_msgs::msg::Header header;
-  header.stamp = timestamp;
-  header.frame_id = map_frame_;
-  map_cloud_pub_->publish(ros_conversions::toPointCloud2(all_points, header));
-  RCLCPP_INFO(get_logger(),
-              "Published map cloud with %zu points from %zu local maps",
-              all_points.size(), current_local_map_count - 1);
 }
 
 void VegvisirNode::publishKeyposes(const rclcpp::Time &timestamp) {

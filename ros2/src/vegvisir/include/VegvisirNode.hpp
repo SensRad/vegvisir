@@ -69,8 +69,11 @@ private:
   std::string odom_frame_ = "odom";
 
   // Track last published sizes for change detection
-  size_t last_local_map_count_ = 0;
+  size_t published_segment_count_ = 0;
   size_t last_closure_count_ = 0;
+
+  // Cached map points pre-transformed into map frame
+  std::vector<Eigen::Vector3d> cached_map_points_;
 
   // Publish reference map point cloud from loaded database (called once at
   // startup)
