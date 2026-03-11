@@ -25,7 +25,7 @@ def generate_launch_description():
 
     slam_mode_arg = DeclareLaunchArgument(
         "slam_mode",
-        default_value="false",
+        default_value="true",
         description="Enable SLAM mode (true) or localization mode (false)",
     )
 

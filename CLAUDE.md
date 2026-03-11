@@ -20,7 +20,7 @@ source install/setup.bash
 cd python
 pip install .
 ```
-The Python build uses scikit-build-core and pulls in the C++ libraries via `add_subdirectory` from `ros2/src/vegvisir/`.
+The Python build uses scikit-build-core and pulls in the C++ libraries via `add_subdirectory` from `cpp/`.
 
 ### Run the ROS2 node
 ```bash
@@ -48,18 +48,19 @@ vegvisir (core)
 ```
 
 ### Key Source Locations
-- Core engine: `ros2/src/vegvisir/include/Vegvisir.hpp`, `ros2/src/vegvisir/src/Vegvisir.cpp`
-- Backend interface: `ros2/src/vegvisir/include/VegvisirBackend.hpp`
-- Pose graph: `ros2/src/vegvisir/include/LocalMapGraph.hpp` — `LocalMap` = keyframe + trajectory segment + point cloud
-- Loop closures: `ros2/src/vegvisir/map_closures/MapClosures.hpp`
-- PGO: `ros2/src/vegvisir/pgo/pose_graph_optimizer.hpp` (C++20, g2o backend)
+- C++ core CMake: `cpp/CMakeLists.txt`
+- Core engine: `cpp/include/Vegvisir.hpp`, `cpp/src/Vegvisir.cpp`
+- Backend interface: `cpp/include/VegvisirBackend.hpp`
+- Pose graph: `cpp/include/LocalMapGraph.hpp` — `LocalMap` = keyframe + trajectory segment + point cloud
+- Loop closures: `cpp/map_closures/MapClosures.hpp`
+- PGO: `cpp/pgo/pose_graph_optimizer.hpp` (C++20, g2o backend)
 - ROS2 node: `ros2/src/vegvisir/include/VegvisirNode.hpp` — subscribes to PointCloud2 + EgoMotion with ApproximateTime sync
 - Python wrapper: `python/vegvisir/vegvisir.py`
 - Pybind11 bindings: `python/vegvisir/pybind/vegvisir_pybind.cpp`
 - Custom ROS2 messages: `ros2/src/oden_interfaces/msg/`, `ros2/src/oden_interfaces/srv/`
 
 ### Point Cloud Format
-Input is Nx7: `[x, y, z, range, dist_to_ground, motion_status, occluded]`. Filtering is controlled by constants in `Vegvisir.hpp` (MIN_RANGE, MAX_RANGE, GROUND_PLANE_THRESHOLD, MOTIONSTATUS, OCCLUSION_STATUS).
+Input is Nx7: `[x, y, z, range, dist_to_ground, motion_status, occluded]`. Filtering is controlled by constants in `cpp/include/Vegvisir.hpp` (MIN_RANGE, MAX_RANGE, GROUND_PLANE_THRESHOLD, MOTIONSTATUS, OCCLUSION_STATUS).
 
 ### Map Database
 Saved to the `map_database_path` directory: `metadata.yaml`, `map_closures.db`, `poses.bin`, `points.bin`, and text reference files.
@@ -70,6 +71,6 @@ Saved to the `map_database_path` directory: `metadata.yaml`, `map_closures.db`, 
 - Compiler warnings: `-Wall -Wextra -Wpedantic`
 
 ## Fetched Dependencies (via CMake FetchContent)
-- **g2o** + SuiteSparse/CHOLMOD — `ros2/src/vegvisir/cmake/FetchG2O.cmake`
-- **Sophus** — `ros2/src/vegvisir/cmake/FetchSophus.cmake`
-- **tsl::robin_map** — `ros2/src/vegvisir/cmake/FetchTessil.cmake`
+- **g2o** + SuiteSparse/CHOLMOD — `cpp/cmake/FetchG2O.cmake`
+- **Sophus** — `cpp/cmake/FetchSophus.cmake`
+- **tsl::robin_map** — `cpp/cmake/FetchTessil.cmake`

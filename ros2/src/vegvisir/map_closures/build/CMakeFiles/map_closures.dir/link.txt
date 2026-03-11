@@ -1,2 +1,0 @@
-/usr/bin/ar qc libmap_closures.a CMakeFiles/map_closures.dir/DensityMap.o CMakeFiles/map_closures.dir/AlignRansac2D.o CMakeFiles/map_closures.dir/GroundAlign.o CMakeFiles/map_closures.dir/SiftFeatureLayer.o CMakeFiles/map_closures.dir/LbdFeatureLayer.o CMakeFiles/map_closures.dir/MapClosures.o
-/usr/bin/ranlib libmap_closures.a

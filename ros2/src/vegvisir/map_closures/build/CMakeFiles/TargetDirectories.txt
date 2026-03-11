@@ -1,3 +1,0 @@
-/home/jacob/git/Hugin-postpro/ros2_internal/src/vegvisir/map_closures/build/CMakeFiles/map_closures.dir
-/home/jacob/git/Hugin-postpro/ros2_internal/src/vegvisir/map_closures/build/CMakeFiles/edit_cache.dir
-/home/jacob/git/Hugin-postpro/ros2_internal/src/vegvisir/map_closures/build/CMakeFiles/rebuild_cache.dir
