@@ -13,14 +13,12 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
 
+#include "RosConversions.hpp"
 #include "Vegvisir.hpp"
 
 #include <Eigen/Dense>
 #include <sophus/se3.hpp>
-#include <sophus/so3.hpp>
 
-#include <algorithm>
-#include <iterator>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 namespace vegvisir {
@@ -34,16 +32,16 @@ private:
   process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &pointcloud_msg,
           const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg);
 
-  void pointcloudToEigen(
-      const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg,
-      std::vector<Eigen::VectorXd> &points);
+  std::vector<Eigen::VectorXd> pointcloudToEigen(
+      const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg);
 
-  void egoMotionToSophus(
-      const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg,
-      Sophus::SE3d &absolute_pose, Sophus::SE3d &delta_pose);
+  std::pair<Sophus::SE3d, Sophus::SE3d> egoMotionToSophus(
+      const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg);
 
   void broadcastMapToOdom(const rclcpp::Time &timestamp);
   void publishUncertaintyMarker(const rclcpp::Time &timestamp);
+  void publishMapPointCloud(const rclcpp::Time &timestamp);
+  void publishKeyposes(const rclcpp::Time &timestamp);
 
   // Message filter subscribers
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pointcloud_sub_;
@@ -73,12 +71,6 @@ private:
   // Track last published sizes for change detection
   size_t last_local_map_count_ = 0;
   size_t last_closure_count_ = 0;
-
-  // Publish map point cloud (all local maps transformed by keyposes)
-  void publishMapPointCloud(const rclcpp::Time &timestamp);
-
-  // Publish current keyposes path
-  void publishKeyposes(const rclcpp::Time &timestamp);
 
   // Publish reference map point cloud from loaded database (called once at
   // startup)
