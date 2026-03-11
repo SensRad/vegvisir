@@ -5,8 +5,8 @@ The Vegvisir ROS2 wrapper provides launch files and nodes for running Vegvisir w
 ## How to Build
 
 ```sh
-git clone https://github.com/SensRad/vegvisir
-cd ros2
+git clone https://github.com/SensRad/vegvisir.git
+cd vegvisir/ros2
 colcon build
 source install/setup.bash
 ```
