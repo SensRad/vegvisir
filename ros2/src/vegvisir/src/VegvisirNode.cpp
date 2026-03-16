@@ -5,10 +5,14 @@
 
 namespace vegvisir {
 
-VegvisirNode::VegvisirNode()
-    : Node("vegvisir_node"),
-      pointcloud_sub_(this, "extended_point_cloud"),
-      odometry_sub_(this, "odometry") {
+VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
+  // Declare pointcloud_topic as a required parameter (no default)
+  auto pointcloud_topic =
+      this->declare_parameter<std::string>("pointcloud_topic");
+
+  // Subscribe using the declared parameter value
+  pointcloud_sub_.subscribe(this, pointcloud_topic);
+  odometry_sub_.subscribe(this, "odometry");
 
   // Initialize localizer with map database
   std::string map_database_path = this->declare_parameter<std::string>(

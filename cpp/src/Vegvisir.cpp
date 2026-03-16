@@ -4,6 +4,8 @@
 #include "LocalizationBackend.hpp"
 #include "SlamBackend.hpp"
 
+#include <unistd.h>
+
 namespace vegvisir {
 
 Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
@@ -69,6 +71,11 @@ Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
 
 // Destructor
 Vegvisir::~Vegvisir() {
+  // Wait for any pending async closure job before saving
+  if (closure_future_.valid()) {
+    closure_future_.wait();
+  }
+
   // Auto-save database in SLAM mode (skip if already saved explicitly)
   if (mode_ == Mode::SLAM && loop_closure_enabled_ &&
       !map_database_path_.empty() && map_closer_ && !database_saved_) {
@@ -132,7 +139,8 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
 
 void Vegvisir::processLoopClosures(
     int query_id, const std::vector<Eigen::Vector3d> &query_points_mc,
-    const std::vector<Eigen::Vector3d> &query_points_icp) {
+    const std::vector<Eigen::Vector3d> &query_points_icp,
+    const Eigen::Matrix4d &query_odom_base) {
   if (!backend_ || !map_closer_) {
     return;
   }
@@ -165,12 +173,39 @@ void Vegvisir::processLoopClosures(
     // Update the closure with the refined and validated pose
     closure.pose = refined_pose;
 
-    // Store for visualization/external consumption
-    closures_.push_back(closure);
+    {
+      std::lock_guard<std::mutex> lock(closure_mutex_);
 
-    // Mode-specific application (PGO vs KF)
-    backend_->applyAcceptedClosure(closure);
+      // Store for visualization/external consumption
+      closures_.push_back(closure);
+
+      // Mode-specific application (PGO vs KF)
+      backend_->applyAcceptedClosure(closure, query_odom_base);
+    }
   }
+}
+
+void Vegvisir::processLoopClosuresAsync(
+    int query_id, std::vector<Eigen::Vector3d> query_points_mc,
+    std::vector<Eigen::Vector3d> query_points_icp,
+    Eigen::Matrix4d query_odom_base) {
+
+  // Skip if a previous closure job is still running
+  if (closure_future_.valid() &&
+      closure_future_.wait_for(std::chrono::seconds(0)) !=
+          std::future_status::ready) {
+    return;
+  }
+
+  closure_future_ = std::async(
+      std::launch::async,
+      [this, query_id, pts_mc = std::move(query_points_mc),
+       pts_icp = std::move(query_points_icp), query_odom_base]() {
+        // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
+        nice(19);
+
+        processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base);
+      });
 }
 
 // ICP refinement and overlap validation

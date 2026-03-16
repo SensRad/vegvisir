@@ -4,7 +4,9 @@
 
 #include <Eigen/Dense>
 #include <cstdint>
+#include <future>
 #include <memory>
+#include <mutex>
 #include <sophus/se3.hpp>
 #include <unordered_map>
 #include <vector>
@@ -226,6 +228,10 @@ private:
   // Save state tracking (prevents redundant saves in destructor)
   bool database_saved_ = false;
 
+  // Async loop closure state
+  std::future<void> closure_future_;
+  std::mutex closure_mutex_;
+
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
@@ -246,10 +252,20 @@ private:
 
   // Shared closure processing: candidate gating + ICP refine + overlap
   // validate. Retrieval + application are delegated to backend.
+  // query_odom_base: the odom pose at the time the query was built.
   void
   processLoopClosures(int query_id,
                       const std::vector<Eigen::Vector3d> &query_points_mc,
-                      const std::vector<Eigen::Vector3d> &query_points_icp);
+                      const std::vector<Eigen::Vector3d> &query_points_icp,
+                      const Eigen::Matrix4d &query_odom_base);
+
+  // Async wrapper: launches processLoopClosures on a background thread.
+  // Skips if a previous closure job is still running.
+  void
+  processLoopClosuresAsync(int query_id,
+                           std::vector<Eigen::Vector3d> query_points_mc,
+                           std::vector<Eigen::Vector3d> query_points_icp,
+                           Eigen::Matrix4d query_odom_base);
 
   // Utility: transform & append points (shared helper for localization backend)
   static void transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,

@@ -34,11 +34,12 @@ public:
       int query_id,
       const std::vector<Eigen::Vector3d> &query_points_mc) override;
 
-  void applyAcceptedClosure(const map_closures::ClosureCandidate &c) override;
+  void applyAcceptedClosure(const map_closures::ClosureCandidate &c,
+                            const Eigen::Matrix4d &query_odom_base) override;
 
 private:
   void optimizeKeyposeGraph();
-  void generateNewNode();
+  void generateNewNode(const Eigen::Matrix4d &T_odom_base);
 
 private:
   // SLAM-only state
