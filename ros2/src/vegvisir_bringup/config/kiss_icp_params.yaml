@@ -7,8 +7,17 @@
       base_frame: ""
 
       # Pipeline defaults
-      max_range: 100.0
-      min_range: 0.5
-      deskew: false
-      max_points_per_voxel: 20
-      voxel_size: 1.0
+      data:
+        max_range: 100.0
+        min_range: 0.5
+        deskew: true
+      mapping:
+        max_points_per_voxel: 20
+        voxel_size: 1.0
+      adaptive_threshold:
+        initial_threshold: 2.0
+        min_motion_th: 0.1
+      registration:
+        max_num_iterations: 500
+        convergence_criterion: 0.0001
+        max_num_threads: 0
