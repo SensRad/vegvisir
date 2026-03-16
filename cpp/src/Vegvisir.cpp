@@ -4,6 +4,8 @@
 #include "LocalizationBackend.hpp"
 #include "SlamBackend.hpp"
 
+#include <unistd.h>
+
 namespace vegvisir {
 
 Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
@@ -69,6 +71,11 @@ Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
 
 // Destructor
 Vegvisir::~Vegvisir() {
+  // Wait for any pending async closure job before saving
+  if (closure_future_.valid()) {
+    closure_future_.wait();
+  }
+
   // Auto-save database in SLAM mode (skip if already saved explicitly)
   if (mode_ == Mode::SLAM && loop_closure_enabled_ &&
       !map_database_path_.empty() && map_closer_ && !database_saved_) {
@@ -82,30 +89,8 @@ Vegvisir::~Vegvisir() {
   }
 }
 
-// filterPointCloud is disabled — vegvisir now accepts generic xyz point clouds
-// without requiring the Sensrad 7-field format.
-// void Vegvisir::filterPointCloud(
-//     const std::vector<Eigen::VectorXd> &input_points,
-//     std::vector<Eigen::Vector3d> &filtered_points) {
-//
-//   filtered_points.clear();
-//   for (const auto &point : input_points) {
-//     double range = point(3);
-//     double distance_to_ground = point(4);
-//     double motion_status = point(5);
-//     int occluded = static_cast<int>(point(6));
-//
-//     if (range >= MIN_RANGE && range <= MAX_RANGE &&
-//         distance_to_ground >= GROUND_PLANE_THRESHOLD &&
-//         motion_status == MOTIONSTATUS && occluded == OCCLUSION_STATUS) {
-//       filtered_points.push_back(Eigen::Vector3d(point(0), point(1), point(2)));
-//     }
-//   }
-// }
-
-void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
-                      const Sophus::SE3d &absolute_pose,
-                      const Sophus::SE3d &delta_pose) {
+void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
+                      const Sophus::SE3d &absolute_pose) {
 
   if (!loop_closure_enabled_) {
     std::cout << "Loop closure disabled" << std::endl;
@@ -115,6 +100,12 @@ void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
     std::cerr << "No backend initialized" << std::endl;
     return;
   }
+  // Compute delta from consecutive absolute poses
+  Sophus::SE3d delta_pose;
+  if (has_previous_pose_) {
+    delta_pose = current_odom_base_.inverse() * absolute_pose;
+  }
+  has_previous_pose_ = true;
 
   // Store current base_link pose in odom frame
   const Eigen::Matrix4d T_odom_base = absolute_pose.matrix();
@@ -123,15 +114,8 @@ void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
   // Mode-specific pre-integrate: compute current_pose_ + tf_map_odom_
   backend_->preIntegrate(T_odom_base, delta_pose);
 
-  // Extract xyz from input points (no sensor-specific filtering)
-  std::vector<Eigen::Vector3d> filtered_points;
-  filtered_points.reserve(points.size());
-  for (const auto &point : points) {
-    filtered_points.emplace_back(point(0), point(1), point(2));
-  }
-
   std::vector<Eigen::Vector3d> downsampled_points =
-      voxel_map::voxelDownsample(filtered_points, VOXEL_SIZE);
+      voxel_map::voxelDownsample(points, VOXEL_SIZE);
 
   // Integrate into voxel grid, and prune points too far away
   voxel_grid_.IntegrateFrame(downsampled_points, current_pose_);
@@ -155,7 +139,8 @@ void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
 
 void Vegvisir::processLoopClosures(
     int query_id, const std::vector<Eigen::Vector3d> &query_points_mc,
-    const std::vector<Eigen::Vector3d> &query_points_icp) {
+    const std::vector<Eigen::Vector3d> &query_points_icp,
+    const Eigen::Matrix4d &query_odom_base) {
   if (!backend_ || !map_closer_) {
     return;
   }
@@ -188,12 +173,39 @@ void Vegvisir::processLoopClosures(
     // Update the closure with the refined and validated pose
     closure.pose = refined_pose;
 
-    // Store for visualization/external consumption
-    closures_.push_back(closure);
+    {
+      std::lock_guard<std::mutex> lock(closure_mutex_);
 
-    // Mode-specific application (PGO vs KF)
-    backend_->applyAcceptedClosure(closure);
+      // Store for visualization/external consumption
+      closures_.push_back(closure);
+
+      // Mode-specific application (PGO vs KF)
+      backend_->applyAcceptedClosure(closure, query_odom_base);
+    }
   }
+}
+
+void Vegvisir::processLoopClosuresAsync(
+    int query_id, std::vector<Eigen::Vector3d> query_points_mc,
+    std::vector<Eigen::Vector3d> query_points_icp,
+    Eigen::Matrix4d query_odom_base) {
+
+  // Skip if a previous closure job is still running
+  if (closure_future_.valid() &&
+      closure_future_.wait_for(std::chrono::seconds(0)) !=
+          std::future_status::ready) {
+    return;
+  }
+
+  closure_future_ = std::async(
+      std::launch::async,
+      [this, query_id, pts_mc = std::move(query_points_mc),
+       pts_icp = std::move(query_points_icp), query_odom_base]() {
+        // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
+        nice(19);
+
+        processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base);
+      });
 }
 
 // ICP refinement and overlap validation

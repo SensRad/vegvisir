@@ -48,27 +48,11 @@ def generate_launch_description():
         ],
     )
 
-    adapter_node = Node(
-        package="vegvisir_bringup",
-        executable="odometry_to_ego_motion",
-        name="odometry_to_ego_motion",
-        namespace=namespace,
-        output="screen",
-        remappings=[
-            ("odometry_in", "kiss/odometry"),
-            ("ego_motion_out", "ego_motion"),
-        ],
-        parameters=[
-            {"use_sim_time": LaunchConfiguration("use_sim_time")},
-        ],
-    )
-
     return LaunchDescription(
         [
             namespace_arg,
             pointcloud_topic_arg,
             use_sim_time_arg,
             kiss_icp_node,
-            adapter_node,
         ]
     )

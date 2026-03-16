@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "oden_interfaces/msg/ego_motion.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
+#include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
@@ -30,13 +30,13 @@ public:
 private:
   void
   process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr &pointcloud_msg,
-          const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg);
+          const nav_msgs::msg::Odometry::ConstSharedPtr &odometry_msg);
 
-  std::vector<Eigen::VectorXd> pointcloudToEigen(
+  std::vector<Eigen::Vector3d> pointcloudToEigen(
       const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg);
 
-  std::pair<Sophus::SE3d, Sophus::SE3d> egoMotionToSophus(
-      const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg);
+  Sophus::SE3d
+  odometryToSophus(const nav_msgs::msg::Odometry::ConstSharedPtr &odometry_msg);
 
   void broadcastMapToOdom(const rclcpp::Time &timestamp);
   void publishUncertaintyMarker(const rclcpp::Time &timestamp);
@@ -45,14 +45,14 @@ private:
 
   // Message filter subscribers
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pointcloud_sub_;
-  message_filters::Subscriber<oden_interfaces::msg::EgoMotion> odometry_sub_;
+  message_filters::Subscriber<nav_msgs::msg::Odometry> odometry_sub_;
 
   // Vegvisir instance (handles all pose estimation)
   std::unique_ptr<Vegvisir> vegvisir_;
 
   // Synchronizer
   using SyncPolicy = message_filters::sync_policies::ApproximateTime<
-      sensor_msgs::msg::PointCloud2, oden_interfaces::msg::EgoMotion>;
+      sensor_msgs::msg::PointCloud2, nav_msgs::msg::Odometry>;
   std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
   // TF broadcaster

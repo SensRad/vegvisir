@@ -73,7 +73,8 @@ void SlamBackend::preIntegrate(const Eigen::Matrix4d &T_odom_base,
   }
   vegvisir_.current_pose_ = compensated_pose;
 
-  // Compute tf_map_odom from the optimized keyposes
+  // Lock: reads lastKeypose() (written by background optimizeKeyposeGraph)
+  std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
   Eigen::Matrix4d T_map_base =
       vegvisir_.local_map_graph_.lastKeypose() * vegvisir_.current_pose_;
   vegvisir_.tf_map_odom_ = T_map_base * T_odom_base.inverse();
@@ -89,9 +90,9 @@ double SlamBackend::queryDistanceM() const {
   return Vegvisir::QUERY_DISTANCE_SLAM_M;
 }
 
-void SlamBackend::runQueryCycle(const Eigen::Matrix4d & /*T_odom_base*/) {
+void SlamBackend::runQueryCycle(const Eigen::Matrix4d &T_odom_base) {
   // In SLAM mode, generate a new node after each query (and handle closures)
-  generateNewNode();
+  generateNewNode(T_odom_base);
 }
 
 std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
@@ -104,7 +105,8 @@ std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
 }
 
 void SlamBackend::applyAcceptedClosure(
-    const map_closures::ClosureCandidate &c) {
+    const map_closures::ClosureCandidate &c,
+    const Eigen::Matrix4d & /*query_odom_base*/) {
   if (!keypose_optimizer_) {
     return;
   }
@@ -134,7 +136,7 @@ void SlamBackend::optimizeKeyposeGraph() {
   }
 }
 
-void SlamBackend::generateNewNode() {
+void SlamBackend::generateNewNode(const Eigen::Matrix4d &T_odom_base) {
   // Generate a new SLAM node and check for loop closures
 
   LocalMap &last_local_map = vegvisir_.local_map_graph_.lastLocalMap();
@@ -170,31 +172,38 @@ void SlamBackend::generateNewNode() {
   auto query_points_mc = vegvisir_.voxel_grid_.Pointcloud();
   auto [query_points_icp, _] = vegvisir_.voxel_grid_.PerVoxelPointAndNormal();
 
-  // Store local map points for ICP refinement
-  vegvisir_.local_map_points_[query_id] = query_points_icp;
+  {
+    // Lock: serializes with background optimizeKeyposeGraph which accesses
+    // keypose_optimizer_, local_map_graph_.graph_, and local_map_points_
+    std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
 
-  // Finalize the local map and create a new one
-  uint64_t new_id = vegvisir_.local_map_graph_.finalizeLocalMap(
-      vegvisir_.voxel_grid_, Mode::SLAM);
+    // Store local map points for ICP refinement
+    vegvisir_.local_map_points_[query_id] = query_points_icp;
 
-  // Clear voxel grid and add transformed points
+    // Finalize the local map and create a new one
+    uint64_t new_id = vegvisir_.local_map_graph_.finalizeLocalMap(
+        vegvisir_.voxel_grid_, Mode::SLAM);
+
+    // Add variable to optimizer for the new keypose + odometry factor
+    if (keypose_optimizer_) {
+      keypose_optimizer_->addVariable(new_id,
+                                      vegvisir_.local_map_graph_.lastKeypose());
+
+      Eigen::Matrix<double, 6, 6> information =
+          Eigen::Matrix<double, 6, 6>::Identity();
+
+      keypose_optimizer_->addFactor(new_id, query_id_u64, relative_motion,
+                                    information);
+    }
+  }
+
+  // Voxel grid is main-thread only — no lock needed
   vegvisir_.voxel_grid_.Clear();
   vegvisir_.voxel_grid_.AddPoints(transformed_points);
 
-  // Add variable to optimizer for the new keypose + odometry factor
-  if (keypose_optimizer_) {
-    keypose_optimizer_->addVariable(new_id,
-                                    vegvisir_.local_map_graph_.lastKeypose());
-
-    Eigen::Matrix<double, 6, 6> information =
-        Eigen::Matrix<double, 6, 6>::Identity();
-
-    keypose_optimizer_->addFactor(new_id, query_id_u64, relative_motion,
-                                  information);
-  }
-
-  // Shared closure processing (retrieve+apply delegated back to this backend)
-  vegvisir_.processLoopClosures(query_id, query_points_mc, query_points_icp);
+  // Shared closure processing (async — runs on background thread)
+  vegvisir_.processLoopClosuresAsync(query_id, std::move(query_points_mc),
+                                     std::move(query_points_icp), T_odom_base);
 }
 
 } // namespace vegvisir

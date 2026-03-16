@@ -23,7 +23,8 @@ void LocalizationBackend::preIntegrate(const Eigen::Matrix4d &T_odom_base,
   // current_pose_ is anchor <- base
   vegvisir_.current_pose_ = T_odom_anchor_.inverse() * T_odom_base;
 
-  // In localization mode, use Kalman filter
+  // Lock: pose_filter_ and tf_map_odom_ are written by background closure thread
+  std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
   vegvisir_.pose_filter_.predict(delta_pose);
   vegvisir_.tf_map_odom_ = vegvisir_.pose_filter_.state().matrix();
 }
@@ -46,11 +47,13 @@ void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d &T_odom_base) {
   buildLocalizationQueryCloudInBaseFrame(T_odom_base, query_points_mc,
                                          query_points_icp);
 
-  vegvisir_.processLoopClosures(Vegvisir::QUERY_ID_LOCALIZATION,
-                                query_points_mc, query_points_icp);
-
-  // Cut localization submap if needed
+  // Cut submap before async closure call (independent, must stay synchronous)
   cutLocalizationSubmap();
+
+  // Shared closure processing (async — runs on background thread)
+  vegvisir_.processLoopClosuresAsync(Vegvisir::QUERY_ID_LOCALIZATION,
+                                     std::move(query_points_mc),
+                                     std::move(query_points_icp), T_odom_base);
 }
 
 std::vector<map_closures::ClosureCandidate>
@@ -64,12 +67,14 @@ LocalizationBackend::retrieveCandidates(
 }
 
 void LocalizationBackend::applyAcceptedClosure(
-    const map_closures::ClosureCandidate &c) {
-  handleClosureMeasurementUpdate(c.source_id, c.pose);
+    const map_closures::ClosureCandidate &c,
+    const Eigen::Matrix4d &query_odom_base) {
+  handleClosureMeasurementUpdate(c.source_id, c.pose, query_odom_base);
 }
 
 void LocalizationBackend::handleClosureMeasurementUpdate(
-    const int source_id, const Eigen::Matrix4d &pose) {
+    const int source_id, const Eigen::Matrix4d &pose,
+    const Eigen::Matrix4d &query_odom_base) {
   // Get reference poses
   const auto &reference_poses = vegvisir_.getReferencePoses();
   if (reference_poses.empty()) {
@@ -88,7 +93,7 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
 
   const Eigen::Matrix4d &tf_map_ref = ref_it->second;
 
-  const Eigen::Matrix4d tf_local_query = vegvisir_.current_odom_base_.matrix();
+  const Eigen::Matrix4d &tf_local_query = query_odom_base;
   const Eigen::Matrix4d &pose_constraint = pose;
 
   // Compute constraint inverse

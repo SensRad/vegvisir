@@ -4,7 +4,9 @@
 
 #include <Eigen/Dense>
 #include <cstdint>
+#include <future>
 #include <memory>
+#include <mutex>
 #include <sophus/se3.hpp>
 #include <unordered_map>
 #include <vector>
@@ -36,17 +38,18 @@ public:
            Mode mode = Mode::LOCALIZATION);
   ~Vegvisir();
 
-  void update(const std::vector<Eigen::VectorXd> &points,
-              const Sophus::SE3d &absolute_pose,
-              const Sophus::SE3d &delta_pose);
+  void update(const std::vector<Eigen::Vector3d> &points,
+              const Sophus::SE3d &absolute_pose);
 
   // Save database (SLAM mode only) - saves poses.bin, points.bin, closures, and
   // metadata
   bool saveDatabase();
 
   // Get/set map metadata
-  const MapMetadata &getMapMetadata() const { return map_metadata_; }
-  void setMapMetadata(const MapMetadata &metadata) { map_metadata_ = metadata; }
+  const MapMetadata &getMapMetadata() const {
+    return map_metadata_; }
+  void setMapMetadata(const MapMetadata &metadata) {
+    map_metadata_ = metadata; }
 
   /// Set the GNSS anchor transform (T_ENU_map) to be saved with the map.
   void setGnssAnchorTransform(const Eigen::Matrix4d &T_enu_map) {
@@ -69,21 +72,26 @@ public:
   }
 
   /// Check if GNSS anchor data is available
-  bool hasGnssAnchor() const { return map_metadata_.has_gnss_anchor; }
+  bool hasGnssAnchor() const {
+    return map_metadata_.has_gnss_anchor; }
 
   /// Get the GNSS origin from loaded metadata.
-  GnssOrigin getGnssOrigin() const { return map_metadata_.gnss_origin; }
+  GnssOrigin getGnssOrigin() const {
+    return map_metadata_.gnss_origin; }
 
   // Access to local map graph for external use (e.g., visualization)
-  const LocalMapGraph &getLocalMapGraph() const { return local_map_graph_; }
+  const LocalMapGraph &getLocalMapGraph() const {
+    return local_map_graph_; }
 
   // Access to pose estimation state
-  Eigen::Matrix4d getMapToOdomTransform() const { return tf_map_odom_; }
+  Eigen::Matrix4d getMapToOdomTransform() const {
+    return tf_map_odom_; }
   Eigen::Matrix<double, 6, 6> getCovariance() const {
     return pose_filter_.covariance();
   }
   Eigen::Matrix4d getBaseInMapFrame() const;
-  Sophus::SE3d getCurrentOdomBase() const { return current_odom_base_; }
+  Sophus::SE3d getCurrentOdomBase() const {
+    return current_odom_base_; }
 
   // Access to map closure data for visualization and localization
   const std::unordered_map<int, Eigen::Matrix4d> &getReferencePoses() const;
@@ -111,7 +119,8 @@ public:
   void addGnssMeasurement(int pose_index, const Eigen::Vector3d &position_enu,
                           const Eigen::Matrix3d &information_matrix);
   void clearGnssMeasurements();
-  size_t getNumGnssMeasurements() const { return gnss_measurements_.size(); }
+  size_t getNumGnssMeasurements() const {
+    return gnss_measurements_.size(); }
 
   // Full SE3 GNSS pose measurement methods for pose graph optimization
   void
@@ -132,7 +141,8 @@ public:
   }
 
   // Get current mode
-  Mode getMode() const { return mode_; }
+  Mode getMode() const {
+    return mode_; }
 
   // Constants accessible by backends
   static constexpr double QUERY_DISTANCE_LOCALIZATION_M =
@@ -150,12 +160,6 @@ public:
       100000; // reuse constant ID in localization
 
 private:
-  // Variables for the point cloud filter
-  static constexpr double MIN_RANGE = 2.0;              // meter
-  static constexpr double MAX_RANGE = 60.0;             // meter
-  static constexpr double GROUND_PLANE_THRESHOLD = 0.4; // meter
-  static constexpr double MOTIONSTATUS = 0;             // Hard-coded for now.
-  static constexpr int OCCLUSION_STATUS = 0;            // 0 = non-occluded
 
   static constexpr double VOXEL_SIZE = 1.0; // meter
 
@@ -188,6 +192,8 @@ private:
   Eigen::Matrix4d tf_map_odom_ = Eigen::Matrix4d::Identity();
   Sophus::SE3d current_odom_base_ =
       Sophus::SE3d(); // Current base_link pose in odom frame
+
+  bool has_previous_pose_ = false;
 
   // Mode selection & persistence
   Mode mode_;
@@ -222,6 +228,10 @@ private:
   // Save state tracking (prevents redundant saves in destructor)
   bool database_saved_ = false;
 
+  // Async loop closure state
+  std::future<void> closure_future_;
+  std::mutex closure_mutex_;
+
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
@@ -242,10 +252,20 @@ private:
 
   // Shared closure processing: candidate gating + ICP refine + overlap
   // validate. Retrieval + application are delegated to backend.
+  // query_odom_base: the odom pose at the time the query was built.
   void
   processLoopClosures(int query_id,
                       const std::vector<Eigen::Vector3d> &query_points_mc,
-                      const std::vector<Eigen::Vector3d> &query_points_icp);
+                      const std::vector<Eigen::Vector3d> &query_points_icp,
+                      const Eigen::Matrix4d &query_odom_base);
+
+  // Async wrapper: launches processLoopClosures on a background thread.
+  // Skips if a previous closure job is still running.
+  void
+  processLoopClosuresAsync(int query_id,
+                           std::vector<Eigen::Vector3d> query_points_mc,
+                           std::vector<Eigen::Vector3d> query_points_icp,
+                           Eigen::Matrix4d query_odom_base);
 
   // Utility: transform & append points (shared helper for localization backend)
   static void transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,

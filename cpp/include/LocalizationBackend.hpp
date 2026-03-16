@@ -32,11 +32,13 @@ public:
       int query_id,
       const std::vector<Eigen::Vector3d> &query_points_mc) override;
 
-  void applyAcceptedClosure(const map_closures::ClosureCandidate &c) override;
+  void applyAcceptedClosure(const map_closures::ClosureCandidate &c,
+                            const Eigen::Matrix4d &query_odom_base) override;
 
 private:
   void handleClosureMeasurementUpdate(int source_id,
-                                      const Eigen::Matrix4d &pose);
+                                      const Eigen::Matrix4d &pose,
+                                      const Eigen::Matrix4d &query_odom_base);
   void initLocalizationAnchor(const Eigen::Matrix4d &T_odom_base);
   void pruneLocalizationSubmapBuffer();
   void cutLocalizationSubmap();

@@ -66,17 +66,6 @@ Config GetConfigFromDict(const py::dict &cfg) {
 }
 } // namespace map_closures
 
-// Helper: convert numpy Nx7 array to std::vector<Eigen::VectorXd>
-static std::vector<Eigen::VectorXd>
-numpy_to_vector_of_vectorxd(const Eigen::MatrixXd &mat) {
-  std::vector<Eigen::VectorXd> result;
-  result.reserve(mat.rows());
-  for (Eigen::Index i = 0; i < mat.rows(); ++i) {
-    result.push_back(mat.row(i).transpose());
-  }
-  return result;
-}
-
 // Helper: convert 4x4 numpy matrix to Sophus::SE3d
 static Sophus::SE3d matrix4d_to_se3(const Eigen::Matrix4d &T) {
   Eigen::Matrix3d R = T.block<3, 3>(0, 0);
@@ -324,17 +313,13 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
              "mode"_a = Mode::SLAM)
         .def(
             "update",
-            [](Vegvisir &self, const Eigen::MatrixXd &points_nx7,
-               const Eigen::Matrix4d &absolute_pose,
-               const Eigen::Matrix4d &delta_pose) {
-              auto pts = numpy_to_vector_of_vectorxd(points_nx7);
+            [](Vegvisir &self, const std::vector<Eigen::Vector3d> &points,
+               const Eigen::Matrix4d &absolute_pose) {
               auto abs_se3 = matrix4d_to_se3(absolute_pose);
-              auto delta_se3 = matrix4d_to_se3(delta_pose);
-              self.update(pts, abs_se3, delta_se3);
+              self.update(points, abs_se3);
             },
-            "points_7d"_a, "absolute_pose"_a, "delta_pose"_a,
-            "Update the localizer with 7D points (Nx7), absolute pose (4x4), "
-            "and delta pose (4x4)")
+            "points"_a, "absolute_pose"_a,
+            "Update the localizer with 3D points and absolute pose (4x4)")
         .def("save_database", &Vegvisir::saveDatabase)
         .def("fine_grained_optimization", &Vegvisir::fineGrainedOptimization)
         .def("fine_grained_optimization_and_update_keyposes",

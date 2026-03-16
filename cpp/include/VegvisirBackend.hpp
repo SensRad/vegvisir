@@ -46,9 +46,10 @@ public:
 
   // Backend must apply accepted closure:
   // SLAM: add factor + optimize keypose graph
-  // Localization: Kalman measurement update
+  // Localization: Kalman measurement update (uses query_odom_base)
   virtual void
-  applyAcceptedClosure(const map_closures::ClosureCandidate &c) = 0;
+  applyAcceptedClosure(const map_closures::ClosureCandidate &c,
+                       const Eigen::Matrix4d &query_odom_base) = 0;
 
 protected:
   Vegvisir &vegvisir_;
