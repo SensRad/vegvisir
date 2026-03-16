@@ -1,0 +1,17 @@
+PROJECT_NAME           = "Vegvisir"
+PROJECT_BRIEF          = "SLAM and Localization System"
+OUTPUT_DIRECTORY       = docs
+INPUT                  = cpp/include cpp/src cpp/map_closures cpp/pgo cpp/icp_svd cpp/voxel_map
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.cpp *.h
+EXTRACT_ALL            = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_FROM_PATH        = cpp/
