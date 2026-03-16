@@ -7,9 +7,12 @@ The Vegvisir ROS2 wrapper provides launch files and nodes for running Vegvisir w
 ```sh
 git clone https://github.com/SensRad/vegvisir.git
 cd vegvisir/ros2
+vcs import src < vegvisir.repos
 colcon build
 source install/setup.bash
 ```
+
+> **Note:** The `vcs` command comes from vcstool. Install it with `sudo apt install python3-vcstool` or `pip install vcstool`.
 
 ## How to Run
 

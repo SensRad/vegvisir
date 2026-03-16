@@ -35,6 +35,9 @@ dist/
 .cache/
 compile_commands.json
 
+# External source dependencies (cloned via vcstool)
+ros2/src/third_party/kiss-icp/
+
 # OS
 .DS_Store
 Thumbs.db
