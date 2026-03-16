@@ -25,22 +25,18 @@ class Vegvisir:
 
     def update(
         self,
-        points_7d: np.ndarray,
+        points: np.ndarray,
         absolute_pose: np.ndarray,
-        delta_pose: np.ndarray,
     ):
         """Feed one scan into the localizer.
 
         Args:
-            points_7d: Nx7 array [x, y, z, range, dist_to_ground,
-                       motion_status, occluded].
+            points: Nx3 array of 3D points [x, y, z].
             absolute_pose: 4x4 odometry pose (T_odom_base).
-            delta_pose: 4x4 incremental odometry.
         """
         self._impl.update(
-            np.ascontiguousarray(points_7d, dtype=np.float64),
+            np.ascontiguousarray(points, dtype=np.float64),
             np.ascontiguousarray(absolute_pose, dtype=np.float64),
-            np.ascontiguousarray(delta_pose, dtype=np.float64),
         )
 
     def save_database(self) -> bool:

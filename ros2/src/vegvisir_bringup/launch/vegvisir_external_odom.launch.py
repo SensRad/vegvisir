@@ -1,8 +1,8 @@
 # Copyright (c) Sensrad 2025-2026
-"""Top-level launch: vegvisir with user-provided EgoMotion + optional RViz.
+"""Top-level launch: vegvisir with user-provided nav_msgs/Odometry + optional RViz.
 
-The user is expected to publish oden_interfaces/EgoMotion on
-<namespace>/ego_motion externally.
+The user is expected to publish nav_msgs/Odometry on the configured
+odometry_topic externally.
 """
 
 import os
@@ -37,6 +37,11 @@ def generate_launch_description():
     log_level_arg = DeclareLaunchArgument(
         "log_level", default_value="WARN", description="Logging level"
     )
+    odometry_topic_arg = DeclareLaunchArgument(
+        "odometry_topic",
+        default_value="odometry",
+        description="Input odometry topic (nav_msgs/Odometry)",
+    )
     visualize_arg = DeclareLaunchArgument(
         "visualize", default_value="true", description="Launch RViz"
     )
@@ -54,6 +59,7 @@ def generate_launch_description():
             "slam_mode": LaunchConfiguration("slam_mode"),
             "namespace": LaunchConfiguration("namespace"),
             "log_level": LaunchConfiguration("log_level"),
+            "odometry_topic": LaunchConfiguration("odometry_topic"),
         }.items(),
     )
 
@@ -73,6 +79,7 @@ def generate_launch_description():
             slam_mode_arg,
             namespace_arg,
             log_level_arg,
+            odometry_topic_arg,
             visualize_arg,
             rviz_config_arg,
             vegvisir_launch,

@@ -61,6 +61,7 @@ def generate_launch_description():
             "namespace": LaunchConfiguration("namespace"),
             "log_level": LaunchConfiguration("log_level"),
             "pointcloud_topic": LaunchConfiguration("pointcloud_topic"),
+            "odometry_topic": "kiss/odometry",
         }.items(),
     )
 

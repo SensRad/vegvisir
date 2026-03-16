@@ -38,6 +38,11 @@ def generate_launch_description():
         default_value="extended_point_cloud",
         description="Input pointcloud topic (remapped to extended_point_cloud)",
     )
+    odometry_topic_arg = DeclareLaunchArgument(
+        "odometry_topic",
+        default_value="odometry",
+        description="Input odometry topic (nav_msgs/Odometry)",
+    )
 
     vegvisir_node = Node(
         package="vegvisir",
@@ -47,6 +52,7 @@ def generate_launch_description():
         output="screen",
         remappings=[
             ("extended_point_cloud", LaunchConfiguration("pointcloud_topic")),
+            ("odometry", LaunchConfiguration("odometry_topic")),
         ],
         parameters=[
             default_params,
@@ -67,6 +73,7 @@ def generate_launch_description():
             namespace_arg,
             log_level_arg,
             pointcloud_topic_arg,
+            odometry_topic_arg,
             vegvisir_node,
         ]
     )

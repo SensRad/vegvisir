@@ -82,30 +82,8 @@ Vegvisir::~Vegvisir() {
   }
 }
 
-// filterPointCloud is disabled — vegvisir now accepts generic xyz point clouds
-// without requiring the Sensrad 7-field format.
-// void Vegvisir::filterPointCloud(
-//     const std::vector<Eigen::VectorXd> &input_points,
-//     std::vector<Eigen::Vector3d> &filtered_points) {
-//
-//   filtered_points.clear();
-//   for (const auto &point : input_points) {
-//     double range = point(3);
-//     double distance_to_ground = point(4);
-//     double motion_status = point(5);
-//     int occluded = static_cast<int>(point(6));
-//
-//     if (range >= MIN_RANGE && range <= MAX_RANGE &&
-//         distance_to_ground >= GROUND_PLANE_THRESHOLD &&
-//         motion_status == MOTIONSTATUS && occluded == OCCLUSION_STATUS) {
-//       filtered_points.push_back(Eigen::Vector3d(point(0), point(1), point(2)));
-//     }
-//   }
-// }
-
-void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
-                      const Sophus::SE3d &absolute_pose,
-                      const Sophus::SE3d &delta_pose) {
+void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
+                      const Sophus::SE3d &absolute_pose) {
 
   if (!loop_closure_enabled_) {
     std::cout << "Loop closure disabled" << std::endl;
@@ -115,6 +93,12 @@ void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
     std::cerr << "No backend initialized" << std::endl;
     return;
   }
+  // Compute delta from consecutive absolute poses
+  Sophus::SE3d delta_pose;
+  if (has_previous_pose_) {
+    delta_pose = current_odom_base_.inverse() * absolute_pose;
+  }
+  has_previous_pose_ = true;
 
   // Store current base_link pose in odom frame
   const Eigen::Matrix4d T_odom_base = absolute_pose.matrix();
@@ -123,15 +107,8 @@ void Vegvisir::update(const std::vector<Eigen::VectorXd> &points,
   // Mode-specific pre-integrate: compute current_pose_ + tf_map_odom_
   backend_->preIntegrate(T_odom_base, delta_pose);
 
-  // Extract xyz from input points (no sensor-specific filtering)
-  std::vector<Eigen::Vector3d> filtered_points;
-  filtered_points.reserve(points.size());
-  for (const auto &point : points) {
-    filtered_points.emplace_back(point(0), point(1), point(2));
-  }
-
   std::vector<Eigen::Vector3d> downsampled_points =
-      voxel_map::voxelDownsample(filtered_points, VOXEL_SIZE);
+      voxel_map::voxelDownsample(points, VOXEL_SIZE);
 
   // Integrate into voxel grid, and prune points too far away
   voxel_grid_.IntegrateFrame(downsampled_points, current_pose_);

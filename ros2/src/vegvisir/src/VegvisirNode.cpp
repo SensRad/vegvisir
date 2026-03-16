@@ -6,8 +6,9 @@
 namespace vegvisir {
 
 VegvisirNode::VegvisirNode()
-    : Node("vegvisir_node"), pointcloud_sub_(this, "extended_point_cloud"),
-      odometry_sub_(this, "ego_motion") {
+    : Node("vegvisir_node"),
+      pointcloud_sub_(this, "extended_point_cloud"),
+      odometry_sub_(this, "odometry") {
 
   // Initialize localizer with map database
   std::string map_database_path = this->declare_parameter<std::string>(
@@ -64,12 +65,12 @@ VegvisirNode::VegvisirNode()
   RCLCPP_INFO(get_logger(), "Mode: %s", slam_mode ? "SLAM" : "LOCALIZATION");
 }
 
-std::vector<Eigen::VectorXd> VegvisirNode::pointcloudToEigen(
+std::vector<Eigen::Vector3d> VegvisirNode::pointcloudToEigen(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr &cloud_msg) {
   using sensor_msgs::PointCloud2ConstIterator;
   const size_t point_count = cloud_msg->width * cloud_msg->height;
 
-  std::vector<Eigen::VectorXd> points;
+  std::vector<Eigen::Vector3d> points;
   points.reserve(point_count);
 
   PointCloud2ConstIterator<float> it_x(*cloud_msg, "x");
@@ -77,39 +78,31 @@ std::vector<Eigen::VectorXd> VegvisirNode::pointcloudToEigen(
   PointCloud2ConstIterator<float> it_z(*cloud_msg, "z");
 
   for (size_t i = 0; i < point_count; ++i, ++it_x, ++it_y, ++it_z) {
-    Eigen::VectorXd point(3);
-    point << static_cast<double>(*it_x), static_cast<double>(*it_y),
-        static_cast<double>(*it_z);
-    points.push_back(std::move(point));
+    points.emplace_back(static_cast<double>(*it_x), static_cast<double>(*it_y),
+                        static_cast<double>(*it_z));
   }
 
   return points;
 }
 
-std::pair<Sophus::SE3d, Sophus::SE3d> VegvisirNode::egoMotionToSophus(
-    const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg) {
-  const auto &m = *odometry_msg;
+Sophus::SE3d VegvisirNode::odometryToSophus(
+    const nav_msgs::msg::Odometry::ConstSharedPtr &odometry_msg) {
 
-  const auto pose = Sophus::SE3d(
-      Eigen::Quaterniond(m.rotation_quat_w, m.rotation_quat_x,
-                         m.rotation_quat_y, m.rotation_quat_z),
-      Eigen::Vector3d(m.translation_x, m.translation_y, m.translation_z));
-
-  const auto delta_pose = Sophus::SE3d(
-      Eigen::Quaterniond(m.delta_rotation_quat_w, m.delta_rotation_quat_x,
-                         m.delta_rotation_quat_y, m.delta_rotation_quat_z),
-      Eigen::Vector3d(m.delta_translation_x, m.delta_translation_y,
-                      m.delta_translation_z));
-  return {pose, delta_pose};
+  const auto &pose_msg = odometry_msg->pose.pose;
+  Eigen::Vector3d translation(pose_msg.position.x, pose_msg.position.y,
+                              pose_msg.position.z);
+  Eigen::Quaterniond rotation(pose_msg.orientation.w, pose_msg.orientation.x,
+                              pose_msg.orientation.y, pose_msg.orientation.z);
+  return Sophus::SE3d(rotation, translation);
 }
 
 void VegvisirNode::process(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr &pointcloud_msg,
-    const oden_interfaces::msg::EgoMotion::ConstSharedPtr &odometry_msg) {
+    const nav_msgs::msg::Odometry::ConstSharedPtr &odometry_msg) {
   auto points = pointcloudToEigen(pointcloud_msg);
-  auto [absolute_pose, delta_pose] = egoMotionToSophus(odometry_msg);
+  auto absolute_pose = odometryToSophus(odometry_msg);
 
-  vegvisir_->update(points, absolute_pose, delta_pose);
+  vegvisir_->update(points, absolute_pose);
 
   const auto &stamp = pointcloud_msg->header.stamp;
   broadcastMapToOdom(stamp);
