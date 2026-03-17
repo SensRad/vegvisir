@@ -22,7 +22,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../cpp
 
 # vegvisir_node (ROS2 executable)
 add_executable(vegvisir_node src/main.cpp src/VegvisirNode.cpp)
-target_include_directories(vegvisir_node PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(vegvisir_node
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(vegvisir_node vegvisir)
 ament_target_dependencies(
   vegvisir_node

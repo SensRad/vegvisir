@@ -1,7 +1,8 @@
 // Copyright (c) Sensrad 2025-2026
 
 #include "LocalMapGraph.hpp"
-#include "Vegvisir.hpp" // For Mode enum definition
+
+#include "Vegvisir.hpp"  // For Mode enum definition
 
 namespace vegvisir {
 
@@ -9,8 +10,7 @@ namespace vegvisir {
 // LocalMap Implementation
 // ============================================================================
 
-LocalMap::LocalMap(uint64_t id, const Eigen::Matrix4d &keypose)
-    : id_(id), keypose_(keypose) {
+LocalMap::LocalMap(uint64_t id, const Eigen::Matrix4d& keypose) : id_(id), keypose_(keypose) {
   // Initialize with empty trajectory
   // The trajectory will be populated as poses are added
 }
@@ -22,20 +22,22 @@ Eigen::Matrix4d LocalMap::endpose() const {
   return keypose_ * local_trajectory_.back();
 }
 
-void LocalMap::addToTrajectory(const Eigen::Matrix4d &relative_pose) {
+void LocalMap::addToTrajectory(const Eigen::Matrix4d& relative_pose) {
   local_trajectory_.push_back(relative_pose);
 }
 
-void LocalMap::clearTrajectory() { local_trajectory_.clear(); }
+void LocalMap::clearTrajectory() {
+  local_trajectory_.clear();
+}
 
-bool LocalMap::write(const std::string &filename) const {
+bool LocalMap::write(const std::string& filename) const {
   std::ofstream file(filename, std::ios::binary);
   if (!file.is_open()) {
     return false;
   }
 
   // Transform points by keypose before writing
-  for (const auto &point : pcd_) {
+  for (const auto& point : pcd_) {
     Eigen::Vector4d p_hom(point.x(), point.y(), point.z(), 1.0);
     Eigen::Vector4d p_transformed = keypose_ * p_hom;
 
@@ -57,26 +59,23 @@ bool LocalMap::write(const std::string &filename) const {
 
 LocalMapGraph::LocalMapGraph(int initial_map_id) {
   // Create the initial local map with identity keypose
-  LocalMap initial_map(static_cast<uint64_t>(initial_map_id),
-                       Eigen::Matrix4d::Identity());
+  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity());
   // Don't add Identity to trajectory - start with empty trajectory
   graph_.emplace(static_cast<uint64_t>(initial_map_id), std::move(initial_map));
 }
 
-LocalMap &LocalMapGraph::operator[](uint64_t key) {
+LocalMap& LocalMapGraph::operator[](uint64_t key) {
   auto it = graph_.find(key);
   if (it == graph_.end()) {
-    throw std::out_of_range("LocalMapGraph: key " + std::to_string(key) +
-                            " not found");
+    throw std::out_of_range("LocalMapGraph: key " + std::to_string(key) + " not found");
   }
   return it->second;
 }
 
-const LocalMap &LocalMapGraph::operator[](uint64_t key) const {
+const LocalMap& LocalMapGraph::operator[](uint64_t key) const {
   auto it = graph_.find(key);
   if (it == graph_.end()) {
-    throw std::out_of_range("LocalMapGraph: key " + std::to_string(key) +
-                            " not found");
+    throw std::out_of_range("LocalMapGraph: key " + std::to_string(key) + " not found");
   }
   return it->second;
 }
@@ -92,21 +91,25 @@ uint64_t LocalMapGraph::lastId() const {
   return graph_.rbegin()->first;
 }
 
-LocalMap &LocalMapGraph::lastLocalMap() { return graph_.rbegin()->second; }
-
-const LocalMap &LocalMapGraph::lastLocalMap() const {
+LocalMap& LocalMapGraph::lastLocalMap() {
   return graph_.rbegin()->second;
 }
 
-const Eigen::Matrix4d &LocalMapGraph::lastKeypose() const {
+const LocalMap& LocalMapGraph::lastLocalMap() const {
+  return graph_.rbegin()->second;
+}
+
+const Eigen::Matrix4d& LocalMapGraph::lastKeypose() const {
   return lastLocalMap().keypose();
 }
 
-Eigen::Matrix4d &LocalMapGraph::lastKeypose() {
+Eigen::Matrix4d& LocalMapGraph::lastKeypose() {
   return lastLocalMap().keypose();
 }
 
-void LocalMapGraph::eraseLocalMap(uint64_t key) { graph_.erase(key); }
+void LocalMapGraph::eraseLocalMap(uint64_t key) {
+  graph_.erase(key);
+}
 
 void LocalMapGraph::eraseLastLocalMap() {
   if (!graph_.empty()) {
@@ -114,17 +117,15 @@ void LocalMapGraph::eraseLastLocalMap() {
   }
 }
 
-uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap &voxel_grid,
-                                         Mode mode) {
-  LocalMap &current_map = lastLocalMap();
+uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode) {
+  LocalMap& current_map = lastLocalMap();
 
   if (mode == Mode::LOCALIZATION) {
     // In localization mode, store the full point cloud
     current_map.pointCloud() = voxel_grid.Pointcloud();
   } else {
     // In SLAM mode, store only per-voxel points for efficiency
-    auto [query_points_icp, query_normals] =
-        voxel_grid.PerVoxelPointAndNormal();
+    auto [query_points_icp, query_normals] = voxel_grid.PerVoxelPointAndNormal();
     current_map.pointCloud() = query_points_icp;
   }
 
@@ -146,7 +147,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap &voxel_grid,
 }
 
 uint64_t LocalMapGraph::finalizeLocalMap() {
-  LocalMap &current_map = lastLocalMap();
+  LocalMap& current_map = lastLocalMap();
 
   // Compute the new keypose (endpose of current map)
   uint64_t new_id = current_map.id() + 1;
@@ -163,15 +164,14 @@ uint64_t LocalMapGraph::finalizeLocalMap() {
   return new_id;
 }
 
-void LocalMapGraph::setPointCloud(uint64_t key,
-                                  const std::vector<Eigen::Vector3d> &points) {
+void LocalMapGraph::setPointCloud(uint64_t key, const std::vector<Eigen::Vector3d>& points) {
   (*this)[key].pointCloud() = points;
 }
 
 std::vector<Eigen::Matrix4d> LocalMapGraph::getAllKeyposes() const {
   std::vector<Eigen::Matrix4d> keyposes;
   keyposes.reserve(graph_.size());
-  for (const auto &[id, local_map] : graph_) {
+  for (const auto& [id, local_map] : graph_) {
     keyposes.push_back(local_map.keypose());
   }
   return keyposes;
@@ -180,27 +180,25 @@ std::vector<Eigen::Matrix4d> LocalMapGraph::getAllKeyposes() const {
 std::vector<uint64_t> LocalMapGraph::getAllIds() const {
   std::vector<uint64_t> ids;
   ids.reserve(graph_.size());
-  for (const auto &[id, local_map] : graph_) {
+  for (const auto& [id, local_map] : graph_) {
     ids.push_back(id);
   }
   return ids;
 }
 
-void LocalMapGraph::updateKeypose(uint64_t key,
-                                  const Eigen::Matrix4d &new_keypose) {
+void LocalMapGraph::updateKeypose(uint64_t key, const Eigen::Matrix4d& new_keypose) {
   (*this)[key].keypose() = new_keypose;
 }
 
-void LocalMapGraph::addLocalMap(uint64_t id, const Eigen::Matrix4d &keypose) {
+void LocalMapGraph::addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose) {
   LocalMap new_map(id, keypose);
   graph_.emplace(id, std::move(new_map));
 }
 
 void LocalMapGraph::clear(int initial_map_id) {
   graph_.clear();
-  LocalMap initial_map(static_cast<uint64_t>(initial_map_id),
-                       Eigen::Matrix4d::Identity());
+  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity());
   graph_.emplace(static_cast<uint64_t>(initial_map_id), std::move(initial_map));
 }
 
-} // namespace vegvisir
+}  // namespace vegvisir

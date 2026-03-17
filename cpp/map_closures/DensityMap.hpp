@@ -25,35 +25,32 @@
 
 #pragma once
 
+#include <vector>
+
 #include <Eigen/Core>
 #include <opencv2/core.hpp>
-#include <vector>
 
 namespace map_closures {
 
 struct DensityMap {
   DensityMap() = default;
   DensityMap(const int num_rows, const int num_cols, const double resolution,
-             const Eigen::Vector2i &lower_bound);
-  DensityMap(const DensityMap &other) = delete;
-  DensityMap(DensityMap &&other) = default;
-  DensityMap &operator=(DensityMap &&other) = default;
-  DensityMap &operator=(const DensityMap &other) = delete;
-  inline auto &operator()(const int x, const int y) {
-    return grid.at<uint8_t>(x, y);
-  }
+             const Eigen::Vector2i& lower_bound);
+  DensityMap(const DensityMap& other) = delete;
+  DensityMap(DensityMap&& other) = default;
+  DensityMap& operator=(DensityMap&& other) = default;
+  DensityMap& operator=(const DensityMap& other) = delete;
+  inline auto& operator()(const int x, const int y) { return grid.at<uint8_t>(x, y); }
   Eigen::Vector2i lower_bound;
   double resolution = 0.0;
   cv::Mat grid;
 };
 
-DensityMap
-GenerateDensityMap(const std::vector<Eigen::Vector3d> &pointcloud_map,
-                   const Eigen::Matrix4d &T_ground,
-                   const float density_map_resolution,
-                   const float density_threshold);
+DensityMap GenerateDensityMap(const std::vector<Eigen::Vector3d>& pointcloud_map,
+                              const Eigen::Matrix4d& T_ground, const float density_map_resolution,
+                              const float density_threshold);
 
 /// Apply gamma correction to density map for improved feature detection
 /// Gamma < 1.0 brightens the image, > 1.0 darkens it, 1.0 = no change
-void ApplyGammaCorrection(DensityMap &density_map, const float gamma);
-} // namespace map_closures
+void ApplyGammaCorrection(DensityMap& density_map, const float gamma);
+}  // namespace map_closures

@@ -5,8 +5,6 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 
 # Install launch, config, and rviz directories
-install(DIRECTORY launch config rviz
-  DESTINATION share/${PROJECT_NAME}
-)
+install(DIRECTORY launch config rviz DESTINATION share/${PROJECT_NAME})
 
 ament_package()

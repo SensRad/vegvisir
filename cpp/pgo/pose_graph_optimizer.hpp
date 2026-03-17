@@ -22,16 +22,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 #pragma once
-#include <g2o/core/sparse_optimizer.h>
-
-#include <Eigen/Geometry>
 #include <fstream>
 #include <memory>
 #include <string>
 
+#include <Eigen/Geometry>
+#include <g2o/core/sparse_optimizer.h>
+
 namespace Eigen {
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
-} // namespace Eigen
+}  // namespace Eigen
 
 namespace pgo {
 
@@ -42,21 +42,20 @@ namespace pgo {
 static constexpr int ALIGNMENT_VERTEX_ID = 1000000;
 
 class PoseGraphOptimizer {
-public:
+ public:
   using PoseIDMap = std::map<int, Eigen::Matrix4d>;
   explicit PoseGraphOptimizer(const int max_iterations, bool verbose = false);
 
   void fixVariable(const int id);
-  void addVariable(const int id, const Eigen::Matrix4d &T);
+  void addVariable(const int id, const Eigen::Matrix4d& T);
 
-  void addFactor(const int id_source, const int id_target,
-                 const Eigen::Matrix4d &T,
-                 const Eigen::Matrix6d &information_matrix);
+  void addFactor(const int id_source, const int id_target, const Eigen::Matrix4d& T,
+                 const Eigen::Matrix6d& information_matrix);
 
   // Initialize the ENU-to-map alignment transform variable.
   // This should be called once before adding GNSS constraints.
   // @param initial_estimate Initial guess for T_ENU_map
-  void initializeAlignmentVariable(const Eigen::Matrix4d &initial_estimate);
+  void initializeAlignmentVariable(const Eigen::Matrix4d& initial_estimate);
 
   // Add a GNSS position constraint with alignment estimation.
   // The GNSS position should be in ENU frame. The optimization will estimate
@@ -65,9 +64,8 @@ public:
   // @param position_enu The GNSS XYZ position in ENU frame
   // @param information_matrix 3x3 information matrix (inverse covariance)
   // @param huber_delta Huber loss delta for robustness (0 = no robust loss)
-  void addGnssConstraintWithAlignment(const int pose_id,
-                                      const Eigen::Vector3d &position_enu,
-                                      const Eigen::Matrix3d &information_matrix,
+  void addGnssConstraintWithAlignment(const int pose_id, const Eigen::Vector3d& position_enu,
+                                      const Eigen::Matrix3d& information_matrix,
                                       double huber_delta = 0.0);
 
   // Add a full SE3 GNSS pose constraint with alignment estimation.
@@ -77,9 +75,9 @@ public:
   // @param pose_enu The full SE3 pose in ENU frame (4x4 matrix)
   // @param information_matrix 6x6 information matrix (inverse covariance)
   // @param huber_delta Huber loss delta for robustness (0 = no robust loss)
-  void addGnssPoseConstraintWithAlignment(
-      const int pose_id, const Eigen::Matrix4d &pose_enu,
-      const Eigen::Matrix6d &information_matrix, double huber_delta = 0.0);
+  void addGnssPoseConstraintWithAlignment(const int pose_id, const Eigen::Matrix4d& pose_enu,
+                                          const Eigen::Matrix6d& information_matrix,
+                                          double huber_delta = 0.0);
 
   // Get the optimized alignment transform T_ENU_map after optimization.
   [[nodiscard]] Eigen::Matrix4d getAlignmentTransform() const;
@@ -89,20 +87,18 @@ public:
 
   [[nodiscard]] PoseIDMap estimates() const;
 
-  inline void readGraph(const std::string &filename) {
+  inline void readGraph(const std::string& filename) {
     std::ifstream file(filename.c_str());
     graph->clear();
     graph->load(file);
   }
-  inline void writeGraph(const std::string &filename) const {
-    graph->save(filename.c_str());
-  }
+  inline void writeGraph(const std::string& filename) const { graph->save(filename.c_str()); }
 
   void optimize();
 
-private:
+ private:
   std::unique_ptr<g2o::SparseOptimizer> graph;
   int max_iterations_;
   bool alignment_initialized_ = false;
 };
-} // namespace pgo
+}  // namespace pgo

@@ -7,7 +7,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <sys/stat.h>
 #include <unordered_map>
 #include <vector>
 
@@ -15,6 +14,8 @@
 
 #include "LocalMapGraph.hpp"
 #include "map_closures/MapClosures.hpp"
+
+#include <sys/stat.h>
 
 // Forward declaration
 namespace map_closures {
@@ -25,17 +26,17 @@ namespace vegvisir {
 
 // GNSS origin for ENU coordinate system
 struct GnssOrigin {
-  double lat0 = 0.0;  // Latitude in degrees
-  double lon0 = 0.0;  // Longitude in degrees
-  double alt0 = 0.0;  // Altitude in meters
-  bool valid = false; // Whether origin is set
+  double lat0 = 0.0;   // Latitude in degrees
+  double lon0 = 0.0;   // Longitude in degrees
+  double alt0 = 0.0;   // Altitude in meters
+  bool valid = false;  // Whether origin is set
 };
 
 // Map metadata structure for organized map storage
 struct MapMetadata {
-  std::string name;     // Map name
-  std::string location; // Location name
-  std::string notes;    // Additional notes
+  std::string name;      // Map name
+  std::string location;  // Location name
+  std::string notes;     // Additional notes
 
   // File names within the map directory
   struct Files {
@@ -59,61 +60,53 @@ struct DatabaseLoadResult {
 
 // Save metadata to YAML file
 // Returns true on success, false on failure
-bool saveMetadata(const std::string &map_dir, const MapMetadata &metadata);
+bool saveMetadata(const std::string& map_dir, const MapMetadata& metadata);
 
 // Load metadata from YAML file
 // Returns true on success, false on failure
-bool loadMetadata(const std::string &map_dir, MapMetadata &metadata);
+bool loadMetadata(const std::string& map_dir, MapMetadata& metadata);
 
 // Load complete database from map directory (map closures, poses, and points)
 // map_dir: path to map directory containing metadata.yaml and map files
 // require_exists: if true (LOCALIZATION mode), fails if database doesn't exist
 //                 if false (SLAM mode), OK if database doesn't exist
 DatabaseLoadResult loadDatabase(
-    const std::string &map_dir, map_closures::MapClosures &map_closer,
-    std::unordered_map<int, std::vector<Eigen::Vector3d>> &local_map_points,
-    bool require_exists);
+    const std::string& map_dir, map_closures::MapClosures& map_closer,
+    std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points, bool require_exists);
 
 // Load local map points from binary file
 // Returns true on success, false on failure
-bool loadLocalMapPoints(
-    const std::string &points_path,
-    std::unordered_map<int, std::vector<Eigen::Vector3d>> &local_map_points);
+bool loadLocalMapPoints(const std::string& points_path,
+                        std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 
 // Save poses in binary format
 // Returns true on success, false on failure
-bool savePosesBinary(const std::string &file_path,
-                     const LocalMapGraph &local_map_graph);
+bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_map_graph);
 
 // Save local map point clouds in binary format
 // Returns true on success, false on failure
 bool saveLocalMapPointsBinary(
-    const std::string &file_path, const LocalMapGraph &local_map_graph,
-    const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-        &local_map_points);
+    const std::string& file_path, const LocalMapGraph& local_map_graph,
+    const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 
 // Save complete database to map directory (map closures, poses, points, and
 // metadata) map_dir: path to map directory (will be created if it doesn't
 // exist) metadata: map metadata to save Returns true on success, false on
 // failure
-bool saveDatabase(const std::string &map_dir, const MapMetadata &metadata,
-                  map_closures::MapClosures &map_closer,
-                  const LocalMapGraph &local_map_graph,
-                  const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-                      &local_map_points);
+bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
+                  map_closures::MapClosures& map_closer, const LocalMapGraph& local_map_graph,
+                  const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 
 // Rebuild LocalMapGraph from loaded reference poses and local map points
 // This is useful for localization mode to have access to the map structure
 void rebuildLocalMapGraph(
-    LocalMapGraph &local_map_graph,
-    const std::unordered_map<int, Eigen::Matrix4d> &reference_poses,
-    const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-        &local_map_points);
+    LocalMapGraph& local_map_graph, const std::unordered_map<int, Eigen::Matrix4d>& reference_poses,
+    const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 
 // Extract map name from directory path
-std::string extractMapName(const std::string &map_dir);
+std::string extractMapName(const std::string& map_dir);
 
 // Create default metadata for a map directory
-MapMetadata createDefaultMetadata(const std::string &map_dir);
+MapMetadata createDefaultMetadata(const std::string& map_dir);
 
-} // namespace vegvisir
+}  // namespace vegvisir

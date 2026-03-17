@@ -19,7 +19,8 @@ if(POLICY CMP0174)
 endif()
 
 # ---- Build vegvisir libraries via add_subdirectory ----
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cpp ${CMAKE_BINARY_DIR}/vegvisir)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cpp
+                 ${CMAKE_BINARY_DIR}/vegvisir)
 
 # ---- Pybind module ----
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vegvisir/pybind

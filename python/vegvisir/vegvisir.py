@@ -207,18 +207,14 @@ class Vegvisir:
         Args:
             t_enu_map: 4x4 initial estimate for the ENU-to-map alignment transform
         """
-        self._impl.set_initial_alignment_estimate(
-            np.ascontiguousarray(t_enu_map, dtype=np.float64)
-        )
+        self._impl.set_initial_alignment_estimate(np.ascontiguousarray(t_enu_map, dtype=np.float64))
 
     def set_gnss_anchor_transform(self, t_enu_map: np.ndarray):
         """Set the GNSS anchor transform to be saved with the map.
 
         Call this before save_database() to include GNSS anchoring in metadata.
         """
-        self._impl.set_gnss_anchor_transform(
-            np.ascontiguousarray(t_enu_map, dtype=np.float64)
-        )
+        self._impl.set_gnss_anchor_transform(np.ascontiguousarray(t_enu_map, dtype=np.float64))
 
     def set_gnss_origin(self, lat0: float, lon0: float, alt0: float):
         """Set the GNSS origin (WGS84) used for ENU conversion.

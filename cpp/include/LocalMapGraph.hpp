@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include <Eigen/Dense>
 #include <cstdint>
+
 #include <fstream>
 #include <map>
 #include <stdexcept>
 #include <vector>
+
+#include <Eigen/Dense>
 
 #include "voxel_map/VoxelMap.hpp"
 
@@ -24,30 +26,28 @@ enum class Mode;
  * When the local map is finalized, the point cloud is stored in pcd.
  */
 class LocalMap {
-public:
-  LocalMap(uint64_t id, const Eigen::Matrix4d &keypose);
+ public:
+  LocalMap(uint64_t id, const Eigen::Matrix4d& keypose);
 
   // Getters
   uint64_t id() const { return id_; }
-  const Eigen::Matrix4d &keypose() const { return keypose_; }
-  Eigen::Matrix4d &keypose() { return keypose_; }
+  const Eigen::Matrix4d& keypose() const { return keypose_; }
+  Eigen::Matrix4d& keypose() { return keypose_; }
 
-  const std::vector<Eigen::Matrix4d> &localTrajectory() const {
-    return local_trajectory_;
-  }
-  std::vector<Eigen::Matrix4d> &localTrajectory() { return local_trajectory_; }
+  const std::vector<Eigen::Matrix4d>& localTrajectory() const { return local_trajectory_; }
+  std::vector<Eigen::Matrix4d>& localTrajectory() { return local_trajectory_; }
 
-  const std::vector<Eigen::Vector3d> &pointCloud() const { return pcd_; }
-  std::vector<Eigen::Vector3d> &pointCloud() { return pcd_; }
+  const std::vector<Eigen::Vector3d>& pointCloud() const { return pcd_; }
+  std::vector<Eigen::Vector3d>& pointCloud() { return pcd_; }
 
   Eigen::Matrix4d endpose() const;
 
-  void addToTrajectory(const Eigen::Matrix4d &relative_pose);
+  void addToTrajectory(const Eigen::Matrix4d& relative_pose);
   void clearTrajectory();
-  bool write(const std::string &filename) const;
+  bool write(const std::string& filename) const;
   bool hasPointCloud() const { return !pcd_.empty(); }
 
-private:
+ private:
   uint64_t id_;
   Eigen::Matrix4d keypose_;
   std::vector<Eigen::Matrix4d> local_trajectory_;
@@ -55,15 +55,15 @@ private:
 };
 
 class LocalMapGraph {
-public:
+ public:
   explicit LocalMapGraph(int initial_map_id = 0);
 
   // Iterator types for range-based for loops
   using MapIterator = std::map<uint64_t, LocalMap>::iterator;
   using ConstMapIterator = std::map<uint64_t, LocalMap>::const_iterator;
 
-  LocalMap &operator[](uint64_t key);
-  const LocalMap &operator[](uint64_t key) const;
+  LocalMap& operator[](uint64_t key);
+  const LocalMap& operator[](uint64_t key) const;
 
   bool hasLocalMap(uint64_t key) const;
   size_t size() const { return graph_.size(); }
@@ -79,29 +79,29 @@ public:
 
   uint64_t lastId() const;
 
-  LocalMap &lastLocalMap();
-  const LocalMap &lastLocalMap() const;
+  LocalMap& lastLocalMap();
+  const LocalMap& lastLocalMap() const;
 
-  const Eigen::Matrix4d &lastKeypose() const;
-  Eigen::Matrix4d &lastKeypose();
+  const Eigen::Matrix4d& lastKeypose() const;
+  Eigen::Matrix4d& lastKeypose();
 
   void eraseLocalMap(uint64_t key);
   void eraseLastLocalMap();
 
-  uint64_t finalizeLocalMap(voxel_map::VoxelMap &voxel_grid, Mode mode);
+  uint64_t finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode);
   uint64_t finalizeLocalMap();
 
-  void setPointCloud(uint64_t key, const std::vector<Eigen::Vector3d> &points);
+  void setPointCloud(uint64_t key, const std::vector<Eigen::Vector3d>& points);
 
   std::vector<Eigen::Matrix4d> getAllKeyposes() const;
   std::vector<uint64_t> getAllIds() const;
 
-  void updateKeypose(uint64_t key, const Eigen::Matrix4d &new_keypose);
-  void addLocalMap(uint64_t id, const Eigen::Matrix4d &keypose);
+  void updateKeypose(uint64_t key, const Eigen::Matrix4d& new_keypose);
+  void addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose);
   void clear(int initial_map_id = 0);
 
-private:
+ private:
   std::map<uint64_t, LocalMap> graph_;
 };
 
-} // namespace vegvisir
+}  // namespace vegvisir
