@@ -3,14 +3,16 @@
 #include "LocalMapGraph.hpp"
 #include "Vegvisir.hpp" // For Mode enum definition
 
+#include <utility>
+
 namespace vegvisir {
 
 // ============================================================================
 // LocalMap Implementation
 // ============================================================================
 
-LocalMap::LocalMap(uint64_t id, const Eigen::Matrix4d &keypose)
-    : id_(id), keypose_(keypose) {
+LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose)
+    : id_(id), keypose_(std::move(keypose)) {
   // Initialize with empty trajectory
   // The trajectory will be populated as poses are added
 }
@@ -36,12 +38,12 @@ bool LocalMap::write(const std::string &filename) const {
 
   // Transform points by keypose before writing
   for (const auto &point : pcd_) {
-    Eigen::Vector4d p_hom(point.x(), point.y(), point.z(), 1.0);
+    const Eigen::Vector4d p_hom(point.x(), point.y(), point.z(), 1.0);
     Eigen::Vector4d p_transformed = keypose_ * p_hom;
 
-    float x = static_cast<float>(p_transformed.x());
-    float y = static_cast<float>(p_transformed.y());
-    float z = static_cast<float>(p_transformed.z());
+    auto x = static_cast<float>(p_transformed.x());
+    auto y = static_cast<float>(p_transformed.y());
+    auto z = static_cast<float>(p_transformed.z());
 
     file.write(reinterpret_cast<const char *>(&x), sizeof(float));
     file.write(reinterpret_cast<const char *>(&y), sizeof(float));
@@ -130,7 +132,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap &voxel_grid,
 
   // Compute the new keypose (endpose of current map)
   uint64_t new_id = current_map.id() + 1;
-  Eigen::Matrix4d new_keypose = current_map.endpose();
+  const Eigen::Matrix4d new_keypose = current_map.endpose();
 
   // Create the new local map
   LocalMap new_map(new_id, new_keypose);
@@ -146,11 +148,11 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap &voxel_grid,
 }
 
 uint64_t LocalMapGraph::finalizeLocalMap() {
-  LocalMap &current_map = lastLocalMap();
+  const LocalMap &current_map = lastLocalMap();
 
   // Compute the new keypose (endpose of current map)
   uint64_t new_id = current_map.id() + 1;
-  Eigen::Matrix4d new_keypose = current_map.endpose();
+  const Eigen::Matrix4d new_keypose = current_map.endpose();
 
   // Create the new local map
   LocalMap new_map(new_id, new_keypose);

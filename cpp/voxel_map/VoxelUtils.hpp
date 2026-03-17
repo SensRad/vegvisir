@@ -51,9 +51,9 @@ template <> struct std::hash<Voxel> {
 namespace voxel_map {
 
 inline Voxel pointToVoxel(const Eigen::Vector3d &point, double voxel_size) {
-  return Voxel(static_cast<int>(std::floor(point.x() / voxel_size)),
-               static_cast<int>(std::floor(point.y() / voxel_size)),
-               static_cast<int>(std::floor(point.z() / voxel_size)));
+  return {static_cast<int>(std::floor(point.x() / voxel_size)),
+          static_cast<int>(std::floor(point.y() / voxel_size)),
+          static_cast<int>(std::floor(point.z() / voxel_size))};
 }
 
 // Voxel-grid downsample: keep one point per voxel (first-in wins).

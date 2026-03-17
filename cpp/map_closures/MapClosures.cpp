@@ -77,12 +77,12 @@ void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
                         std::vector<Correspondence> &out_correspondences) {
   // Ground alignment and density map
   const Eigen::Matrix4d ground_transform =
-      AlignToLocalGround(local_map, GROUND_ALIGNMENT_RESOLUTION);
+      alignToLocalGround(local_map, GROUND_ALIGNMENT_RESOLUTION);
   DensityMap density_map =
-      GenerateDensityMap(local_map, ground_transform,
+      generateDensityMap(local_map, ground_transform,
                          config_.density_map_resolution,
                          config_.density_threshold);
-  ApplyGammaCorrection(density_map, config_.density_map_gamma);
+  applyGammaCorrection(density_map, config_.density_map_gamma);
 
   // Extract features from all layers
   for (auto &layer : feature_layers_) {
@@ -98,7 +98,7 @@ void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
   ground_alignments_.emplace(id, ground_transform);
 }
 
-ClosureCandidate MapClosures::ValidateClosureWithMatches(
+ClosureCandidate MapClosures::validateClosureWithMatches(
     int reference_id, int query_id,
     const std::vector<Correspondence> &matches) const {
 
@@ -155,9 +155,9 @@ ClosureCandidate MapClosures::ValidateClosureWithMatches(
 }
 
 std::vector<ClosureCandidate>
-MapClosures::GetTopKClosures(const int query_id,
+MapClosures::getTopKClosures(int query_id,
                              const std::vector<Eigen::Vector3d> &local_map,
-                             const int k) {
+                             int k) {
   std::vector<Correspondence> correspondences;
   match(query_id, local_map, correspondences);
 
@@ -176,7 +176,7 @@ MapClosures::GetTopKClosures(const int query_id,
     }
 
     auto closure =
-        ValidateClosureWithMatches(ref_id, query_id, correspondences);
+        validateClosureWithMatches(ref_id, query_id, correspondences);
 
     if (closure.weighted_score > static_cast<double>(MIN_NUMBER_OF_MATCHES)) {
       closures.emplace_back(closure);
@@ -196,10 +196,10 @@ MapClosures::GetTopKClosures(const int query_id,
 }
 
 std::vector<ClosureCandidate>
-MapClosures::QueryTopKClosures(const int query_id,
+MapClosures::queryTopKClosures(int query_id,
                                const std::vector<Eigen::Vector3d> &local_map,
-                               const int k) {
-  auto closures = GetTopKClosures(query_id, local_map, k);
+                               int k) {
+  auto closures = getTopKClosures(query_id, local_map, k);
 
   // Clean up temporary data (remove query from internal storage)
   density_maps_.erase(query_id);
@@ -220,7 +220,7 @@ bool MapClosures::save(const std::string &file_path) const {
 
   // Header
   const FileHeader hdr;
-  if (!(io::write_pod(out, hdr))) {
+  if (!(io::writePod(out, hdr))) {
     return false;
   }
 
@@ -231,13 +231,13 @@ bool MapClosures::save(const std::string &file_path) const {
   }
 
   // Density maps
-  if (!io::write_map<int, io::DensityMapIO>(out, density_maps_,
+  if (!io::writeMap<int, io::DensityMapIO>(out, density_maps_,
                                             io::DensityMapIO{})) {
     return false;
   }
 
   // Ground alignments
-  if (!io::write_map<int, io::Mat4IO>(out, ground_alignments_,
+  if (!io::writeMap<int, io::Mat4IO>(out, ground_alignments_,
                                       io::Mat4IO{})) {
     return false;
   }
@@ -265,7 +265,7 @@ bool MapClosures::load(const std::string &file_path) {
 
   // Header
   FileHeader hdr{};
-  if (!io::read_pod(in, hdr)) {
+  if (!io::readPod(in, hdr)) {
     return false;
   }
   if (std::string(hdr.magic.begin(), hdr.magic.begin() + 11) !=
@@ -276,19 +276,19 @@ bool MapClosures::load(const std::string &file_path) {
   }
 
   // Config
-  io::ConfigIO cfgio;
+  const io::ConfigIO cfgio;
   if (!cfgio(in, config_)) {
     return false;
   }
 
   // Density maps
-  if (!io::read_map<int, DensityMap, io::DensityMapIO>(in, density_maps_,
+  if (!io::readMap<int, DensityMap, io::DensityMapIO>(in, density_maps_,
                                                        io::DensityMapIO{})) {
     return false;
   }
 
   // Ground alignments
-  if (!io::read_map<int, Eigen::Matrix4d, io::Mat4IO>(in, ground_alignments_,
+  if (!io::readMap<int, Eigen::Matrix4d, io::Mat4IO>(in, ground_alignments_,
                                                       io::Mat4IO{})) {
     return false;
   }
@@ -312,7 +312,7 @@ bool MapClosures::loadReferencePoses(const std::string &file_path) {
   }
 
   size_t num_poses = 0;
-  if (!io::read_pod(in, num_poses)) {
+  if (!io::readPod(in, num_poses)) {
     std::cerr << "loadReferencePoses|ERROR: read num_poses\n";
     return false;
   }
@@ -322,7 +322,7 @@ bool MapClosures::loadReferencePoses(const std::string &file_path) {
 
   for (size_t i = 0; i < num_poses; ++i) {
     int map_id = 0;
-    if (!io::read_pod(in, map_id)) {
+    if (!io::readPod(in, map_id)) {
       std::cerr << "loadReferencePoses|ERROR: read map_id\n";
       return false;
     }
@@ -337,7 +337,7 @@ bool MapClosures::loadReferencePoses(const std::string &file_path) {
   }
 
   std::cout << "Loaded " << reference_poses_.size() << " reference poses from "
-            << file_path << std::endl;
+            << file_path << '\n';
   return true;
 }
 
@@ -349,7 +349,7 @@ bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
   }
 
   size_t num_maps = 0;
-  if (!io::read_pod(in, num_maps)) {
+  if (!io::readPod(in, num_maps)) {
     std::cerr << "loadLocalMapPoints|ERROR: read num_maps\n";
     return false;
   }
@@ -358,13 +358,13 @@ bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
 
   for (size_t i = 0; i < num_maps; ++i) {
     int map_id = 0;
-    if (!io::read_pod(in, map_id)) {
+    if (!io::readPod(in, map_id)) {
       std::cerr << "loadLocalMapPoints|ERROR: read map_id\n";
       return false;
     }
 
     size_t num_points = 0;
-    if (!io::read_pod(in, num_points)) {
+    if (!io::readPod(in, num_points)) {
       std::cerr << "loadLocalMapPoints|ERROR: read num_points\n";
       return false;
     }
@@ -373,9 +373,11 @@ bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
     points.reserve(num_points);
 
     for (size_t j = 0; j < num_points; ++j) {
-      double x, y, z;
-      if (!io::read_pod(in, x) || !io::read_pod(in, y) ||
-          !io::read_pod(in, z)) {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+      if (!io::readPod(in, x) || !io::readPod(in, y) ||
+          !io::readPod(in, z)) {
         std::cerr << "loadLocalMapPoints|ERROR: read point coordinates\n";
         return false;
       }
@@ -386,7 +388,7 @@ bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
   }
 
   std::cout << "Loaded " << local_map_points_.size()
-            << " local map point clouds from " << file_path << std::endl;
+            << " local map point clouds from " << file_path << '\n';
   return true;
 }
 

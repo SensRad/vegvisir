@@ -51,7 +51,7 @@ DensityMap::DensityMap(const int num_rows, const int num_cols,
     : lower_bound(std::move(lower_bound)), resolution(resolution),
       grid(num_rows, num_cols, CV_8UC1, 0.0) {}
 
-DensityMap GenerateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
+DensityMap generateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
                               const Eigen::Matrix4d &ground_transform,
                               const float density_map_resolution,
                               const float density_threshold) {
@@ -92,7 +92,7 @@ DensityMap GenerateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
 
   DensityMap density_map(n_rows, n_cols, density_map_resolution,
                          lower_bound_coordinates);
-  counting_grid.forEach<double>([&](const double count, const int pos[]) {
+  counting_grid.forEach<double>([&](const double count, const int pos[]) { // NOLINT(modernize-avoid-c-arrays)
     auto density = (count - min_points) / (max_points - min_points);
     density = density > density_threshold ? density : 0.0;
     density_map(pos[0], pos[1]) = static_cast<uint8_t>(255 * density);
@@ -101,23 +101,23 @@ DensityMap GenerateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
   return density_map;
 }
 
-void ApplyGammaCorrection(DensityMap &density_map, const float gamma) {
+void applyGammaCorrection(DensityMap &density_map, const float gamma) {
 
-  if (density_map.grid.empty() || gamma <= 0.0f ||
-      std::abs(gamma - 1.0f) < 1e-6f) {
+  if (density_map.grid.empty() || gamma <= 0.0F ||
+      std::abs(gamma - 1.0F) < 1e-6F) {
     return;
   }
 
   // Create lookup table for efficiency (uint8 has only 256 values)
-  std::array<uint8_t, 256> lut;
+  std::array<uint8_t, 256> lut{};
 
   for (int i = 0; i < 256; ++i) {
     // Normalize to [0, 1]
-    float normalized = static_cast<float>(i) / 255.0f;
+    const float normalized = static_cast<float>(i) / 255.0F;
     // Apply gamma correction
-    float corrected = std::pow(normalized, gamma);
+    const float corrected = std::pow(normalized, gamma);
     // Scale back to [0, 255]
-    lut[i] = static_cast<uint8_t>(std::round(corrected * 255.0f));
+    lut[i] = static_cast<uint8_t>(std::round(corrected * 255.0F));
   }
 
   // Apply LUT to every pixel

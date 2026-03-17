@@ -9,14 +9,14 @@
 namespace vegvisir {
 
 Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
-    : voxel_grid_(VOXEL_SIZE), local_map_graph_(), pose_filter_(),
+    : voxel_grid_(VOXEL_SIZE),
       tf_map_odom_(Eigen::Matrix4d::Identity()),
-      current_odom_base_(), mode_(mode),
-      map_database_path_(map_database_path), loop_closure_enabled_(false) {
+      mode_(mode),
+      map_database_path_(map_database_path) {
 
   // Initialize Kalman filter with identity pose (uses default covariances)
-  Sophus::SE3d X0 = Sophus::SE3d(); // identity
-  pose_filter_.init(X0);
+  const Sophus::SE3d x0; // identity
+  pose_filter_.init(x0);
 
   // Initialize transforms
   tf_map_odom_.setIdentity();
@@ -28,19 +28,19 @@ Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
   // Initialize MapClosures and load database
   try {
     map_closures::Config config;
-    config.density_map_resolution = 0.5f;
-    config.density_threshold = 0.05f;
-    config.sift_match_ratio = 0.85f; // Lowe's ratio test for SIFT
-    config.density_map_gamma = 0.3f; // Gamma correction for feature enhancement
+    config.density_map_resolution = 0.5F;
+    config.density_threshold = 0.05F;
+    config.sift_match_ratio = 0.85F; // Lowe's ratio test for SIFT
+    config.density_map_gamma = 0.3F; // Gamma correction for feature enhancement
 
     map_closer_ = std::make_unique<map_closures::MapClosures>(config);
 
-    bool require_exists = (mode_ == Mode::LOCALIZATION);
+    const bool require_exists = (mode_ == Mode::LOCALIZATION);
     auto result = loadDatabase(map_database_path, *map_closer_,
                                local_map_points_, require_exists);
 
     loop_closure_enabled_ = result.loop_closure_enabled;
-    std::cout << result.message << std::endl;
+    std::cout << result.message << '\n';
 
     // Try to load metadata (will use defaults if file doesn't exist)
     MapMetadata loaded_metadata;
@@ -56,7 +56,7 @@ Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
     }
 
   } catch (const std::exception &e) {
-    std::cerr << "Error initializing MapClosures: " << e.what() << std::endl;
+    std::cerr << "Error initializing MapClosures: " << e.what() << '\n';
     loop_closure_enabled_ = false;
   }
 
@@ -79,12 +79,12 @@ Vegvisir::~Vegvisir() {
   // Auto-save database in SLAM mode (skip if already saved explicitly)
   if (mode_ == Mode::SLAM && loop_closure_enabled_ &&
       !map_database_path_.empty() && map_closer_ && !database_saved_) {
-    std::cout << "Saving SLAM database on shutdown..." << std::endl;
+    std::cout << "Saving SLAM database on shutdown..." << '\n';
     if (vegvisir::saveDatabase(map_database_path_, map_metadata_, *map_closer_,
                                local_map_graph_, local_map_points_)) {
-      std::cout << "Database saved successfully" << std::endl;
+      std::cout << "Database saved successfully" << '\n';
     } else {
-      std::cerr << "Failed to save database" << std::endl;
+      std::cerr << "Failed to save database" << '\n';
     }
   }
 }
@@ -93,11 +93,11 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
                       const Sophus::SE3d &absolute_pose) {
 
   if (!loop_closure_enabled_) {
-    std::cout << "Loop closure disabled" << std::endl;
+    std::cout << "Loop closure disabled" << '\n';
     return;
   }
   if (!backend_) {
-    std::cerr << "No backend initialized" << std::endl;
+    std::cerr << "No backend initialized" << '\n';
     return;
   }
   // Compute delta from consecutive absolute poses
@@ -114,7 +114,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
   // Mode-specific pre-integrate: compute current_pose_ + tf_map_odom_
   backend_->preIntegrate(pose_odom_base, delta_pose);
 
-  std::vector<Eigen::Vector3d> downsampled_points =
+  const std::vector<Eigen::Vector3d> downsampled_points =
       voxel_map::voxelDownsample(points, VOXEL_SIZE);
 
   // Integrate into voxel grid, and prune points too far away
@@ -164,7 +164,7 @@ void Vegvisir::processLoopClosures(
         performICPRefinement(query_points_icp, reference_points, closure.pose);
 
     // Validate refined pose using overlap computation
-    bool is_valid =
+    const bool is_valid =
         validateClosurePose(query_points_icp, reference_points, refined_pose);
     if (!is_valid) {
       continue;
@@ -174,7 +174,7 @@ void Vegvisir::processLoopClosures(
     closure.pose = refined_pose;
 
     {
-      std::lock_guard<std::mutex> lock(closure_mutex_);
+      const std::lock_guard<std::mutex> lock(closure_mutex_);
 
       // Store for visualization/external consumption
       closures_.push_back(closure);
@@ -202,7 +202,7 @@ void Vegvisir::processLoopClosuresAsync(
       [this, query_id, pts_mc = std::move(query_points_mc),
        pts_icp = std::move(query_points_icp), query_odom_base]() {
         // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
-        struct sched_param param{};
+        const struct sched_param param{};
         pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
 
         processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base);
@@ -219,7 +219,8 @@ std::pair<bool, Eigen::Matrix4d> Vegvisir::performICPRefinement(
     return {false, initial_pose};
   }
 
-  icp::Result result = icp::IcpSvd::pointToPointICP(
+  // NOLINTNEXTLINE(readability-suspicious-call-argument)
+  const icp::Result result = icp::IcpSvd::pointToPointICP(
       reference_points, query_points, initial_pose, ICP_REFINEMENT_VOXEL_SIZE,
       ICP_MAX_ITERATIONS, ICP_CONVERGENCE_CRITERION,
       ICP_MAX_CORRESPONDENCE_DISTANCE);
@@ -238,28 +239,29 @@ bool Vegvisir::validateClosurePose(
 
   voxel_map::VoxelMap ref_map(VOXEL_SIZE);
   ref_map.integrateFrame(reference_points, pose);
-  size_t num_source_voxels = ref_map.numVoxels();
+  const size_t num_source_voxels = ref_map.numVoxels();
 
   voxel_map::VoxelMap query_map(VOXEL_SIZE);
   query_map.addPoints(query_points);
-  size_t num_target_voxels = query_map.numVoxels();
+  const size_t num_target_voxels = query_map.numVoxels();
 
   voxel_map::VoxelMap union_map(VOXEL_SIZE);
   union_map.integrateFrame(reference_points, pose);
   union_map.addPoints(query_points);
-  size_t union_voxels = union_map.numVoxels();
+  const size_t union_voxels = union_map.numVoxels();
 
   if (num_source_voxels == 0 || num_target_voxels == 0) {
     return false;
   }
 
-  int intersection = static_cast<int>(static_cast<int>(num_source_voxels) +
-                                      static_cast<int>(num_target_voxels) -
-                                      static_cast<int>(union_voxels));
-  if (intersection < 0)
+  int intersection = static_cast<int>(num_source_voxels) +
+                     static_cast<int>(num_target_voxels) -
+                     static_cast<int>(union_voxels);
+  if (intersection < 0) {
     intersection = 0;
+  }
 
-  double overlap =
+  const double overlap =
       static_cast<double>(intersection) /
       static_cast<double>(std::min(num_source_voxels, num_target_voxels));
 
@@ -267,9 +269,9 @@ bool Vegvisir::validateClosurePose(
 }
 
 Eigen::Matrix4d Vegvisir::getBaseInMapFrame() const {
-  Sophus::SE3d T_map_odom(tf_map_odom_);
-  Sophus::SE3d T_map_base = T_map_odom * current_odom_base_;
-  return T_map_base.matrix();
+  const Sophus::SE3d t_map_odom(tf_map_odom_);
+  const Sophus::SE3d t_map_base = t_map_odom * current_odom_base_;
+  return t_map_base.matrix();
 }
 
 void Vegvisir::transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,
@@ -278,8 +280,8 @@ void Vegvisir::transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,
 
   out.reserve(out.size() + in.size());
   for (const auto &p : in) {
-    Eigen::Vector4d hp(p.x(), p.y(), p.z(), 1.0);
-    Eigen::Vector4d tp = transform_matrix * hp;
+    const Eigen::Vector4d hp(p.x(), p.y(), p.z(), 1.0);
+    const Eigen::Vector4d tp = transform_matrix * hp;
     out.emplace_back(tp.x(), tp.y(), tp.z());
   }
 }
@@ -288,7 +290,7 @@ bool Vegvisir::saveDatabase() {
   if (!map_closer_ || mode_ != Mode::SLAM) {
     std::cerr << "Cannot save database: Not in SLAM mode or MapClosures not "
                  "initialized"
-              << std::endl;
+              << '\n';
     return false;
   }
 
@@ -302,8 +304,8 @@ bool Vegvisir::saveDatabase() {
 const std::unordered_map<int, Eigen::Matrix4d> &
 Vegvisir::getReferencePoses() const {
   if (!map_closer_) {
-    static const std::unordered_map<int, Eigen::Matrix4d> empty;
-    return empty;
+    static const std::unordered_map<int, Eigen::Matrix4d> EMPTY;
+    return EMPTY;
   }
   return map_closer_->getReferencePoses();
 }
@@ -341,12 +343,12 @@ bool Vegvisir::hasLocalMapPoints(int map_id) const {
 
 const std::vector<Eigen::Vector3d> &
 Vegvisir::getLocalMapPoints(int map_id) const {
-  static const std::vector<Eigen::Vector3d> empty;
-  auto it = local_map_points_.find(map_id);
+  static const std::vector<Eigen::Vector3d> EMPTY;
+  const auto it = local_map_points_.find(map_id);
   if (it != local_map_points_.end()) {
     return it->second;
   }
-  return empty;
+  return EMPTY;
 }
 
 void Vegvisir::addGnssMeasurement(int pose_index,
@@ -381,7 +383,7 @@ Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
 
   for (auto it = local_map_graph_.cbegin(); it != local_map_graph_.cend();
        ++it) {
-    int node_id = it->first;
+    const int node_id = static_cast<int>(it->first);
     const auto &node = it->second;
     const auto &traj = node.localTrajectory();
 
@@ -389,8 +391,8 @@ Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
       break;
     }
 
-    Eigen::Matrix4d old_keypose = node.keypose();
-    Eigen::Matrix4d new_keypose =
+    const Eigen::Matrix4d old_keypose = node.keypose();
+    const Eigen::Matrix4d new_keypose =
         traj.empty() ? optimized_poses[pose_idx]
                      : optimized_poses[pose_idx] * traj[0].inverse();
     pose_idx += static_cast<int>(traj.size());
@@ -408,10 +410,10 @@ Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
     if (points_it != local_map_points_.end()) {
       // Points are stored in keypose frame, so transform:
       // new_points = new_keypose^-1 * old_keypose * old_points
-      Eigen::Matrix4d transform = new_keypose.inverse() * old_keypose;
+      const Eigen::Matrix4d transform = new_keypose.inverse() * old_keypose;
       for (auto &pt : points_it->second) {
-        Eigen::Vector4d hp(pt.x(), pt.y(), pt.z(), 1.0);
-        Eigen::Vector4d tp = transform * hp;
+        const Eigen::Vector4d hp(pt.x(), pt.y(), pt.z(), 1.0);
+        const Eigen::Vector4d tp = transform * hp;
         pt = Eigen::Vector3d(tp.x(), tp.y(), tp.z());
       }
     }
@@ -420,13 +422,14 @@ Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
   return optimized_poses;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   // Conditional parameters based on GNSS availability
-  bool has_gnss =
+  const bool has_gnss =
       !gnss_measurements_.empty() || !gnss_pose_measurements_.empty();
-  int max_iterations = has_gnss ? 100 : 10;
-  double odom_weight = 0.01;
-  double closure_weight = 1.0; // Loop closures are strong constraints
+  const int max_iterations = has_gnss ? 100 : 10;
+  const double odom_weight = 0.01;
+  const double closure_weight = 1.0; // Loop closures are strong constraints
 
   pgo::PoseGraphOptimizer pgo(max_iterations);
 
@@ -444,11 +447,11 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   Eigen::Matrix4d prev_last_world_pose = Eigen::Matrix4d::Identity();
 
   // Build information matrix with odometry weight
-  Eigen::Matrix<double, 6, 6> odom_info =
+  const Eigen::Matrix<double, 6, 6> odom_info =
       odom_weight * Eigen::Matrix<double, 6, 6>::Identity();
 
   // Build information matrix for loop closures
-  Eigen::Matrix<double, 6, 6> closure_info =
+  const Eigen::Matrix<double, 6, 6> closure_info =
       closure_weight * Eigen::Matrix<double, 6, 6>::Identity();
 
   // Map from keypose (node) ID to first per-frame pose ID
@@ -459,13 +462,11 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   // vertex but NOT an odom frame, so PGO vertex IDs diverge from odom indices.
   std::vector<int> odom_to_pgo;
 
-  for (auto it = local_map_graph_.cbegin(); it != local_map_graph_.cend();
-       ++it) {
-    const auto &node = it->second;
+  for (const auto &[node_key, node] : local_map_graph_) {
     const auto &traj = node.localTrajectory();
 
     if (first) {
-      Eigen::Matrix4d first_pose =
+      const Eigen::Matrix4d first_pose =
           traj.empty() ? node.keypose() : node.keypose() * traj[0];
       pgo.addVariable(id, first_pose);
       pgo.fixVariable(id);
@@ -475,22 +476,22 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
       // Add the first trajectory pose of this node as a new vertex
       // with an inter-node odometry factor from previous node's last pose.
       // traj[0]=Identity is a keypose anchor, not an odom frame.
-      Eigen::Matrix4d first_world =
+      const Eigen::Matrix4d first_world =
           traj.empty() ? node.keypose() : node.keypose() * traj[0];
       ++id;
       pgo.addVariable(id, first_world);
-      Eigen::Matrix4d inter_node_factor =
+      const Eigen::Matrix4d inter_node_factor =
           prev_last_world_pose.inverse() * first_world;
       pgo.addFactor(id, id - 1, inter_node_factor, odom_info);
       // Don't push to odom_to_pgo — this vertex has no corresponding odom frame
     }
 
     // Record mapping from keypose ID to first pose ID (after adding traj[0])
-    keypose_to_pose_id[static_cast<int>(it->first)] = id;
+    keypose_to_pose_id[static_cast<int>(node_key)] = id;
 
     // Build odometry factors between consecutive trajectory poses
     for (size_t i = 0; i + 1 < traj.size(); ++i) {
-      Eigen::Matrix4d factor = traj[i].inverse() * traj[i + 1];
+      const Eigen::Matrix4d factor = traj[i].inverse() * traj[i + 1];
       pgo.addVariable(id + 1, node.keypose() * traj[i + 1]);
       pgo.addFactor(id + 1, id, factor, odom_info);
       ++id;
@@ -527,7 +528,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   for (const auto &gnss : gnss_measurements_) {
     if (gnss.pose_index >= 0 &&
         gnss.pose_index < static_cast<int>(odom_to_pgo.size())) {
-      int pgo_id = odom_to_pgo[gnss.pose_index];
+      const int pgo_id = odom_to_pgo[gnss.pose_index];
       pgo.addGnssConstraintWithAlignment(pgo_id, gnss.position_enu,
                                          gnss.information_matrix);
     }
@@ -538,7 +539,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   for (const auto &gnss_pose : gnss_pose_measurements_) {
     if (gnss_pose.pose_index >= 0 &&
         gnss_pose.pose_index < static_cast<int>(odom_to_pgo.size())) {
-      int pgo_id = odom_to_pgo[gnss_pose.pose_index];
+      const int pgo_id = odom_to_pgo[gnss_pose.pose_index];
       pgo.addGnssPoseConstraintWithAlignment(pgo_id, gnss_pose.pose_enu,
                                              gnss_pose.information_matrix);
     }
@@ -548,7 +549,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
 
   // Store optimized alignment transform (mutable cast for const method)
   if (has_gnss) {
-    const_cast<Vegvisir *>(this)->optimized_pose_enu_map_ =
+    const_cast<Vegvisir *>(this)->optimized_pose_enu_map_ = // NOLINT(cppcoreguidelines-pro-type-const-cast)
         pgo.getAlignmentTransform();
   }
 

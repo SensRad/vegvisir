@@ -143,13 +143,13 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
                return std::make_shared<MapClosures>(config);
              }),
              "config"_a)
-        .def("_GetTopKClosures", &MapClosures::GetTopKClosures, "query_id"_a,
+        .def("_getTopKClosures", &MapClosures::getTopKClosures, "query_id"_a,
              "local_map"_a, "k"_a)
-        .def("_GetClosures", &MapClosures::GetClosures, "query_id"_a,
+        .def("_getClosures", &MapClosures::getClosures, "query_id"_a,
              "local_map"_a)
-        .def("_QueryTopKClosures", &MapClosures::QueryTopKClosures,
+        .def("_queryTopKClosures", &MapClosures::queryTopKClosures,
              "query_id"_a, "local_map"_a, "k"_a)
-        .def("_QueryClosures", &MapClosures::QueryClosures, "query_id"_a,
+        .def("_queryClosures", &MapClosures::queryClosures, "query_id"_a,
              "local_map"_a)
         .def("_getDensityMapFromId",
              [](MapClosures &self, const int &map_id) {
@@ -461,7 +461,7 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   }
 
   // ---- Free functions ----
-  m.def("_align_map_to_local_ground", &map_closures::AlignToLocalGround,
+  m.def("_align_map_to_local_ground", &map_closures::alignToLocalGround,
         "pointcloud"_a, "resolution"_a);
 
   // ---- Constants ----

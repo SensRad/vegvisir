@@ -24,7 +24,7 @@ void LocalizationBackend::preIntegrate(const Eigen::Matrix4d &pose_odom_base,
   vegvisir_.current_pose_ = pose_odom_anchor_.inverse() * pose_odom_base;
 
   // Lock: pose_filter_ and tf_map_odom_ are written by background closure thread
-  std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
+  const std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
   vegvisir_.pose_filter_.predict(delta_pose);
   vegvisir_.tf_map_odom_ = vegvisir_.pose_filter_.state().matrix();
 }
@@ -63,7 +63,7 @@ LocalizationBackend::retrieveCandidates(
     return {};
   }
   // Localization: Query current map only (no add)
-  return vegvisir_.map_closer_->QueryTopKClosures(query_id, query_points_mc, 1);
+  return vegvisir_.map_closer_->queryTopKClosures(query_id, query_points_mc, 1);
 }
 
 void LocalizationBackend::applyAcceptedClosure(
@@ -79,7 +79,7 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
   const auto &reference_poses = vegvisir_.getReferencePoses();
   if (reference_poses.empty()) {
     std::cerr << "No reference poses loaded! Cannot update global position."
-              << std::endl;
+              << '\n';
     return;
   }
 
@@ -87,7 +87,7 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
   auto ref_it = reference_poses.find(source_id);
   if (ref_it == reference_poses.end()) {
     std::cerr << "Could not find reference pose for closure update."
-              << std::endl;
+              << '\n';
     return;
   }
 
@@ -100,9 +100,9 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
   Eigen::Matrix4d constraint_inv = pose_constraint.inverse();
 
   // Validate constraint
-  double det_diff =
+  const double det_diff =
       std::abs(constraint_inv.block<3, 3>(0, 0).determinant() - 1.0);
-  bool is_finite = constraint_inv.allFinite();
+  const bool is_finite = constraint_inv.allFinite();
 
   // Reject constraint if either check fails
   if (!is_finite || det_diff > DETERMINANT_TOLERANCE) {
@@ -110,15 +110,15 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
   }
 
   // Compute the measured map->odom transform from closure
-  Eigen::Matrix4d measured_tf_map_odom =
+  const Eigen::Matrix4d measured_tf_map_odom =
       tf_map_ref * constraint_inv * tf_local_query.inverse();
 
   // Update Kalman filter with the measurement
-  Sophus::SE3d Z_meas(measured_tf_map_odom);
-  vegvisir_.pose_filter_.update(Z_meas);
+  const Sophus::SE3d z_meas(measured_tf_map_odom);
+  vegvisir_.pose_filter_.update(z_meas);
 
   // Use the filtered estimate for tf_map_odom_
-  Sophus::SE3d filtered_pose = vegvisir_.pose_filter_.state();
+  const Sophus::SE3d filtered_pose = vegvisir_.pose_filter_.state();
   vegvisir_.tf_map_odom_ = filtered_pose.matrix();
 }
 
@@ -150,8 +150,8 @@ void LocalizationBackend::pruneLocalizationSubmapBuffer() {
   // Keep only the most recent MAX_LOCALIZATION_SUBMAPS nodes
   while (static_cast<int>(vegvisir_.local_map_graph_.size()) >
          Vegvisir::MAX_LOCALIZATION_SUBMAPS) {
-    uint64_t oldest_id = vegvisir_.local_map_graph_.begin()->first;
-    uint64_t newest_id = vegvisir_.local_map_graph_.lastId();
+    const uint64_t oldest_id = vegvisir_.local_map_graph_.begin()->first;
+    const uint64_t newest_id = vegvisir_.local_map_graph_.lastId();
 
     // Never delete the active node
     if (oldest_id == newest_id) {
@@ -165,7 +165,7 @@ void LocalizationBackend::cutLocalizationSubmap() {
   // Finalize the current active submap and create a new one whose keypose
   // equals endpose()
 
-  uint64_t old_id = vegvisir_.local_map_graph_.lastId();
+  const uint64_t old_id = vegvisir_.local_map_graph_.lastId();
 
   // Ensure trajectory's "last" represents current_pose_ without growing
   // unbounded
@@ -178,7 +178,7 @@ void LocalizationBackend::cutLocalizationSubmap() {
 
   // Store voxel_grid points into old map and create new map with keypose =
   // endpose()
-  uint64_t new_id = vegvisir_.local_map_graph_.finalizeLocalMap(
+  const uint64_t new_id = vegvisir_.local_map_graph_.finalizeLocalMap(
       vegvisir_.voxel_grid_, Mode::LOCALIZATION);
 
   // Clear trajectories to save memory (ring buffer)
@@ -210,7 +210,7 @@ void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
   // T_base_anchor = (pose_odom_base)^-1 * (T_odom_anchor)
   // Note: current live voxel_grid points are stored in the active anchor
   // frame.
-  const Eigen::Matrix4d T_base_anchor_cur =
+  const Eigen::Matrix4d t_base_anchor_cur =
       pose_odom_base.inverse() * pose_odom_anchor_;
 
   // 1) Add current voxel grid points
@@ -218,27 +218,26 @@ void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
   const auto [current_icp, current_normals] =
       vegvisir_.voxel_grid_.perVoxelPointAndNormal();
 
-  Vegvisir::transformAndAppendPoints(current_mc, T_base_anchor_cur,
+  Vegvisir::transformAndAppendPoints(current_mc, t_base_anchor_cur,
                                      query_points_mc);
-  Vegvisir::transformAndAppendPoints(current_icp, T_base_anchor_cur,
+  Vegvisir::transformAndAppendPoints(current_icp, t_base_anchor_cur,
                                      query_points_icp);
 
   // 2) Add stored submaps from ring buffer (their pointCloud is in their
   // anchor frame)
-  for (auto it = vegvisir_.local_map_graph_.begin();
-       it != vegvisir_.local_map_graph_.end(); ++it) {
-    const LocalMap &submap = it->second;
+  for (const auto &[key, submap_val] : vegvisir_.local_map_graph_) {
+    const LocalMap &submap = submap_val;
     if (!submap.hasPointCloud()) {
       continue;
     }
 
     const Eigen::Matrix4d &pose_odom_anchor_i = submap.keypose();
-    const Eigen::Matrix4d T_base_anchor_i =
+    const Eigen::Matrix4d t_base_anchor_i =
         pose_odom_base.inverse() * pose_odom_anchor_i;
 
-    Vegvisir::transformAndAppendPoints(submap.pointCloud(), T_base_anchor_i,
+    Vegvisir::transformAndAppendPoints(submap.pointCloud(), t_base_anchor_i,
                                        query_points_mc);
-    Vegvisir::transformAndAppendPoints(submap.pointCloud(), T_base_anchor_i,
+    Vegvisir::transformAndAppendPoints(submap.pointCloud(), t_base_anchor_i,
                                        query_points_icp);
   }
 

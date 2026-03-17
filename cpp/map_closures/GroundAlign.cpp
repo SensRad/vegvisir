@@ -36,27 +36,27 @@
 namespace {
 struct PixelHash {
   size_t operator()(const Eigen::Vector2i &pixel) const {
-    const uint32_t *vec = reinterpret_cast<const uint32_t *>(pixel.data());
+    const auto *vec = reinterpret_cast<const uint32_t *>(pixel.data());
     return (vec[0] * 73856093 ^ vec[1] * 19349669);
   }
 };
 
-void TransformPoints(const Sophus::SE3d &T,
+void transformPoints(const Sophus::SE3d &t,
                      std::vector<Eigen::Vector3d> &pointcloud) {
   std::transform(pointcloud.cbegin(), pointcloud.cend(), pointcloud.begin(),
-                 [&](const auto &point) { return T * point; });
+                 [&](const auto &point) { return t * point; });
 }
 
 using LinearSystem = std::pair<Eigen::Matrix3d, Eigen::Vector3d>;
-LinearSystem BuildLinearSystem(const std::vector<Eigen::Vector3d> &points,
+LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d> &points,
                                const double resolution) {
   auto compute_jacobian_and_residual = [](const auto &point) {
     const double residual = point.z();
-    Eigen::Matrix<double, 1, 3> J;
-    J(0, 0) = 1.0;
-    J(0, 1) = point.y();
-    J(0, 2) = -point.x();
-    return std::make_pair(J, residual);
+    Eigen::Matrix<double, 1, 3> j;
+    j(0, 0) = 1.0;
+    j(0, 1) = point.y();
+    j(0, 2) = -point.x();
+    return std::make_pair(j, residual);
   };
 
   auto sum_linear_systems = [](LinearSystem a, const LinearSystem &b) {
@@ -69,28 +69,28 @@ LinearSystem BuildLinearSystem(const std::vector<Eigen::Vector3d> &points,
       points.cbegin(), points.cend(),
       LinearSystem(Eigen::Matrix3d::Zero(), Eigen::Vector3d::Zero()),
       sum_linear_systems, [&](const auto &point) {
-        const auto &[J, residual] = compute_jacobian_and_residual(point);
+        const auto &[j, residual] = compute_jacobian_and_residual(point);
         const double w = std::abs(residual) <= resolution ? 1.0 : 0.0;
-        return LinearSystem(J.transpose() * w * J,         // JTJ
-                            J.transpose() * w * residual); // JTr
+        return LinearSystem(j.transpose() * w * j,         // JTJ
+                            j.transpose() * w * residual); // JTr
       });
   return {H, b};
 }
 
 std::vector<Eigen::Vector3d>
-ComputeLowestPoints(const std::vector<Eigen::Vector3d> &pointcloud,
+computeLowestPoints(const std::vector<Eigen::Vector3d> &pointcloud,
                     const double resolution) {
   std::unordered_map<Eigen::Vector2i, Eigen::Vector3d, PixelHash>
       lowest_point_hash_map;
-  auto PointToPixel =
+  auto point_to_pixel =
       [&resolution](const Eigen::Vector3d &pt) -> Eigen::Vector2i {
-    return Eigen::Vector2i(static_cast<int>(std::floor(pt.x() / resolution)),
-                           static_cast<int>(std::floor(pt.y() / resolution)));
+    return {static_cast<int>(std::floor(pt.x() / resolution)),
+            static_cast<int>(std::floor(pt.y() / resolution))};
   };
 
   std::for_each(pointcloud.cbegin(), pointcloud.cend(),
                 [&](const Eigen::Vector3d &point) {
-                  const auto &pixel = PointToPixel(point);
+                  const auto &pixel = point_to_pixel(point);
                   if (lowest_point_hash_map.find(pixel) ==
                       lowest_point_hash_map.cend()) {
                     lowest_point_hash_map.emplace(pixel, point);
@@ -109,23 +109,24 @@ ComputeLowestPoints(const std::vector<Eigen::Vector3d> &pointcloud,
 
 namespace map_closures {
 Eigen::Matrix4d
-AlignToLocalGround(const std::vector<Eigen::Vector3d> &pointcloud,
+alignToLocalGround(const std::vector<Eigen::Vector3d> &pointcloud,
                    const double resolution) {
-  Sophus::SE3d T =
+  Sophus::SE3d t =
       Sophus::SE3d(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
-  auto low_lying_points = ComputeLowestPoints(pointcloud, resolution);
+  auto low_lying_points = computeLowestPoints(pointcloud, resolution);
 
   for (int iters = 0; iters < MAX_ITERATIONS; iters++) {
-    const auto &[H, b] = BuildLinearSystem(low_lying_points, resolution);
+    const auto &[H, b] = buildLinearSystem(low_lying_points, resolution);
     const Eigen::Vector3d &dx = H.ldlt().solve(-b);
     Eigen::Matrix<double, 6, 1> se3 = Eigen::Matrix<double, 6, 1>::Zero();
     se3.block<3, 1>(2, 0) = dx;
-    Sophus::SE3d estimation(Sophus::SE3d::exp(se3));
-    TransformPoints(estimation, low_lying_points);
-    T = estimation * T;
-    if (dx.norm() < CONVERGENCE_THRESHOLD)
+    const Sophus::SE3d estimation(Sophus::SE3d::exp(se3));
+    transformPoints(estimation, low_lying_points);
+    t = estimation * t;
+    if (dx.norm() < CONVERGENCE_THRESHOLD) {
       break;
+    }
   }
-  return T.matrix();
+  return t.matrix();
 }
 } // namespace map_closures

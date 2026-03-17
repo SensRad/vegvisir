@@ -39,6 +39,8 @@ public:
   ~Vegvisir();
   Vegvisir(const Vegvisir &) = delete;
   Vegvisir &operator=(const Vegvisir &) = delete;
+  Vegvisir(Vegvisir &&) = delete;
+  Vegvisir &operator=(Vegvisir &&) = delete;
 
   void update(const std::vector<Eigen::Vector3d> &points,
               const Sophus::SE3d &absolute_pose);
@@ -240,14 +242,14 @@ private:
   // void filterPointCloud(const std::vector<Eigen::VectorXd> &input_points,
   //                       std::vector<Eigen::Vector3d> &filtered_points);
 
-  std::pair<bool, Eigen::Matrix4d>
+  static std::pair<bool, Eigen::Matrix4d>
   performICPRefinement(const std::vector<Eigen::Vector3d> &query_points,
                        const std::vector<Eigen::Vector3d> &reference_points,
                        const Eigen::Matrix4d &initial_pose);
 
-  bool validateClosurePose(const std::vector<Eigen::Vector3d> &query_points,
-                           const std::vector<Eigen::Vector3d> &reference_points,
-                           const Eigen::Matrix4d &pose);
+  static bool validateClosurePose(const std::vector<Eigen::Vector3d> &query_points,
+                                  const std::vector<Eigen::Vector3d> &reference_points,
+                                  const Eigen::Matrix4d &pose);
 
   // Shared closure processing: candidate gating + ICP refine + overlap
   // validate. Retrieval + application are delegated to backend.

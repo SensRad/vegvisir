@@ -20,6 +20,8 @@ public:
   virtual ~VegvisirBackend() = default;
   VegvisirBackend(const VegvisirBackend &) = delete;
   VegvisirBackend &operator=(const VegvisirBackend &) = delete;
+  VegvisirBackend(VegvisirBackend &&) = default;
+  VegvisirBackend &operator=(VegvisirBackend &&) = default;
 
   virtual void initialize() = 0;
 
@@ -40,8 +42,8 @@ public:
   virtual void runQueryCycle(const Eigen::Matrix4d &pose_odom_base) = 0;
 
   // Backend must provide candidate retrieval:
-  // SLAM: GetTopKClosures (query + add)
-  // Localization: QueryTopKClosures (query-only)
+  // SLAM: getTopKClosures (query + add)
+  // Localization: queryTopKClosures (query-only)
   virtual std::vector<map_closures::ClosureCandidate>
   retrieveCandidates(int query_id,
                      const std::vector<Eigen::Vector3d> &query_points_mc) = 0;

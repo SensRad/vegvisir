@@ -42,21 +42,21 @@ static constexpr int LOCAL_MAPS_TO_SKIP = 3;
 static constexpr double GROUND_ALIGNMENT_RESOLUTION = 5.0;
 
 struct Config {
-  float density_map_resolution = 0.5f;
-  float density_threshold = 0.05f;
-  float sift_match_ratio = 0.85f;
+  float density_map_resolution = 0.5F;
+  float density_threshold = 0.05F;
+  float sift_match_ratio = 0.85F;
 
   // LBD (Line Band Descriptor) parameters
-  float lbd_min_line_length = 15.0f;
-  float lbd_match_ratio = 0.80f;
+  float lbd_min_line_length = 15.0F;
+  float lbd_match_ratio = 0.80F;
   int lbd_num_octaves = 2;
   int lbd_scale = 2;
 
   // Gamma correction for density map
-  float density_map_gamma = 0.3f;
+  float density_map_gamma = 0.3F;
 
   // Inlier weighting: weighted_score = sift_inliers + lbd_weight * lbd_inliers
-  float lbd_weight = 3.0f;
+  float lbd_weight = 3.0F;
 };
 
 struct ClosureCandidate {
@@ -74,24 +74,28 @@ public:
   MapClosures() : MapClosures(Config{}) {}
   explicit MapClosures(const Config &config);
   ~MapClosures() = default;
+  MapClosures(const MapClosures &) = delete;
+  MapClosures &operator=(const MapClosures &) = delete;
+  MapClosures(MapClosures &&) = default;
+  MapClosures &operator=(MapClosures &&) = default;
 
   std::vector<ClosureCandidate>
-  GetTopKClosures(const int query_id,
-                  const std::vector<Eigen::Vector3d> &local_map, const int k);
+  getTopKClosures(int query_id,
+                  const std::vector<Eigen::Vector3d> &local_map, int k);
   std::vector<ClosureCandidate>
-  GetClosures(const int query_id,
+  getClosures(int query_id,
               const std::vector<Eigen::Vector3d> &local_map) {
-    return GetTopKClosures(query_id, local_map, -1);
+    return getTopKClosures(query_id, local_map, -1);
   }
 
   // Query-only methods (match against database without adding to it)
   std::vector<ClosureCandidate>
-  QueryTopKClosures(const int query_id,
-                    const std::vector<Eigen::Vector3d> &local_map, const int k);
+  queryTopKClosures(int query_id,
+                    const std::vector<Eigen::Vector3d> &local_map, int k);
   std::vector<ClosureCandidate>
-  QueryClosures(const int query_id,
+  queryClosures(int query_id,
                 const std::vector<Eigen::Vector3d> &local_map) {
-    return QueryTopKClosures(query_id, local_map, -1);
+    return queryTopKClosures(query_id, local_map, -1);
   }
 
   const DensityMap &getDensityMapFromId(int map_id) const {
@@ -148,7 +152,7 @@ protected:
              std::vector<Correspondence> &out_correspondences);
 
   ClosureCandidate
-  ValidateClosureWithMatches(int reference_id, int query_id,
+  validateClosureWithMatches(int reference_id, int query_id,
                              const std::vector<Correspondence> &matches) const;
 
   Config config_;

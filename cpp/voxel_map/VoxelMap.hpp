@@ -39,13 +39,18 @@
 using Vector3dVector = std::vector<Eigen::Vector3d>;
 
 // Same default as Open3d
-static constexpr unsigned int max_points_per_normal_computation = 20;
+static constexpr unsigned int MAX_POINTS_PER_NORMAL_COMPUTATION = 20;
 
 namespace voxel_map {
 
 struct VoxelBlock {
-  void emplace_back(const Eigen::Vector3d &point);
+  void emplaceBack(const Eigen::Vector3d &point);
   [[nodiscard]] constexpr size_t size() const { return num_points; }
+  [[nodiscard]] auto begin() const { return points.cbegin(); }
+  [[nodiscard]] auto end() const {
+    return std::next(points.cbegin(),
+                     static_cast<std::ptrdiff_t>(num_points));
+  }
   [[nodiscard]] auto cbegin() const { return points.cbegin(); }
   [[nodiscard]] auto cend() const {
     return std::next(points.cbegin(),
@@ -53,7 +58,7 @@ struct VoxelBlock {
   }
 
 private:
-  std::array<Eigen::Vector3d, max_points_per_normal_computation> points;
+  std::array<Eigen::Vector3d, MAX_POINTS_PER_NORMAL_COMPUTATION> points;
   size_t num_points = 0;
 };
 

@@ -25,7 +25,7 @@ enum class Mode : std::uint8_t;
  */
 class LocalMap {
 public:
-  LocalMap(uint64_t id, const Eigen::Matrix4d &keypose);
+  LocalMap(uint64_t id, Eigen::Matrix4d keypose);
 
   // Getters
   [[nodiscard]] uint64_t id() const { return id_; }

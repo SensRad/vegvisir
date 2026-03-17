@@ -63,21 +63,21 @@ computeCentroidAndNormal(const voxel_map::VoxelBlock &coordinates) {
 
 namespace voxel_map {
 
-void VoxelBlock::emplace_back(const Eigen::Vector3d &p) {
-  if (size() < max_points_per_normal_computation) {
+void VoxelBlock::emplaceBack(const Eigen::Vector3d &p) {
+  if (size() < MAX_POINTS_PER_NORMAL_COMPUTATION) {
     points.at(num_points) = p;
     ++num_points;
   }
 }
 
-VoxelMap::VoxelMap(const double voxel_size)
+VoxelMap::VoxelMap(double voxel_size)
     : voxel_size_(voxel_size),
       map_resolution_(voxel_size / static_cast<double>(std::sqrt(
-                                       max_points_per_normal_computation))) {}
+                                      MAX_POINTS_PER_NORMAL_COMPUTATION))) {}
 
 std::vector<Eigen::Vector3d> VoxelMap::pointcloud() const {
   std::vector<Eigen::Vector3d> points;
-  points.reserve(map_.size() * max_points_per_normal_computation);
+  points.reserve(map_.size() * MAX_POINTS_PER_NORMAL_COMPUTATION);
   std::for_each(map_.cbegin(), map_.cend(), [&](const auto &map_element) {
     const auto &voxel_points = map_element.second;
     std::for_each(voxel_points.cbegin(), voxel_points.cend(),
@@ -103,7 +103,7 @@ void VoxelMap::addPoints(const std::vector<Eigen::Vector3d> &points) {
     const auto &[it, inserted] = map_.insert({voxel, VoxelBlock()});
     if (!inserted) {
       auto &voxel_points = it.value();
-      if (voxel_points.size() == max_points_per_normal_computation ||
+      if (voxel_points.size() == MAX_POINTS_PER_NORMAL_COMPUTATION ||
           std::any_of(voxel_points.cbegin(), voxel_points.cend(),
                       [&](const auto &voxel_point) {
                         return (voxel_point - point).norm() < map_resolution_;
@@ -111,7 +111,7 @@ void VoxelMap::addPoints(const std::vector<Eigen::Vector3d> &points) {
         return;
       }
     }
-    it.value().emplace_back(point);
+    it.value().emplaceBack(point);
   });
 }
 
@@ -154,6 +154,7 @@ void VoxelMap::pruneFarPoints(const Eigen::Matrix4d &reference_pose,
   }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 std::pair<Eigen::Vector3d, double>
 VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   const double qx = query.x() / voxel_size_;
@@ -168,11 +169,11 @@ VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
 
   // Helper: scan all points in a voxel block
   auto scan_block = [&](const VoxelBlock &block) {
-    for (auto pit = block.cbegin(); pit != block.cend(); ++pit) {
-      const double d2 = (query - *pit).squaredNorm();
+    for (const auto &pt : block) {
+      const double d2 = (query - pt).squaredNorm();
       if (d2 < best_dist_sq) {
         best_dist_sq = d2;
-        best_point = *pit;
+        best_point = pt;
       }
     }
   };
@@ -197,7 +198,13 @@ VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   // Minimum distance along one axis to the neighbor voxel:
   // d<0 → query-to-low-face, d>0 → query-to-high-face, d==0 → 0 (same voxel)
   auto axis_min = [](int d, double neg, double pos) -> double {
-    return (d < 0) ? neg : (d > 0) ? pos : 0.0;
+    if (d < 0) {
+      return neg;
+    }
+    if (d > 0) {
+      return pos;
+    }
+    return 0.0;
   };
 
   // Check 26 neighbors, skipping those whose bounding box is too far
