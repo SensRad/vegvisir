@@ -1,17 +1,17 @@
 // Copyright (c) Sensrad 2025-2026
+#include <memory>
+#include <tuple>
+#include <vector>
+
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <pybind11/eigen.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-
-#include <Eigen/Core>
-#include <memory>
-#include <opencv2/core.hpp>
-#include <opencv2/core/eigen.hpp>
 #include <sophus/se3.hpp>
-#include <tuple>
-#include <vector>
 
 #include "LocalMapGraph.hpp"
 #include "Vegvisir.hpp"
@@ -32,14 +32,13 @@ namespace py = pybind11;
 using namespace py::literals;
 
 namespace map_closures {
-Config GetConfigFromDict(const py::dict &cfg) {
+Config GetConfigFromDict(const py::dict& cfg) {
   Config cpp_config;
   if (cfg.contains("density_threshold")) {
     cpp_config.density_threshold = cfg["density_threshold"].cast<float>();
   }
   if (cfg.contains("density_map_resolution")) {
-    cpp_config.density_map_resolution =
-        cfg["density_map_resolution"].cast<float>();
+    cpp_config.density_map_resolution = cfg["density_map_resolution"].cast<float>();
   }
   if (cfg.contains("sift_match_ratio")) {
     cpp_config.sift_match_ratio = cfg["sift_match_ratio"].cast<float>();
@@ -64,10 +63,10 @@ Config GetConfigFromDict(const py::dict &cfg) {
   }
   return cpp_config;
 }
-} // namespace map_closures
+}  // namespace map_closures
 
 // Helper: convert 4x4 numpy matrix to Sophus::SE3d
-static Sophus::SE3d matrix4d_to_se3(const Eigen::Matrix4d &T) {
+static Sophus::SE3d matrix4d_to_se3(const Eigen::Matrix4d& T) {
   Eigen::Matrix3d R = T.block<3, 3>(0, 0);
   Eigen::Vector3d t = T.block<3, 1>(0, 3);
   return Sophus::SE3d(Eigen::Quaterniond(R), t);
@@ -95,8 +94,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     pgo_cls.def(py::init<int>(), "max_iterations"_a)
         .def("_add_variable", &PoseGraphOptimizer::addVariable, "id"_a, "T"_a)
         .def("_fix_variable", &PoseGraphOptimizer::fixVariable, "id"_a)
-        .def("_add_factor", &PoseGraphOptimizer::addFactor, "id_source"_a,
-             "id_target"_a, "T"_a, "omega"_a)
+        .def("_add_factor", &PoseGraphOptimizer::addFactor, "id_source"_a, "id_target"_a, "T"_a,
+             "omega"_a)
         .def("_optimize", &PoseGraphOptimizer::optimize)
         .def("_estimates", &PoseGraphOptimizer::estimates)
         .def("_read_graph", &PoseGraphOptimizer::readGraph, "filename"_a)
@@ -108,8 +107,7 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     using namespace voxel_map;
     py::class_<VoxelMap> vmap(m, "_VoxelMap", "");
     vmap.def(py::init<double>(), "voxel_size"_a)
-        .def("_integrate_frame", &VoxelMap::IntegrateFrame, "points"_a,
-             "pose"_a)
+        .def("_integrate_frame", &VoxelMap::IntegrateFrame, "points"_a, "pose"_a)
         .def("_add_points", &VoxelMap::AddPoints, "points"_a)
         .def("_point_cloud", &VoxelMap::Pointcloud)
         .def("_clear", &VoxelMap::Clear)
@@ -125,8 +123,7 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def_readwrite("source_id", &ClosureCandidate::source_id)
         .def_readwrite("target_id", &ClosureCandidate::target_id)
         .def_readwrite("pose", &ClosureCandidate::pose)
-        .def_readwrite("number_of_inliers",
-                       &ClosureCandidate::number_of_inliers)
+        .def_readwrite("number_of_inliers", &ClosureCandidate::number_of_inliers)
         .def_readwrite("weighted_score", &ClosureCandidate::weighted_score)
         .def_readwrite("sift_inliers", &ClosureCandidate::sift_inliers)
         .def_readwrite("lbd_inliers", &ClosureCandidate::lbd_inliers);
@@ -135,32 +132,28 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   // ---- MapClosures ----
   {
     using namespace map_closures;
-    py::class_<MapClosures, std::shared_ptr<MapClosures>> mc(m, "_MapClosures",
-                                                             "");
+    py::class_<MapClosures, std::shared_ptr<MapClosures>> mc(m, "_MapClosures", "");
     mc.def(py::init([]() { return std::make_shared<MapClosures>(); }))
-        .def(py::init([](const py::dict &cfg) {
+        .def(py::init([](const py::dict& cfg) {
                auto config = GetConfigFromDict(cfg);
                return std::make_shared<MapClosures>(config);
              }),
              "config"_a)
-        .def("_GetTopKClosures", &MapClosures::GetTopKClosures, "query_id"_a,
-             "local_map"_a, "k"_a)
-        .def("_GetClosures", &MapClosures::GetClosures, "query_id"_a,
-             "local_map"_a)
-        .def("_QueryTopKClosures", &MapClosures::QueryTopKClosures,
-             "query_id"_a, "local_map"_a, "k"_a)
-        .def("_QueryClosures", &MapClosures::QueryClosures, "query_id"_a,
-             "local_map"_a)
+        .def("_GetTopKClosures", &MapClosures::GetTopKClosures, "query_id"_a, "local_map"_a, "k"_a)
+        .def("_GetClosures", &MapClosures::GetClosures, "query_id"_a, "local_map"_a)
+        .def("_QueryTopKClosures", &MapClosures::QueryTopKClosures, "query_id"_a, "local_map"_a,
+             "k"_a)
+        .def("_QueryClosures", &MapClosures::QueryClosures, "query_id"_a, "local_map"_a)
         .def("_getDensityMapFromId",
-             [](MapClosures &self, const int &map_id) {
-               const auto &density_map = self.getDensityMapFromId(map_id);
+             [](MapClosures& self, const int& map_id) {
+               const auto& density_map = self.getDensityMapFromId(map_id);
                Eigen::MatrixXf density_map_eigen;
                cv::cv2eigen(density_map.grid, density_map_eigen);
                return density_map_eigen;
              })
         .def("_getDensityMapMetadata",
-             [](MapClosures &self, const int &map_id) {
-               const auto &density_map = self.getDensityMapFromId(map_id);
+             [](MapClosures& self, const int& map_id) {
+               const auto& density_map = self.getDensityMapFromId(map_id);
                py::dict metadata;
                metadata["resolution"] = density_map.resolution;
                metadata["lower_bound"] = density_map.lower_bound;
@@ -168,46 +161,34 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
                metadata["cols"] = density_map.grid.cols;
                return metadata;
              })
-        .def("_getAvailableMapIds",
-             [](MapClosures &self) { return self.getAvailableMapIds(); })
+        .def("_getAvailableMapIds", [](MapClosures& self) { return self.getAvailableMapIds(); })
         .def("_getGroundAlignment",
-             [](MapClosures &self, const int &map_id) {
-               return self.getGroundAlignment(map_id);
-             })
+             [](MapClosures& self, const int& map_id) { return self.getGroundAlignment(map_id); })
         .def("_getReferencePoses",
-             [](MapClosures &self) {
-               const auto &ref = self.getReferencePoses();
+             [](MapClosures& self) {
+               const auto& ref = self.getReferencePoses();
                std::map<int, Eigen::Matrix4d> ordered(ref.begin(), ref.end());
                return ordered;
              })
         .def("_getReferencePose",
-             [](MapClosures &self, const int &map_id) {
-               return self.getReferencePose(map_id);
-             })
+             [](MapClosures& self, const int& map_id) { return self.getReferencePose(map_id); })
         .def(
             "_setReferencePose",
-            [](MapClosures &self, const int &map_id,
-               const Eigen::Matrix4d &pose) {
+            [](MapClosures& self, const int& map_id, const Eigen::Matrix4d& pose) {
               self.setReferencePose(map_id, pose);
             },
             "map_id"_a, "pose"_a)
         .def("_getLocalMapPoints",
-             [](MapClosures &self, const int &map_id) {
-               return self.getLocalMapPoints(map_id);
-             })
+             [](MapClosures& self, const int& map_id) { return self.getLocalMapPoints(map_id); })
         .def("_hasLocalMapPoints",
-             [](MapClosures &self, const int &map_id) {
-               return self.hasLocalMapPoints(map_id);
-             })
+             [](MapClosures& self, const int& map_id) { return self.hasLocalMapPoints(map_id); })
         .def("_save", &MapClosures::save, "file_path"_a)
         .def("_load", &MapClosures::load, "file_path"_a)
-        .def("_loadReferencePoses", &MapClosures::loadReferencePoses,
-             "file_path"_a)
-        .def("_loadLocalMapPoints", &MapClosures::loadLocalMapPoints,
-             "file_path"_a)
-        .def("_getSiftKeypointsViz", [](MapClosures &self, int map_id) {
-          const auto &dm = self.getDensityMapFromId(map_id);
-          const auto &lb = dm.lower_bound;
+        .def("_loadReferencePoses", &MapClosures::loadReferencePoses, "file_path"_a)
+        .def("_loadLocalMapPoints", &MapClosures::loadLocalMapPoints, "file_path"_a)
+        .def("_getSiftKeypointsViz", [](MapClosures& self, int map_id) {
+          const auto& dm = self.getDensityMapFromId(map_id);
+          const auto& lb = dm.lower_bound;
           py::dict info;
           info["lower_bound_x"] = lb.x();
           info["lower_bound_y"] = lb.y();
@@ -230,19 +211,17 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     py::class_<LocalMap>(m, "_LocalMap")
         .def_property_readonly("id", &LocalMap::id)
         .def_property(
-            "keypose",
-            [](const LocalMap &lm) -> Eigen::Matrix4d { return lm.keypose(); },
-            [](LocalMap &lm, const Eigen::Matrix4d &kp) { lm.keypose() = kp; })
-        .def_property_readonly(
-            "local_trajectory",
-            [](const LocalMap &lm) { return lm.localTrajectory(); })
+            "keypose", [](const LocalMap& lm) -> Eigen::Matrix4d { return lm.keypose(); },
+            [](LocalMap& lm, const Eigen::Matrix4d& kp) { lm.keypose() = kp; })
+        .def_property_readonly("local_trajectory",
+                               [](const LocalMap& lm) { return lm.localTrajectory(); })
         .def_property_readonly("has_point_cloud", &LocalMap::hasPointCloud)
         .def("point_cloud",
-             [](const LocalMap &lm) -> py::object {
+             [](const LocalMap& lm) -> py::object {
                if (!lm.hasPointCloud()) {
                  return py::none();
                }
-               const auto &pts = lm.pointCloud();
+               const auto& pts = lm.pointCloud();
                Eigen::MatrixXd mat(pts.size(), 3);
                for (size_t i = 0; i < pts.size(); ++i) {
                  mat.row(i) = pts[i].transpose();
@@ -257,24 +236,20 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     using namespace vegvisir;
     py::class_<LocalMapGraph>(m, "_LocalMapGraph")
         .def(
-            "__getitem__",
-            [](LocalMapGraph &g, uint64_t key) -> LocalMap & { return g[key]; },
+            "__getitem__", [](LocalMapGraph& g, uint64_t key) -> LocalMap& { return g[key]; },
             py::return_value_policy::reference_internal)
         .def("has_local_map", &LocalMapGraph::hasLocalMap)
         .def("size", &LocalMapGraph::size)
         .def("empty", &LocalMapGraph::empty)
         .def("last_id", &LocalMapGraph::lastId)
         .def("last_keypose",
-             [](const LocalMapGraph &g) -> Eigen::Matrix4d {
-               return g.lastKeypose();
-             })
+             [](const LocalMapGraph& g) -> Eigen::Matrix4d { return g.lastKeypose(); })
         .def("get_all_keyposes", &LocalMapGraph::getAllKeyposes)
         .def("get_all_ids", &LocalMapGraph::getAllIds)
-        .def("local_maps", [](LocalMapGraph &g) {
+        .def("local_maps", [](LocalMapGraph& g) {
           py::list result;
-          for (auto &[id, lm] : g) {
-            result.append(py::cast(
-                &lm, py::return_value_policy::reference_internal, py::cast(g)));
+          for (auto& [id, lm] : g) {
+            result.append(py::cast(&lm, py::return_value_policy::reference_internal, py::cast(g)));
           }
           return result;
         });
@@ -299,8 +274,7 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def_readwrite("name", &MapMetadata::name)
         .def_readwrite("location", &MapMetadata::location)
         .def_readwrite("notes", &MapMetadata::notes)
-        .def_readwrite("gnss_anchor_transform",
-                       &MapMetadata::gnss_anchor_transform)
+        .def_readwrite("gnss_anchor_transform", &MapMetadata::gnss_anchor_transform)
         .def_readwrite("has_gnss_anchor", &MapMetadata::has_gnss_anchor)
         .def_readwrite("gnss_origin", &MapMetadata::gnss_origin);
   }
@@ -309,12 +283,11 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   {
     using namespace vegvisir;
     py::class_<Vegvisir>(m, "_Vegvisir")
-        .def(py::init<const std::string &, Mode>(), "map_database_path"_a,
-             "mode"_a = Mode::SLAM)
+        .def(py::init<const std::string&, Mode>(), "map_database_path"_a, "mode"_a = Mode::SLAM)
         .def(
             "update",
-            [](Vegvisir &self, const std::vector<Eigen::Vector3d> &points,
-               const Eigen::Matrix4d &absolute_pose) {
+            [](Vegvisir& self, const std::vector<Eigen::Vector3d>& points,
+               const Eigen::Matrix4d& absolute_pose) {
               auto abs_se3 = matrix4d_to_se3(absolute_pose);
               self.update(points, abs_se3);
             },
@@ -327,28 +300,25 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
              "Run PGO and update internal keyposes to match optimized poses. "
              "This ensures frame consistency between the saved map and "
              "localization.")
-        .def("add_gnss_measurement", &Vegvisir::addGnssMeasurement,
-             "pose_index"_a, "position_enu"_a, "information_matrix"_a,
+        .def("add_gnss_measurement", &Vegvisir::addGnssMeasurement, "pose_index"_a,
+             "position_enu"_a, "information_matrix"_a,
              "Add GNSS measurement for pose graph optimization")
         .def("clear_gnss_measurements", &Vegvisir::clearGnssMeasurements)
         .def("get_num_gnss_measurements", &Vegvisir::getNumGnssMeasurements)
-        .def("get_optimized_alignment_transform",
-             &Vegvisir::getOptimizedAlignmentTransform,
+        .def("get_optimized_alignment_transform", &Vegvisir::getOptimizedAlignmentTransform,
              "Get the optimized T_ENU_map alignment transform after PGO. "
              "This is the transform that maps positions from map frame to ENU "
              "frame: p_ENU = T_ENU_map * p_map")
-        .def("set_initial_alignment_estimate",
-             &Vegvisir::setInitialAlignmentEstimate, "T_enu_map"_a,
+        .def("set_initial_alignment_estimate", &Vegvisir::setInitialAlignmentEstimate,
+             "T_enu_map"_a,
              "Set initial estimate for T_ENU_map alignment before PGO. "
              "Call this before fine_grained_optimization if you have a good "
              "initial guess. If not set, PGO will initialize from Identity.")
-        .def("set_gnss_anchor_transform", &Vegvisir::setGnssAnchorTransform,
-             "T_enu_map"_a,
+        .def("set_gnss_anchor_transform", &Vegvisir::setGnssAnchorTransform, "T_enu_map"_a,
              "Set the GNSS anchor transform (T_ENU_map) to be saved with the "
              "map. Call this before save_database() to include GNSS anchoring "
              "in metadata.")
-        .def("set_gnss_origin", &Vegvisir::setGnssOrigin, "lat0"_a, "lon0"_a,
-             "alt0"_a,
+        .def("set_gnss_origin", &Vegvisir::setGnssOrigin, "lat0"_a, "lon0"_a, "alt0"_a,
              "Set the GNSS origin (WGS84 coordinates) used for ENU conversion. "
              "Call this before save_database() to include the origin in "
              "metadata.")
@@ -364,43 +334,36 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def("get_covariance", &Vegvisir::getCovariance)
         .def("get_base_in_map_frame", &Vegvisir::getBaseInMapFrame)
         .def("get_current_odom_base",
-             [](const Vegvisir &self) -> Eigen::Matrix4d {
+             [](const Vegvisir& self) -> Eigen::Matrix4d {
                return self.getCurrentOdomBase().matrix();
              })
         .def("get_num_closures", &Vegvisir::getNumClosures)
         .def(
-            "get_closures",
-            [](const Vegvisir &self) { return self.getClosures(); },
+            "get_closures", [](const Vegvisir& self) { return self.getClosures(); },
             py::return_value_policy::reference_internal)
         .def("get_available_map_ids", &Vegvisir::getAvailableMapIds)
         .def(
             "get_local_map_graph",
-            [](const Vegvisir &self) -> const LocalMapGraph & {
-              return self.getLocalMapGraph();
-            },
+            [](const Vegvisir& self) -> const LocalMapGraph& { return self.getLocalMapGraph(); },
             py::return_value_policy::reference_internal)
         .def("get_reference_poses",
-             [](const Vegvisir &self) {
-               const auto &ref = self.getReferencePoses();
+             [](const Vegvisir& self) {
+               const auto& ref = self.getReferencePoses();
                std::map<int, Eigen::Matrix4d> ordered(ref.begin(), ref.end());
                return ordered;
              })
         .def(
             "get_reference_pose",
-            [](const Vegvisir &self, int map_id) {
-              return self.getReferencePose(map_id);
-            },
+            [](const Vegvisir& self, int map_id) { return self.getReferencePose(map_id); },
             "map_id"_a)
         .def(
             "get_ground_alignment",
-            [](const Vegvisir &self, int map_id) {
-              return self.getGroundAlignment(map_id);
-            },
+            [](const Vegvisir& self, int map_id) { return self.getGroundAlignment(map_id); },
             "map_id"_a)
         .def(
             "get_density_map",
-            [](const Vegvisir &self, int map_id) {
-              const auto &density_map = self.getDensityMap(map_id);
+            [](const Vegvisir& self, int map_id) {
+              const auto& density_map = self.getDensityMap(map_id);
               Eigen::MatrixXf density_map_eigen;
               cv::cv2eigen(density_map.grid, density_map_eigen);
               return density_map_eigen;
@@ -408,8 +371,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
             "map_id"_a)
         .def(
             "get_density_map_metadata",
-            [](const Vegvisir &self, int map_id) {
-              const auto &density_map = self.getDensityMap(map_id);
+            [](const Vegvisir& self, int map_id) {
+              const auto& density_map = self.getDensityMap(map_id);
               py::dict metadata;
               metadata["resolution"] = density_map.resolution;
               metadata["lower_bound"] = density_map.lower_bound;
@@ -421,8 +384,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def("has_local_map_points", &Vegvisir::hasLocalMapPoints, "map_id"_a)
         .def(
             "get_local_map_points",
-            [](const Vegvisir &self, int map_id) {
-              const auto &pts = self.getLocalMapPoints(map_id);
+            [](const Vegvisir& self, int map_id) {
+              const auto& pts = self.getLocalMapPoints(map_id);
               Eigen::MatrixXd mat(pts.size(), 3);
               for (size_t i = 0; i < pts.size(); ++i) {
                 mat.row(i) = pts[i].transpose();
@@ -431,21 +394,18 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
             },
             "map_id"_a)
         .def_property(
-            "map_metadata",
-            [](const Vegvisir &self) { return self.getMapMetadata(); },
-            [](Vegvisir &self, const MapMetadata &md) {
-              self.setMapMetadata(md);
-            })
-        .def_property_readonly("poses", [](const Vegvisir &self) {
+            "map_metadata", [](const Vegvisir& self) { return self.getMapMetadata(); },
+            [](Vegvisir& self, const MapMetadata& md) { self.setMapMetadata(md); })
+        .def_property_readonly("poses", [](const Vegvisir& self) {
           // Return poses with same indexing as fine-grained PGO:
           // - id=0: first keypose
           // - id=1+: keypose * traj[i+1] for each frame
-          const auto &graph = self.getLocalMapGraph();
+          const auto& graph = self.getLocalMapGraph();
           std::vector<Eigen::Matrix4d> poses;
           bool first = true;
           for (auto it = graph.cbegin(); it != graph.cend(); ++it) {
-            const auto &node = it->second;
-            const auto &traj = node.localTrajectory();
+            const auto& node = it->second;
+            const auto& traj = node.localTrajectory();
             if (first) {
               // First pose is the first keypose (matches PGO id=0)
               poses.push_back(node.keypose());
@@ -461,8 +421,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   }
 
   // ---- Free functions ----
-  m.def("_align_map_to_local_ground", &map_closures::AlignToLocalGround,
-        "pointcloud"_a, "resolution"_a);
+  m.def("_align_map_to_local_ground", &map_closures::AlignToLocalGround, "pointcloud"_a,
+        "resolution"_a);
 
   // ---- Constants ----
   m.attr("LOCAL_MAPS_TO_SKIP") = map_closures::LOCAL_MAPS_TO_SKIP;

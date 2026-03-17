@@ -1,0 +1,39 @@
+---
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++17
+ColumnLimit: 100
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+AccessModifierOffset: -1
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BraceWrapping:
+  AfterClass: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterEnum: false
+  BeforeElse: false
+BreakBeforeBraces: Attach
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Left
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  # C system headers
+  - Regex: '^<c(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)>'
+    Priority: 1
+  # C++ standard library
+  - Regex: '^<[a-z_]+>'
+    Priority: 2
+  # Third-party libraries
+  - Regex: '^<(Eigen|sophus|tsl|g2o|tbb|opencv2|pybind11)/.*>'
+    Priority: 3
+  # Project headers
+  - Regex: '^"'
+    Priority: 4
+...

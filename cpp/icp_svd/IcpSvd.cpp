@@ -8,38 +8,33 @@
 
 namespace icp {
 
-Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d &R,
-                                const Eigen::Vector3d &t) {
+Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d& R, const Eigen::Vector3d& t) {
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
   T.block<3, 3>(0, 0) = R;
   T.block<3, 1>(0, 3) = t;
   return T;
 }
 
-double IcpSvd::rotationAngle(const Eigen::Matrix3d &R) {
+double IcpSvd::rotationAngle(const Eigen::Matrix3d& R) {
   const double cos_a = std::clamp((R.trace() - 1.0) * 0.5, -1.0, 1.0);
   return std::acos(cos_a);
 }
 
-size_t IcpSvd::trimCorrespondences(uint32_t *indices, const double *dist_sq,
-                                   size_t num_corr) {
-  const size_t keep =
-      std::max(MIN_CORRESPONDENCES,
-               static_cast<size_t>(static_cast<double>(num_corr) * TRIM_RATIO));
+size_t IcpSvd::trimCorrespondences(uint32_t *indices, const double *dist_sq, size_t num_corr) {
+  const size_t keep = std::max(MIN_CORRESPONDENCES,
+                               static_cast<size_t>(static_cast<double>(num_corr) * TRIM_RATIO));
 
   if (keep < num_corr) {
-    std::nth_element(
-        indices, indices + keep, indices + num_corr,
-        [dist_sq](uint32_t a, uint32_t b) { return dist_sq[a] < dist_sq[b]; });
+    std::nth_element(indices, indices + keep, indices + num_corr,
+                     [dist_sq](uint32_t a, uint32_t b) { return dist_sq[a] < dist_sq[b]; });
     return keep;
   }
   return num_corr;
 }
 
-std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>>
-IcpSvd::computeAlignment(const Eigen::Vector3d *src, const Eigen::Vector3d *tgt,
-                         const double *dist_sq, const uint32_t *indices,
-                         size_t count, double cauchy_c_sq) {
+std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> IcpSvd::computeAlignment(
+    const Eigen::Vector3d *src, const Eigen::Vector3d *tgt, const double *dist_sq,
+    const uint32_t *indices, size_t count, double cauchy_c_sq) {
   // Cauchy-robust weighted centroids
   double w_sum = 0.0;
   Eigen::Vector3d src_mean = Eigen::Vector3d::Zero();
@@ -65,9 +60,8 @@ IcpSvd::computeAlignment(const Eigen::Vector3d *src, const Eigen::Vector3d *tgt,
   // SVD + degeneracy check
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  Eigen::JacobiSVD<Eigen::Matrix3d> svd(H, Eigen::ComputeFullU |
-                                               Eigen::ComputeFullV);
-  const auto &sigma = svd.singularValues();
+  Eigen::JacobiSVD<Eigen::Matrix3d> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  const auto& sigma = svd.singularValues();
 
   if (sigma(2) < 1e-6 * sigma(0)) {
     return std::nullopt;
@@ -75,7 +69,7 @@ IcpSvd::computeAlignment(const Eigen::Vector3d *src, const Eigen::Vector3d *tgt,
 
   // Reflection correction
   Eigen::Matrix3d V = svd.matrixV();
-  const Eigen::Matrix3d &U = svd.matrixU();
+  const Eigen::Matrix3d& U = svd.matrixU();
 #pragma GCC diagnostic pop
   if ((V * U.transpose()).determinant() < 0.0) {
     V.col(2) *= -1.0;
@@ -86,18 +80,15 @@ IcpSvd::computeAlignment(const Eigen::Vector3d *src, const Eigen::Vector3d *tgt,
   return std::pair{dR, dt};
 }
 
-Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d> &source,
-                               const std::vector<Eigen::Vector3d> &target,
-                               const Eigen::Matrix4d &initial_guess,
-                               double voxel_size, int max_iterations,
-                               double convergence_threshold,
+Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
+                               const std::vector<Eigen::Vector3d>& target,
+                               const Eigen::Matrix4d& initial_guess, double voxel_size,
+                               int max_iterations, double convergence_threshold,
                                double max_correspondence_distance) {
-
   voxel_map::VoxelMap target_map(voxel_size);
   target_map.AddPoints(target);
 
-  const double max_dist_sq =
-      max_correspondence_distance * max_correspondence_distance;
+  const double max_dist_sq = max_correspondence_distance * max_correspondence_distance;
   const double cauchy_c_sq = 0.25 * max_dist_sq;
 
   // Track R, t separately; only build 4x4 at return
@@ -149,16 +140,14 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d> &source,
 
     // ---- Trim + align ----
     std::iota(indices.begin(), indices.begin() + num_corr, uint32_t(0));
-    const size_t kept =
-        trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
+    const size_t kept = trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
 
-    auto alignment =
-        computeAlignment(src_world.data(), tgt_matched.data(),
-                         dist_sq_arr.data(), indices.data(), kept, cauchy_c_sq);
+    auto alignment = computeAlignment(src_world.data(), tgt_matched.data(), dist_sq_arr.data(),
+                                      indices.data(), kept, cauchy_c_sq);
     if (!alignment) {
       return {makeSE3(best_R, best_t), false, iter};
     }
-    const auto &[dR, dt] = *alignment;
+    const auto& [dR, dt] = *alignment;
 
     // ---- Compose ----
     R = dR * R;
@@ -174,4 +163,4 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d> &source,
   return {makeSE3(best_R, best_t), false, max_iterations};
 }
 
-} // namespace icp
+}  // namespace icp

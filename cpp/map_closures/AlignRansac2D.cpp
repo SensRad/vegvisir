@@ -25,24 +25,26 @@
 
 #include "AlignRansac2D.hpp"
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-#include <Eigen/SVD>
-#include <algorithm>
 #include <cmath>
+
+#include <algorithm>
 #include <random>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <Eigen/SVD>
 
 namespace {
 
 // Compute rigid transform (rotation + translation) using Kabsch-Umeyama
 Eigen::Isometry2d KabschUmeyamaAlignment2D(
-    const std::vector<map_closures::PointPair> &keypoint_pairs) {
+    const std::vector<map_closures::PointPair>& keypoint_pairs) {
   const auto n = static_cast<double>(keypoint_pairs.size());
   Eigen::Vector2d mean_ref = Eigen::Vector2d::Zero();
   Eigen::Vector2d mean_query = Eigen::Vector2d::Zero();
-  for (const auto &kp : keypoint_pairs) {
+  for (const auto& kp : keypoint_pairs) {
     mean_ref += kp.ref;
     mean_query += kp.query;
   }
@@ -50,13 +52,12 @@ Eigen::Isometry2d KabschUmeyamaAlignment2D(
   mean_query /= n;
 
   Eigen::Matrix2d covariance_matrix = Eigen::Matrix2d::Zero();
-  for (const auto &kp : keypoint_pairs) {
-    covariance_matrix +=
-        (kp.ref - mean_ref) * (kp.query - mean_query).transpose();
+  for (const auto& kp : keypoint_pairs) {
+    covariance_matrix += (kp.ref - mean_ref) * (kp.query - mean_query).transpose();
   }
 
-  Eigen::JacobiSVD<Eigen::Matrix2d> svd(
-      covariance_matrix, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  Eigen::JacobiSVD<Eigen::Matrix2d> svd(covariance_matrix,
+                                        Eigen::ComputeFullU | Eigen::ComputeFullV);
 
   // Standard Kabsch reflection correction
   Eigen::Matrix2d D = Eigen::Matrix2d::Identity();
@@ -69,12 +70,12 @@ Eigen::Isometry2d KabschUmeyamaAlignment2D(
   return T;
 }
 
-} // namespace
+}  // namespace
 
 namespace map_closures {
 
-std::pair<Eigen::Isometry2d, std::size_t>
-RansacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
+std::pair<Eigen::Isometry2d, std::size_t> RansacAlignment2D(
+    const std::vector<PointPair>& keypoint_pairs) {
   if (keypoint_pairs.size() < 2) {
     return {Eigen::Isometry2d::Identity(), 0};
   }
@@ -90,17 +91,16 @@ RansacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
 
   std::mt19937 rng{std::random_device{}()};
 
-  auto find_inliers = [&](const Eigen::Isometry2d &T, std::vector<int> &out) {
+  auto find_inliers = [&](const Eigen::Isometry2d& T, std::vector<int>& out) {
     out.clear();
     for (int i = 0; i < n; ++i) {
-      if ((T * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() <
-          RANSAC_INLIER_THRESHOLD) {
+      if ((T * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() < RANSAC_INLIER_THRESHOLD) {
         out.emplace_back(i);
       }
     }
   };
 
-  auto fit_on_indices = [&](const std::vector<int> &indices) {
+  auto fit_on_indices = [&](const std::vector<int>& indices) {
     std::vector<PointPair> subset;
     subset.reserve(indices.size());
     for (const auto idx : indices) {
@@ -111,8 +111,8 @@ RansacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
 
   int max_iterations = RANSAC_MAX_TRIALS;
   for (int iter = 0; iter < max_iterations; ++iter) {
-    std::sample(keypoint_pairs.begin(), keypoint_pairs.end(),
-                sample_keypoint_pairs.begin(), 2, rng);
+    std::sample(keypoint_pairs.begin(), keypoint_pairs.end(), sample_keypoint_pairs.begin(), 2,
+                rng);
     const auto T = KabschUmeyamaAlignment2D(sample_keypoint_pairs);
     find_inliers(T, inlier_indices);
 
@@ -130,8 +130,7 @@ RansacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
     max_iterations = std::min(
         max_iterations,
         std::max(RANSAC_MIN_TRIALS,
-                 static_cast<int>(std::ceil(
-                     std::log(1.0 - RANSAC_PROBABILITY_SUCCESS) / denom))));
+                 static_cast<int>(std::ceil(std::log(1.0 - RANSAC_PROBABILITY_SUCCESS) / denom))));
   }
 
   if (optimal_inlier_indices.size() < 2) {
@@ -143,4 +142,4 @@ RansacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
   return {T, optimal_inlier_indices.size()};
 }
 
-} // namespace map_closures
+}  // namespace map_closures

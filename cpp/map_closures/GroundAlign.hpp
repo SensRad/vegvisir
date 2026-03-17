@@ -25,15 +25,15 @@
 
 #pragma once
 
-#include <Eigen/Core>
 #include <vector>
 
+#include <Eigen/Core>
+
 namespace map_closures {
-Eigen::Matrix4d
-AlignToLocalGround(const std::vector<Eigen::Vector3d> &pointcloud,
-                   const double resolution);
+Eigen::Matrix4d AlignToLocalGround(const std::vector<Eigen::Vector3d>& pointcloud,
+                                   const double resolution);
 
 // Constants
 static constexpr double CONVERGENCE_THRESHOLD = 1e-3;
 static constexpr int MAX_ITERATIONS = 20;
-} // namespace map_closures
+}  // namespace map_closures

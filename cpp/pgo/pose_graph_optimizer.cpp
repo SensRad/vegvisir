@@ -23,6 +23,9 @@
 // SOFTWARE.
 #include "pose_graph_optimizer.hpp"
 
+#include <iostream>
+#include <memory>
+
 #include <g2o/core/base_binary_edge.h>
 #include <g2o/core/block_solver.h>
 #include <g2o/core/factory.h>
@@ -35,11 +38,8 @@
 #include <g2o/types/slam3d/isometry3d_gradients.h>
 #include <g2o/types/slam3d/vertex_se3.h>
 
-#include <iostream>
-#include <memory>
-
 namespace {
-constexpr double epsilon = 1e-9; // Allow more iterations before early stop
+constexpr double epsilon = 1e-9;  // Allow more iterations before early stop
 
 // Binary edge for GNSS position constraints WITH alignment estimation.
 // Vertex 0: Pose in map frame
@@ -47,18 +47,15 @@ constexpr double epsilon = 1e-9; // Allow more iterations before early stop
 // Measurement: GNSS position in ENU frame
 // Error: T_ENU_map * p_map - p_ENU_gnss
 class EdgeGnssWithAlignment
-    : public g2o::BaseBinaryEdge<3, Eigen::Vector3d, g2o::VertexSE3,
-                                 g2o::VertexSE3> {
-public:
+    : public g2o::BaseBinaryEdge<3, Eigen::Vector3d, g2o::VertexSE3, g2o::VertexSE3> {
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   EdgeGnssWithAlignment() = default;
 
   void computeError() override {
-    const g2o::VertexSE3 *v_pose =
-        static_cast<const g2o::VertexSE3 *>(_vertices[0]);
-    const g2o::VertexSE3 *v_align =
-        static_cast<const g2o::VertexSE3 *>(_vertices[1]);
+    const g2o::VertexSE3 *v_pose = static_cast<const g2o::VertexSE3 *>(_vertices[0]);
+    const g2o::VertexSE3 *v_align = static_cast<const g2o::VertexSE3 *>(_vertices[1]);
 
     // Position in map frame
     Eigen::Vector3d p_map = v_pose->estimate().translation();
@@ -70,7 +67,7 @@ public:
     _error = p_enu_estimated - _measurement;
   }
 
-  bool read(std::istream &is) override {
+  bool read(std::istream& is) override {
     is >> _measurement[0] >> _measurement[1] >> _measurement[2];
     for (int i = 0; i < 3; ++i) {
       for (int j = i; j < 3; ++j) {
@@ -83,7 +80,7 @@ public:
     return true;
   }
 
-  bool write(std::ostream &os) const override {
+  bool write(std::ostream& os) const override {
     os << _measurement[0] << " " << _measurement[1] << " " << _measurement[2];
     for (int i = 0; i < 3; ++i) {
       for (int j = i; j < 3; ++j) {
@@ -100,9 +97,8 @@ public:
 // Measurement: Full SE3 pose in ENU frame (from INS)
 // Error: log(T_gnss_enu^{-1} * T_ENU_map * T_map_pose) — 6D
 class EdgeGnssPoseWithAlignment
-    : public g2o::BaseBinaryEdge<6, g2o::Isometry3, g2o::VertexSE3,
-                                 g2o::VertexSE3> {
-public:
+    : public g2o::BaseBinaryEdge<6, g2o::Isometry3, g2o::VertexSE3, g2o::VertexSE3> {
+ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   EdgeGnssPoseWithAlignment() = default;
@@ -120,12 +116,12 @@ public:
     _error = g2o::internal::toVectorMQT(delta);
   }
 
-  void setMeasurement(const g2o::Isometry3 &m) override {
+  void setMeasurement(const g2o::Isometry3& m) override {
     _measurement = m;
     _inverseMeasurement = m.inverse();
   }
 
-  bool read(std::istream &is) override {
+  bool read(std::istream& is) override {
     Eigen::Matrix<double, 7, 1> v;
     for (int i = 0; i < 7; ++i) {
       is >> v[i];
@@ -143,7 +139,7 @@ public:
     return true;
   }
 
-  bool write(std::ostream &os) const override {
+  bool write(std::ostream& os) const override {
     Eigen::Matrix<double, 7, 1> v = g2o::internal::toVectorQT(_measurement);
     for (int i = 0; i < 7; ++i) {
       os << v[i] << " ";
@@ -156,11 +152,11 @@ public:
     return os.good();
   }
 
-private:
+ private:
   g2o::Isometry3 _inverseMeasurement;
 };
 
-} // namespace
+}  // namespace
 
 // clang-format off
 namespace g2o {
@@ -173,8 +169,7 @@ G2O_REGISTER_TYPE(EDGE_GNSS_POSE_WITH_ALIGNMENT, EdgeGnssPoseWithAlignment)
 
 namespace pgo {
 using BlockSolverType = g2o::BlockSolver<g2o::BlockSolverTraits<6, 6>>;
-using LinearSolverType =
-    g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
+using LinearSolverType = g2o::LinearSolverCholmod<BlockSolverType::PoseMatrixType>;
 using AlgorithmType = g2o::OptimizationAlgorithmDogleg;
 
 PoseGraphOptimizer::PoseGraphOptimizer(const int max_iterations, bool verbose)
@@ -182,8 +177,8 @@ PoseGraphOptimizer::PoseGraphOptimizer(const int max_iterations, bool verbose)
   graph = std::make_unique<g2o::SparseOptimizer>();
   graph->setVerbose(verbose);
 
-  auto solver = new AlgorithmType(
-      std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
+  auto solver =
+      new AlgorithmType(std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
 
   auto terminateAction = new g2o::SparseOptimizerTerminateAction;
   terminateAction->setGainThreshold(epsilon);
@@ -198,7 +193,7 @@ void PoseGraphOptimizer::fixVariable(const int id) {
   }
 }
 
-void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d &T) {
+void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d& T) {
   Eigen::Isometry3d pose;
   pose.matrix() = T;
   g2o::VertexSE3 *variable = new g2o::VertexSE3();
@@ -208,8 +203,8 @@ void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d &T) {
 }
 
 void PoseGraphOptimizer::addFactor(const int id_source, const int id_target,
-                                   const Eigen::Matrix4d &T,
-                                   const Eigen::Matrix6d &information_matrix) {
+                                   const Eigen::Matrix4d& T,
+                                   const Eigen::Matrix6d& information_matrix) {
   Eigen::Isometry3d relative_pose;
   relative_pose.matrix() = T;
   g2o::EdgeSE3 *factor = new g2o::EdgeSE3();
@@ -220,8 +215,7 @@ void PoseGraphOptimizer::addFactor(const int id_source, const int id_target,
   graph->addEdge(factor);
 }
 
-void PoseGraphOptimizer::initializeAlignmentVariable(
-    const Eigen::Matrix4d &initial_estimate) {
+void PoseGraphOptimizer::initializeAlignmentVariable(const Eigen::Matrix4d& initial_estimate) {
   Eigen::Isometry3d T_enu_map;
   T_enu_map.matrix() = initial_estimate;
 
@@ -233,10 +227,10 @@ void PoseGraphOptimizer::initializeAlignmentVariable(
   alignment_initialized_ = true;
 }
 
-void PoseGraphOptimizer::addGnssConstraintWithAlignment(
-    const int pose_id, const Eigen::Vector3d &position_enu,
-    const Eigen::Matrix3d &information_matrix, double huber_delta) {
-
+void PoseGraphOptimizer::addGnssConstraintWithAlignment(const int pose_id,
+                                                        const Eigen::Vector3d& position_enu,
+                                                        const Eigen::Matrix3d& information_matrix,
+                                                        double huber_delta) {
   if (!alignment_initialized_) {
     std::cerr << "Error: Alignment variable not initialized. Call "
                  "initializeAlignmentVariable() first."
@@ -278,9 +272,8 @@ void PoseGraphOptimizer::addGnssConstraintWithAlignment(
 }
 
 void PoseGraphOptimizer::addGnssPoseConstraintWithAlignment(
-    const int pose_id, const Eigen::Matrix4d &pose_enu,
-    const Eigen::Matrix6d &information_matrix, double huber_delta) {
-
+    const int pose_id, const Eigen::Matrix4d& pose_enu, const Eigen::Matrix6d& information_matrix,
+    double huber_delta) {
   if (!alignment_initialized_) {
     std::cerr << "Error: Alignment variable not initialized. Call "
                  "initializeAlignmentVariable() first."
@@ -299,8 +292,7 @@ void PoseGraphOptimizer::addGnssPoseConstraintWithAlignment(
 
   if (!align_vertex) {
     std::cerr << "Error: Alignment vertex (ID=" << ALIGNMENT_VERTEX_ID
-              << ") not found in graph. Skipping GNSS pose constraint."
-              << std::endl;
+              << ") not found in graph. Skipping GNSS pose constraint." << std::endl;
     return;
   }
 
@@ -326,8 +318,7 @@ Eigen::Matrix4d PoseGraphOptimizer::getAlignmentTransform() const {
   if (!alignment_initialized_) {
     return Eigen::Matrix4d::Identity();
   }
-  g2o::VertexSE3 *v =
-      static_cast<g2o::VertexSE3 *>(graph->vertex(ALIGNMENT_VERTEX_ID));
+  g2o::VertexSE3 *v = static_cast<g2o::VertexSE3 *>(graph->vertex(ALIGNMENT_VERTEX_ID));
   if (!v) {
     return Eigen::Matrix4d::Identity();
   }
@@ -339,9 +330,9 @@ bool PoseGraphOptimizer::hasAlignmentVariable() const {
 }
 
 PoseGraphOptimizer::PoseIDMap PoseGraphOptimizer::estimates() const {
-  const g2o::HyperGraph::VertexIDMap &variables = graph->vertices();
+  const g2o::HyperGraph::VertexIDMap& variables = graph->vertices();
   PoseIDMap poses;
-  for (const auto &[id, v] : variables) {
+  for (const auto& [id, v] : variables) {
     // Skip the alignment vertex
     if (id == ALIGNMENT_VERTEX_ID) {
       continue;
@@ -356,4 +347,4 @@ void PoseGraphOptimizer::optimize() {
   graph->initializeOptimization();
   graph->optimize(max_iterations_);
 }
-} // namespace pgo
+}  // namespace pgo
