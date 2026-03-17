@@ -64,10 +64,10 @@ void SlamBackend::initialize() {
             << vegvisir_.local_map_graph_.size() << " keyposes" << std::endl;
 }
 
-void SlamBackend::preIntegrate(const Eigen::Matrix4d &T_odom_base,
+void SlamBackend::preIntegrate(const Eigen::Matrix4d &pose_odom_base,
                                const Sophus::SE3d & /*delta_pose*/) {
   // Compensate for poses at previous nodes
-  Eigen::Matrix4d compensated_pose = T_odom_base;
+  Eigen::Matrix4d compensated_pose = pose_odom_base;
   for (const auto &pose : pose_at_nodes_) {
     compensated_pose = pose.inverse() * compensated_pose;
   }
@@ -77,7 +77,7 @@ void SlamBackend::preIntegrate(const Eigen::Matrix4d &T_odom_base,
   std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
   Eigen::Matrix4d T_map_base =
       vegvisir_.local_map_graph_.lastKeypose() * vegvisir_.current_pose_;
-  vegvisir_.tf_map_odom_ = T_map_base * T_odom_base.inverse();
+  vegvisir_.tf_map_odom_ = T_map_base * pose_odom_base.inverse();
 }
 
 void SlamBackend::postIntegrate() {
@@ -90,9 +90,9 @@ double SlamBackend::queryDistanceM() const {
   return Vegvisir::QUERY_DISTANCE_SLAM_M;
 }
 
-void SlamBackend::runQueryCycle(const Eigen::Matrix4d &T_odom_base) {
+void SlamBackend::runQueryCycle(const Eigen::Matrix4d &pose_odom_base) {
   // In SLAM mode, generate a new node after each query (and handle closures)
-  generateNewNode(T_odom_base);
+  generateNewNode(pose_odom_base);
 }
 
 std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
@@ -136,7 +136,7 @@ void SlamBackend::optimizeKeyposeGraph() {
   }
 }
 
-void SlamBackend::generateNewNode(const Eigen::Matrix4d &T_odom_base) {
+void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   // Generate a new SLAM node and check for loop closures
 
   LocalMap &last_local_map = vegvisir_.local_map_graph_.lastLocalMap();
@@ -203,7 +203,7 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &T_odom_base) {
 
   // Shared closure processing (async — runs on background thread)
   vegvisir_.processLoopClosuresAsync(query_id, std::move(query_points_mc),
-                                     std::move(query_points_icp), T_odom_base);
+                                     std::move(query_points_icp), pose_odom_base);
 }
 
 } // namespace vegvisir

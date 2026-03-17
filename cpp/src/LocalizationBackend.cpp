@@ -12,16 +12,16 @@ LocalizationBackend::LocalizationBackend(Vegvisir &vegvisir)
 
 void LocalizationBackend::initialize() {
   localization_anchor_initialized_ = false;
-  T_odom_anchor_.setIdentity();
+  pose_odom_anchor_.setIdentity();
 }
 
-void LocalizationBackend::preIntegrate(const Eigen::Matrix4d &T_odom_base,
+void LocalizationBackend::preIntegrate(const Eigen::Matrix4d &pose_odom_base,
                                        const Sophus::SE3d &delta_pose) {
   // Localization: ring-buffer submaps
-  initLocalizationAnchor(T_odom_base);
+  initLocalizationAnchor(pose_odom_base);
 
   // current_pose_ is anchor <- base
-  vegvisir_.current_pose_ = T_odom_anchor_.inverse() * T_odom_base;
+  vegvisir_.current_pose_ = pose_odom_anchor_.inverse() * pose_odom_base;
 
   // Lock: pose_filter_ and tf_map_odom_ are written by background closure thread
   std::lock_guard<std::mutex> lock(vegvisir_.closure_mutex_);
@@ -39,12 +39,12 @@ double LocalizationBackend::queryDistanceM() const {
   return Vegvisir::QUERY_DISTANCE_LOCALIZATION_M;
 }
 
-void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d &T_odom_base) {
+void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d &pose_odom_base) {
   // Localization: build query cloud from ring buffer, then query closures
   std::vector<Eigen::Vector3d> query_points_mc;
   std::vector<Eigen::Vector3d> query_points_icp;
 
-  buildLocalizationQueryCloudInBaseFrame(T_odom_base, query_points_mc,
+  buildLocalizationQueryCloudInBaseFrame(pose_odom_base, query_points_mc,
                                          query_points_icp);
 
   // Cut submap before async closure call (independent, must stay synchronous)
@@ -53,7 +53,7 @@ void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d &T_odom_base) {
   // Shared closure processing (async — runs on background thread)
   vegvisir_.processLoopClosuresAsync(Vegvisir::QUERY_ID_LOCALIZATION,
                                      std::move(query_points_mc),
-                                     std::move(query_points_icp), T_odom_base);
+                                     std::move(query_points_icp), pose_odom_base);
 }
 
 std::vector<map_closures::ClosureCandidate>
@@ -123,20 +123,20 @@ void LocalizationBackend::handleClosureMeasurementUpdate(
 }
 
 void LocalizationBackend::initLocalizationAnchor(
-    const Eigen::Matrix4d &T_odom_base) {
+    const Eigen::Matrix4d &pose_odom_base) {
   if (localization_anchor_initialized_) {
     return;
   }
   localization_anchor_initialized_ = true;
 
   // Anchor starts at the first received odom pose
-  T_odom_anchor_ = T_odom_base;
+  pose_odom_anchor_ = pose_odom_base;
 
   // Reset/initialize the local_map_graph_ to represent the localization ring
   // buffer. One node (id 0) whose keypose is T_odom_anchor.
   vegvisir_.local_map_graph_.clear(0);
   vegvisir_.local_map_graph_.updateKeypose(vegvisir_.local_map_graph_.lastId(),
-                                           T_odom_anchor_);
+                                           pose_odom_anchor_);
   vegvisir_.local_map_graph_.lastLocalMap().clearTrajectory();
 
   // Start with a fresh voxel grid in this anchor frame
@@ -189,7 +189,7 @@ void LocalizationBackend::cutLocalizationSubmap() {
   vegvisir_.voxel_grid_.Clear();
 
   // Update active anchor from the newly created keypose (odom <- anchor_new)
-  T_odom_anchor_ = vegvisir_.local_map_graph_.lastKeypose();
+  pose_odom_anchor_ = vegvisir_.local_map_graph_.lastKeypose();
 
   // Reset relative pose (anchor == base at cut time)
   vegvisir_.current_pose_ = Eigen::Matrix4d::Identity();
@@ -199,7 +199,7 @@ void LocalizationBackend::cutLocalizationSubmap() {
 }
 
 void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
-    const Eigen::Matrix4d &T_odom_base,
+    const Eigen::Matrix4d &pose_odom_base,
     std::vector<Eigen::Vector3d> &query_points_mc,
     std::vector<Eigen::Vector3d> &query_points_icp) const {
 
@@ -207,11 +207,11 @@ void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
   query_points_icp.clear();
 
   // Transform from current anchor to current base:
-  // T_base_anchor = (T_odom_base)^-1 * (T_odom_anchor)
+  // T_base_anchor = (pose_odom_base)^-1 * (T_odom_anchor)
   // Note: current live voxel_grid points are stored in the active anchor
   // frame.
   const Eigen::Matrix4d T_base_anchor_cur =
-      T_odom_base.inverse() * T_odom_anchor_;
+      pose_odom_base.inverse() * pose_odom_anchor_;
 
   // 1) Add current voxel grid points
   const auto current_mc = vegvisir_.voxel_grid_.Pointcloud();
@@ -232,9 +232,9 @@ void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
       continue;
     }
 
-    const Eigen::Matrix4d &T_odom_anchor_i = submap.keypose();
+    const Eigen::Matrix4d &pose_odom_anchor_i = submap.keypose();
     const Eigen::Matrix4d T_base_anchor_i =
-        T_odom_base.inverse() * T_odom_anchor_i;
+        pose_odom_base.inverse() * pose_odom_anchor_i;
 
     Vegvisir::transformAndAppendPoints(submap.pointCloud(), T_base_anchor_i,
                                        query_points_mc);

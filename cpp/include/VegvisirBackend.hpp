@@ -18,24 +18,26 @@ class VegvisirBackend {
 public:
   explicit VegvisirBackend(Vegvisir &vegvisir) : vegvisir_(vegvisir) {}
   virtual ~VegvisirBackend() = default;
+  VegvisirBackend(const VegvisirBackend &) = delete;
+  VegvisirBackend &operator=(const VegvisirBackend &) = delete;
 
   virtual void initialize() = 0;
 
   // Called at start of update(): sets vegvisir_.current_pose_ and
   // vegvisir_.tf_map_odom_ policy.
-  virtual void preIntegrate(const Eigen::Matrix4d &T_odom_base,
+  virtual void preIntegrate(const Eigen::Matrix4d &pose_odom_base,
                             const Sophus::SE3d &delta_pose) = 0;
 
   // Called after voxel integration: sets local trajectory policy.
   virtual void postIntegrate() = 0;
 
   // Query cadence
-  virtual double queryDistanceM() const = 0;
+  [[nodiscard]] virtual double queryDistanceM() const = 0;
 
   // Called when query cadence triggers: backend builds query clouds and/or
   // performs node/submap actions, then calls
   // vegvisir_.processLoopClosures(...)
-  virtual void runQueryCycle(const Eigen::Matrix4d &T_odom_base) = 0;
+  virtual void runQueryCycle(const Eigen::Matrix4d &pose_odom_base) = 0;
 
   // Backend must provide candidate retrieval:
   // SLAM: GetTopKClosures (query + add)

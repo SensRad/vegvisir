@@ -11,7 +11,7 @@ namespace vegvisir {
 Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
     : voxel_grid_(VOXEL_SIZE), local_map_graph_(), pose_filter_(),
       tf_map_odom_(Eigen::Matrix4d::Identity()),
-      current_odom_base_(Sophus::SE3d()), mode_(mode),
+      current_odom_base_(), mode_(mode),
       map_database_path_(map_database_path), loop_closure_enabled_(false) {
 
   // Initialize Kalman filter with identity pose (uses default covariances)
@@ -108,11 +108,11 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
   has_previous_pose_ = true;
 
   // Store current base_link pose in odom frame
-  const Eigen::Matrix4d T_odom_base = absolute_pose.matrix();
+  const Eigen::Matrix4d pose_odom_base = absolute_pose.matrix();
   current_odom_base_ = absolute_pose;
 
   // Mode-specific pre-integrate: compute current_pose_ + tf_map_odom_
-  backend_->preIntegrate(T_odom_base, delta_pose);
+  backend_->preIntegrate(pose_odom_base, delta_pose);
 
   std::vector<Eigen::Vector3d> downsampled_points =
       voxel_map::voxelDownsample(points, VOXEL_SIZE);
@@ -134,7 +134,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
   distance_since_query_ = 0.0;
 
   // Mode-specific query cycle
-  backend_->runQueryCycle(T_odom_base);
+  backend_->runQueryCycle(pose_odom_base);
 }
 
 void Vegvisir::processLoopClosures(
@@ -433,7 +433,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   // Initialize alignment variable if we have GNSS
   if (has_gnss) {
     if (has_initial_alignment_) {
-      pgo.initializeAlignmentVariable(initial_T_enu_map_);
+      pgo.initializeAlignmentVariable(initial_pose_enu_map_);
     } else {
       pgo.initializeAlignmentVariable(Eigen::Matrix4d::Identity());
     }
@@ -548,7 +548,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
 
   // Store optimized alignment transform (mutable cast for const method)
   if (has_gnss) {
-    const_cast<Vegvisir *>(this)->optimized_T_enu_map_ =
+    const_cast<Vegvisir *>(this)->optimized_pose_enu_map_ =
         pgo.getAlignmentTransform();
   }
 

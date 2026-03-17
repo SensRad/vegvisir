@@ -52,8 +52,8 @@ struct MapMetadata {
 
 // Result of database loading operation
 struct DatabaseLoadResult {
-  bool success;
-  bool loop_closure_enabled;
+  bool success{};
+  bool loop_closure_enabled{};
   std::string message;
 };
 

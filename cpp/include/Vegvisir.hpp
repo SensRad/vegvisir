@@ -22,7 +22,7 @@
 
 namespace vegvisir {
 
-enum class Mode {
+enum class Mode : std::uint8_t {
   LOCALIZATION, // Localization-only mode (query existing map)
   SLAM          // SLAM mode (build map and optimize pose graph)
 };
@@ -37,6 +37,8 @@ public:
   Vegvisir(const std::string &map_database_path,
            Mode mode = Mode::LOCALIZATION);
   ~Vegvisir();
+  Vegvisir(const Vegvisir &) = delete;
+  Vegvisir &operator=(const Vegvisir &) = delete;
 
   void update(const std::vector<Eigen::Vector3d> &points,
               const Sophus::SE3d &absolute_pose);
@@ -52,8 +54,8 @@ public:
     map_metadata_ = metadata; }
 
   /// Set the GNSS anchor transform (T_ENU_map) to be saved with the map.
-  void setGnssAnchorTransform(const Eigen::Matrix4d &T_enu_map) {
-    map_metadata_.gnss_anchor_transform = T_enu_map;
+  void setGnssAnchorTransform(const Eigen::Matrix4d &pose_enu_map) {
+    map_metadata_.gnss_anchor_transform = pose_enu_map;
     map_metadata_.has_gnss_anchor = true;
   }
 
@@ -132,12 +134,12 @@ public:
   }
 
   // GNSS alignment transform methods
-  void setInitialAlignmentEstimate(const Eigen::Matrix4d &T_enu_map) {
-    initial_T_enu_map_ = T_enu_map;
+  void setInitialAlignmentEstimate(const Eigen::Matrix4d &pose_enu_map) {
+    initial_pose_enu_map_ = pose_enu_map;
     has_initial_alignment_ = true;
   }
   Eigen::Matrix4d getOptimizedAlignmentTransform() const {
-    return optimized_T_enu_map_;
+    return optimized_pose_enu_map_;
   }
 
   // Get current mode
@@ -172,7 +174,6 @@ private:
 
   static constexpr int INLIERS_THRESHOLD = 10;
 
-private:
   // Shared mapping state/resources (used by both backends)
   voxel_map::VoxelMap voxel_grid_;
   LocalMapGraph local_map_graph_;
@@ -190,8 +191,7 @@ private:
   // Pose estimation state/output
   PoseKalmanFilter pose_filter_;
   Eigen::Matrix4d tf_map_odom_ = Eigen::Matrix4d::Identity();
-  Sophus::SE3d current_odom_base_ =
-      Sophus::SE3d(); // Current base_link pose in odom frame
+  Sophus::SE3d current_odom_base_; // Current base_link pose in odom frame
 
   bool has_previous_pose_ = false;
 
@@ -221,8 +221,8 @@ private:
   std::vector<GnssPoseMeasurement> gnss_pose_measurements_;
 
   // GNSS alignment state
-  Eigen::Matrix4d optimized_T_enu_map_ = Eigen::Matrix4d::Identity();
-  Eigen::Matrix4d initial_T_enu_map_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d optimized_pose_enu_map_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d initial_pose_enu_map_ = Eigen::Matrix4d::Identity();
   bool has_initial_alignment_ = false;
 
   // Save state tracking (prevents redundant saves in destructor)
@@ -235,7 +235,6 @@ private:
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
-private:
   // Shared algorithms: ICP refinement + overlap validation
   // filterPointCloud disabled — vegvisir now accepts generic xyz point clouds.
   // void filterPointCloud(const std::vector<Eigen::VectorXd> &input_points,
@@ -272,7 +271,6 @@ private:
                                        const Eigen::Matrix4d &transform_matrix,
                                        std::vector<Eigen::Vector3d> &out);
 
-private:
   // Allow backends to access internal state.
   // Note: C++ friendship is not inherited, so we must friend each backend
   // class.

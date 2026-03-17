@@ -28,24 +28,24 @@ public:
   LocalMap(uint64_t id, const Eigen::Matrix4d &keypose);
 
   // Getters
-  uint64_t id() const { return id_; }
-  const Eigen::Matrix4d &keypose() const { return keypose_; }
+  [[nodiscard]] uint64_t id() const { return id_; }
+  [[nodiscard]] const Eigen::Matrix4d &keypose() const { return keypose_; }
   Eigen::Matrix4d &keypose() { return keypose_; }
 
-  const std::vector<Eigen::Matrix4d> &localTrajectory() const {
+  [[nodiscard]] const std::vector<Eigen::Matrix4d> &localTrajectory() const {
     return local_trajectory_;
   }
   std::vector<Eigen::Matrix4d> &localTrajectory() { return local_trajectory_; }
 
-  const std::vector<Eigen::Vector3d> &pointCloud() const { return pcd_; }
+  [[nodiscard]] const std::vector<Eigen::Vector3d> &pointCloud() const { return pcd_; }
   std::vector<Eigen::Vector3d> &pointCloud() { return pcd_; }
 
-  Eigen::Matrix4d endpose() const;
+  [[nodiscard]] Eigen::Matrix4d endpose() const;
 
   void addToTrajectory(const Eigen::Matrix4d &relative_pose);
   void clearTrajectory();
-  bool write(const std::string &filename) const;
-  bool hasPointCloud() const { return !pcd_.empty(); }
+  [[nodiscard]] bool write(const std::string &filename) const;
+  [[nodiscard]] bool hasPointCloud() const { return !pcd_.empty(); }
 
 private:
   uint64_t id_;
@@ -65,24 +65,24 @@ public:
   LocalMap &operator[](uint64_t key);
   const LocalMap &operator[](uint64_t key) const;
 
-  bool hasLocalMap(uint64_t key) const;
-  size_t size() const { return graph_.size(); }
-  bool empty() const { return graph_.empty(); }
+  [[nodiscard]] bool hasLocalMap(uint64_t key) const;
+  [[nodiscard]] size_t size() const { return graph_.size(); }
+  [[nodiscard]] bool empty() const { return graph_.empty(); }
 
   // Iteration support
   MapIterator begin() { return graph_.begin(); }
   MapIterator end() { return graph_.end(); }
-  ConstMapIterator begin() const { return graph_.begin(); }
-  ConstMapIterator end() const { return graph_.end(); }
-  ConstMapIterator cbegin() const { return graph_.cbegin(); }
-  ConstMapIterator cend() const { return graph_.cend(); }
+  [[nodiscard]] ConstMapIterator begin() const { return graph_.begin(); }
+  [[nodiscard]] ConstMapIterator end() const { return graph_.end(); }
+  [[nodiscard]] ConstMapIterator cbegin() const { return graph_.cbegin(); }
+  [[nodiscard]] ConstMapIterator cend() const { return graph_.cend(); }
 
-  uint64_t lastId() const;
+  [[nodiscard]] uint64_t lastId() const;
 
   LocalMap &lastLocalMap();
-  const LocalMap &lastLocalMap() const;
+  [[nodiscard]] const LocalMap &lastLocalMap() const;
 
-  const Eigen::Matrix4d &lastKeypose() const;
+  [[nodiscard]] const Eigen::Matrix4d &lastKeypose() const;
   Eigen::Matrix4d &lastKeypose();
 
   void eraseLocalMap(uint64_t key);
@@ -93,8 +93,8 @@ public:
 
   void setPointCloud(uint64_t key, const std::vector<Eigen::Vector3d> &points);
 
-  std::vector<Eigen::Matrix4d> getAllKeyposes() const;
-  std::vector<uint64_t> getAllIds() const;
+  [[nodiscard]] std::vector<Eigen::Matrix4d> getAllKeyposes() const;
+  [[nodiscard]] std::vector<uint64_t> getAllIds() const;
 
   void updateKeypose(uint64_t key, const Eigen::Matrix4d &new_keypose);
   void addLocalMap(uint64_t id, const Eigen::Matrix4d &keypose);

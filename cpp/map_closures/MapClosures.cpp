@@ -27,6 +27,7 @@
 
 #include <Eigen/Core>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -45,7 +46,8 @@
 namespace {
 
 struct FileHeader {
-  char magic[12] = {'M', 'A', 'P', 'C', 'L', 'O', 'S', 'U', 'R', 'E', 'S'};
+  std::array<char, 12> magic = {'M', 'A', 'P', 'C', 'L', 'O', 'S', 'U',
+                                'R', 'E', 'S'};
   uint32_t version = 6; // v6: FeatureLayer abstraction
 };
 
@@ -56,8 +58,8 @@ namespace map_closures {
 MapClosures::MapClosures(const Config &config) : config_(config) {
   feature_layers_.push_back(
       std::make_unique<SiftFeatureLayer>(config_.sift_match_ratio));
-  LbdConfig lbd_cfg{config_.lbd_min_line_length, config_.lbd_num_octaves,
-                    config_.lbd_scale};
+  const LbdConfig lbd_cfg{config_.lbd_min_line_length, config_.lbd_num_octaves,
+                          config_.lbd_scale};
   feature_layers_.push_back(
       std::make_unique<LbdFeatureLayer>(lbd_cfg, config_.lbd_match_ratio));
 }
@@ -74,10 +76,11 @@ bool MapClosures::isFarEnough(int ref_id, int query_id) {
 void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
                         std::vector<Correspondence> &out_correspondences) {
   // Ground alignment and density map
-  const Eigen::Matrix4d T_ground =
+  const Eigen::Matrix4d ground_transform =
       AlignToLocalGround(local_map, GROUND_ALIGNMENT_RESOLUTION);
   DensityMap density_map =
-      GenerateDensityMap(local_map, T_ground, config_.density_map_resolution,
+      GenerateDensityMap(local_map, ground_transform,
+                         config_.density_map_resolution,
                          config_.density_threshold);
   ApplyGammaCorrection(density_map, config_.density_map_gamma);
 
@@ -92,7 +95,7 @@ void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
 
   // Store density map and ground alignment
   density_maps_.emplace(id, std::move(density_map));
-  ground_alignments_.emplace(id, T_ground);
+  ground_alignments_.emplace(id, ground_transform);
 }
 
 ClosureCandidate MapClosures::ValidateClosureWithMatches(
@@ -115,7 +118,7 @@ ClosureCandidate MapClosures::ValidateClosureWithMatches(
   }
 
   // RANSAC on combined correspondences
-  auto [pose2d, point_inliers] = RansacAlignment2D(keypoint_pairs);
+  auto [pose2d, point_inliers] = ransacAlignment2D(keypoint_pairs);
   if (point_inliers < 2) {
     return closure;
   }
@@ -183,8 +186,10 @@ MapClosures::GetTopKClosures(const int query_id,
 
   if (k != -1) {
     const auto top_k = std::min(static_cast<std::size_t>(k), closures.size());
-    std::partial_sort(closures.begin(), closures.begin() + top_k,
-                      closures.end(), compareByWeightedScore);
+    std::partial_sort(
+        closures.begin(),
+        closures.begin() + static_cast<std::ptrdiff_t>(top_k),
+        closures.end(), compareByWeightedScore);
     closures.resize(top_k);
   }
   return closures;
@@ -214,32 +219,39 @@ bool MapClosures::save(const std::string &file_path) const {
   }
 
   // Header
-  FileHeader hdr;
-  if (!(io::write_pod(out, hdr)))
+  const FileHeader hdr;
+  if (!(io::write_pod(out, hdr))) {
     return false;
+  }
 
   // Config
-  io::ConfigIO cfgio;
-  if (!cfgio(out, config_))
+  const io::ConfigIO cfgio;
+  if (!cfgio(out, config_)) {
     return false;
+  }
 
   // Density maps
   if (!io::write_map<int, io::DensityMapIO>(out, density_maps_,
-                                            io::DensityMapIO{}))
+                                            io::DensityMapIO{})) {
     return false;
+  }
 
   // Ground alignments
-  if (!io::write_map<int, io::Mat4IO>(out, ground_alignments_, io::Mat4IO{}))
+  if (!io::write_map<int, io::Mat4IO>(out, ground_alignments_,
+                                      io::Mat4IO{})) {
     return false;
+  }
 
   // Feature layers
   for (const auto &layer : feature_layers_) {
-    if (!layer->save(out))
+    if (!layer->save(out)) {
       return false;
+    }
   }
 
-  if (!out.good())
+  if (!out.good()) {
     return false;
+  }
   out.close();
   return true;
 }
@@ -253,9 +265,11 @@ bool MapClosures::load(const std::string &file_path) {
 
   // Header
   FileHeader hdr{};
-  if (!io::read_pod(in, hdr))
+  if (!io::read_pod(in, hdr)) {
     return false;
-  if (std::string(hdr.magic, hdr.magic + 11) != "MAPCLOSURES" ||
+  }
+  if (std::string(hdr.magic.begin(), hdr.magic.begin() + 11) !=
+          "MAPCLOSURES" ||
       hdr.version != 6) {
     std::cerr << "load|ERROR: bad header (version=" << hdr.version << ")\n";
     return false;
@@ -263,23 +277,27 @@ bool MapClosures::load(const std::string &file_path) {
 
   // Config
   io::ConfigIO cfgio;
-  if (!cfgio(in, config_))
+  if (!cfgio(in, config_)) {
     return false;
+  }
 
   // Density maps
   if (!io::read_map<int, DensityMap, io::DensityMapIO>(in, density_maps_,
-                                                       io::DensityMapIO{}))
+                                                       io::DensityMapIO{})) {
     return false;
+  }
 
   // Ground alignments
   if (!io::read_map<int, Eigen::Matrix4d, io::Mat4IO>(in, ground_alignments_,
-                                                      io::Mat4IO{}))
+                                                      io::Mat4IO{})) {
     return false;
+  }
 
   // Feature layers
   for (auto &layer : feature_layers_) {
-    if (!layer->load(in))
+    if (!layer->load(in)) {
       return false;
+    }
   }
 
   in.close();
