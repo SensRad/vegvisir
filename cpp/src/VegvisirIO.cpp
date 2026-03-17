@@ -461,40 +461,40 @@ bool saveDatabase(const std::string &map_dir, const MapMetadata &metadata,
 
     // Construct file paths from metadata
     fs::path db_path = fs::path(map_dir) / metadata.files.database;
-    fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
-    fs::path points_path = fs::path(map_dir) / metadata.files.points;
+    const fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
+    const fs::path points_path = fs::path(map_dir) / metadata.files.points;
 
     // Save the map closures database
     if (!map_closer.save(db_path.string())) {
-      std::cerr << "Failed to save map closures database" << std::endl;
+      std::cerr << "Failed to save map closures database" << '\n';
       return false;
     }
-    std::cout << "Saved map closures database to: " << db_path << std::endl;
+    std::cout << "Saved map closures database to: " << db_path << '\n';
 
     // Save poses in binary format
     if (!savePosesBinary(poses_path.string(), local_map_graph)) {
-      std::cerr << "Failed to save poses binary file" << std::endl;
+      std::cerr << "Failed to save poses binary file" << '\n';
       return false;
     }
 
     // Save local map points in binary format
     if (!saveLocalMapPointsBinary(points_path.string(), local_map_graph,
                                   local_map_points)) {
-      std::cerr << "Failed to save local map points binary file" << std::endl;
+      std::cerr << "Failed to save local map points binary file" << '\n';
       return false;
     }
 
     // Save metadata
     if (!saveMetadata(map_dir, metadata)) {
-      std::cerr << "Failed to save metadata file" << std::endl;
+      std::cerr << "Failed to save metadata file" << '\n';
       return false;
     }
 
     std::cout << "Successfully saved complete map database to: " << map_dir
-              << std::endl;
+              << '\n';
     return true;
   } catch (const std::exception &e) {
-    std::cerr << "Exception while saving database: " << e.what() << std::endl;
+    std::cerr << "Exception while saving database: " << e.what() << '\n';
     return false;
   }
 }
@@ -507,7 +507,7 @@ void rebuildLocalMapGraph(
 
   if (reference_poses.empty()) {
     std::cout << "No reference poses to rebuild LocalMapGraph from"
-              << std::endl;
+              << '\n';
     return;
   }
 
@@ -520,7 +520,7 @@ void rebuildLocalMapGraph(
   std::sort(sorted_ids.begin(), sorted_ids.end());
 
   // Clear and reinitialize with the first map ID
-  int first_id = sorted_ids.front();
+  const int first_id = sorted_ids.front();
   local_map_graph.clear(first_id);
 
   // Set the keypose for the first node
@@ -539,8 +539,8 @@ void rebuildLocalMapGraph(
 
   // Add remaining local maps
   for (size_t i = 1; i < sorted_ids.size(); ++i) {
-    int map_id = sorted_ids[i];
-    uint64_t id = static_cast<uint64_t>(map_id);
+    const int map_id = sorted_ids[i];
+    const auto id = static_cast<uint64_t>(map_id);
 
     // Get keypose
     auto pose_it = reference_poses.find(map_id);
@@ -559,7 +559,7 @@ void rebuildLocalMapGraph(
   }
 
   std::cout << "Rebuilt LocalMapGraph with " << local_map_graph.size()
-            << " local maps from loaded database" << std::endl;
+            << " local maps from loaded database" << '\n';
 }
 
 } // namespace vegvisir

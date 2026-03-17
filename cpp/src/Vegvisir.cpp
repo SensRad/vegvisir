@@ -118,8 +118,8 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
       voxel_map::voxelDownsample(points, VOXEL_SIZE);
 
   // Integrate into voxel grid, and prune points too far away
-  voxel_grid_.IntegrateFrame(downsampled_points, current_pose_);
-  voxel_grid_.PruneFarPoints(current_pose_, LOCAL_MAP_RADIUS_M);
+  voxel_grid_.integrateFrame(downsampled_points, current_pose_);
+  voxel_grid_.pruneFarPoints(current_pose_, LOCAL_MAP_RADIUS_M);
 
   // Mode-specific trajectory policy
   backend_->postIntegrate();
@@ -237,17 +237,17 @@ bool Vegvisir::validateClosurePose(
   }
 
   voxel_map::VoxelMap ref_map(VOXEL_SIZE);
-  ref_map.IntegrateFrame(reference_points, pose);
-  size_t num_source_voxels = ref_map.NumVoxels();
+  ref_map.integrateFrame(reference_points, pose);
+  size_t num_source_voxels = ref_map.numVoxels();
 
   voxel_map::VoxelMap query_map(VOXEL_SIZE);
-  query_map.AddPoints(query_points);
-  size_t num_target_voxels = query_map.NumVoxels();
+  query_map.addPoints(query_points);
+  size_t num_target_voxels = query_map.numVoxels();
 
   voxel_map::VoxelMap union_map(VOXEL_SIZE);
-  union_map.IntegrateFrame(reference_points, pose);
-  union_map.AddPoints(query_points);
-  size_t union_voxels = union_map.NumVoxels();
+  union_map.integrateFrame(reference_points, pose);
+  union_map.addPoints(query_points);
+  size_t union_voxels = union_map.numVoxels();
 
   if (num_source_voxels == 0 || num_target_voxels == 0) {
     return false;

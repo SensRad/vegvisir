@@ -34,11 +34,11 @@
 
 namespace {
 
-static constexpr unsigned int min_points_for_covariance_computation = 3;
+constexpr unsigned int MIN_POINTS_FOR_COVARIANCE_COMPUTATION = 3;
 
 std::tuple<Eigen::Vector3d, Eigen::Vector3d>
-ComputeCentroidAndNormal(const voxel_map::VoxelBlock &coordinates) {
-  const double num_points = static_cast<double>(coordinates.size());
+computeCentroidAndNormal(const voxel_map::VoxelBlock &coordinates) {
+  const auto num_points = static_cast<double>(coordinates.size());
   const Eigen::Vector3d &mean =
       std::reduce(coordinates.cbegin(), coordinates.cend(),
                   Eigen::Vector3d().setZero()) /
@@ -47,14 +47,14 @@ ComputeCentroidAndNormal(const voxel_map::VoxelBlock &coordinates) {
   const Eigen::Matrix3d &covariance =
       std::transform_reduce(
           coordinates.cbegin(), coordinates.cend(), Eigen::Matrix3d().setZero(),
-          std::plus<Eigen::Matrix3d>(),
+          std::plus<>(),
           [&mean](const Eigen::Vector3d &point) {
             const Eigen::Vector3d &centered = point - mean;
-            const Eigen::Matrix3d S = centered * centered.transpose();
-            return S;
+            const Eigen::Matrix3d s = centered * centered.transpose();
+            return s;
           }) /
       std::max((num_points - 1.0), 1.0);
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(covariance);
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(covariance);
   const Eigen::Vector3d normal = solver.eigenvectors().col(0);
   return std::make_tuple(mean, normal);
 }
@@ -75,7 +75,7 @@ VoxelMap::VoxelMap(const double voxel_size)
       map_resolution_(voxel_size / static_cast<double>(std::sqrt(
                                        max_points_per_normal_computation))) {}
 
-std::vector<Eigen::Vector3d> VoxelMap::Pointcloud() const {
+std::vector<Eigen::Vector3d> VoxelMap::pointcloud() const {
   std::vector<Eigen::Vector3d> points;
   points.reserve(map_.size() * max_points_per_normal_computation);
   std::for_each(map_.cbegin(), map_.cend(), [&](const auto &map_element) {
@@ -87,17 +87,17 @@ std::vector<Eigen::Vector3d> VoxelMap::Pointcloud() const {
   return points;
 }
 
-void VoxelMap::IntegrateFrame(const std::vector<Eigen::Vector3d> &points,
+void VoxelMap::integrateFrame(const std::vector<Eigen::Vector3d> &points,
                               const Eigen::Matrix4d &pose) {
   std::vector<Eigen::Vector3d> points_transformed(points.size());
-  const auto &R = pose.block<3, 3>(0, 0);
+  const auto &r = pose.block<3, 3>(0, 0);
   const auto &t = pose.block<3, 1>(0, 3);
   std::transform(points.cbegin(), points.cend(), points_transformed.begin(),
-                 [&](const auto &point) { return R * point + t; });
-  AddPoints(points_transformed);
+                 [&](const auto &point) { return r * point + t; });
+  addPoints(points_transformed);
 }
 
-void VoxelMap::AddPoints(const std::vector<Eigen::Vector3d> &points) {
+void VoxelMap::addPoints(const std::vector<Eigen::Vector3d> &points) {
   std::for_each(points.cbegin(), points.cend(), [&](const auto &point) {
     const auto voxel = pointToVoxel(point, voxel_size_);
     const auto &[it, inserted] = map_.insert({voxel, VoxelBlock()});
@@ -116,15 +116,15 @@ void VoxelMap::AddPoints(const std::vector<Eigen::Vector3d> &points) {
 }
 
 std::tuple<Vector3dVector, Vector3dVector>
-VoxelMap::PerVoxelPointAndNormal() const {
+VoxelMap::perVoxelPointAndNormal() const {
   Vector3dVector points;
   points.reserve(map_.size());
   Vector3dVector normals;
   normals.reserve(map_.size());
   std::for_each(map_.cbegin(), map_.cend(), [&](const auto &inner_block) {
     const auto &voxel_block = inner_block.second;
-    if (voxel_block.size() >= min_points_for_covariance_computation) {
-      const auto &[mean, normal] = ComputeCentroidAndNormal(voxel_block);
+    if (voxel_block.size() >= MIN_POINTS_FOR_COVARIANCE_COMPUTATION) {
+      const auto &[mean, normal] = computeCentroidAndNormal(voxel_block);
       points.emplace_back(mean);
       normals.emplace_back(normal);
     }
@@ -134,17 +134,17 @@ VoxelMap::PerVoxelPointAndNormal() const {
   return std::make_tuple(points, normals);
 }
 
-void VoxelMap::PruneFarPoints(const Eigen::Matrix4d &reference_pose,
+void VoxelMap::pruneFarPoints(const Eigen::Matrix4d &reference_pose,
                               double max_distance) {
   std::vector<Voxel> voxels_to_remove;
-  Eigen::Vector3d reference_position = reference_pose.block<3, 1>(0, 3);
+  const Eigen::Vector3d reference_position = reference_pose.block<3, 1>(0, 3);
   for (const auto &map_element : map_) {
     const Voxel &voxel = map_element.first;
-    Eigen::Vector3d voxel_center =
+    const Eigen::Vector3d voxel_center =
         Eigen::Vector3d((static_cast<double>(voxel.x()) + 0.5) * voxel_size_,
                         (static_cast<double>(voxel.y()) + 0.5) * voxel_size_,
                         (static_cast<double>(voxel.z()) + 0.5) * voxel_size_);
-    double distance = (voxel_center - reference_position).norm();
+    const double distance = (voxel_center - reference_position).norm();
     if (distance > max_distance) {
       voxels_to_remove.push_back(voxel);
     }
@@ -155,7 +155,7 @@ void VoxelMap::PruneFarPoints(const Eigen::Matrix4d &reference_pose,
 }
 
 std::pair<Eigen::Vector3d, double>
-VoxelMap::GetClosestNeighbor(const Eigen::Vector3d &query) const {
+VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   const double qx = query.x() / voxel_size_;
   const double qy = query.y() / voxel_size_;
   const double qz = query.z() / voxel_size_;

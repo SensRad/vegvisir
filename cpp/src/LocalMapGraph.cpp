@@ -120,11 +120,11 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap &voxel_grid,
 
   if (mode == Mode::LOCALIZATION) {
     // In localization mode, store the full point cloud
-    current_map.pointCloud() = voxel_grid.Pointcloud();
+    current_map.pointCloud() = voxel_grid.pointcloud();
   } else {
     // In SLAM mode, store only per-voxel points for efficiency
     auto [query_points_icp, query_normals] =
-        voxel_grid.PerVoxelPointAndNormal();
+        voxel_grid.perVoxelPointAndNormal();
     current_map.pointCloud() = query_points_icp;
   }
 

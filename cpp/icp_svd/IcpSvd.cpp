@@ -94,7 +94,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d> &source,
                                double max_correspondence_distance) {
 
   voxel_map::VoxelMap target_map(voxel_size);
-  target_map.AddPoints(target);
+  target_map.addPoints(target);
 
   const double max_dist_sq =
       max_correspondence_distance * max_correspondence_distance;
@@ -121,7 +121,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d> &source,
     double mse = 0.0;
     for (size_t i = 0; i < n; ++i) {
       const Eigen::Vector3d tp = rotation_matrix * source[i] + translation;
-      auto [neighbor, dsq] = target_map.GetClosestNeighbor(tp);
+      auto [neighbor, dsq] = target_map.getClosestNeighbor(tp);
       if (dsq < max_dist_sq) {
         src_world[num_corr] = tp;
         tgt_matched[num_corr] = neighbor;

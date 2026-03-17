@@ -140,7 +140,7 @@ void LocalizationBackend::initLocalizationAnchor(
   vegvisir_.local_map_graph_.lastLocalMap().clearTrajectory();
 
   // Start with a fresh voxel grid in this anchor frame
-  vegvisir_.voxel_grid_.Clear();
+  vegvisir_.voxel_grid_.clear();
 
   vegvisir_.current_pose_ = Eigen::Matrix4d::Identity();
   vegvisir_.distance_since_query_ = 0.0;
@@ -186,7 +186,7 @@ void LocalizationBackend::cutLocalizationSubmap() {
   vegvisir_.local_map_graph_[new_id].clearTrajectory();
 
   // Start new active submap with a fresh voxel grid
-  vegvisir_.voxel_grid_.Clear();
+  vegvisir_.voxel_grid_.clear();
 
   // Update active anchor from the newly created keypose (odom <- anchor_new)
   pose_odom_anchor_ = vegvisir_.local_map_graph_.lastKeypose();
@@ -214,9 +214,9 @@ void LocalizationBackend::buildLocalizationQueryCloudInBaseFrame(
       pose_odom_base.inverse() * pose_odom_anchor_;
 
   // 1) Add current voxel grid points
-  const auto current_mc = vegvisir_.voxel_grid_.Pointcloud();
+  const auto current_mc = vegvisir_.voxel_grid_.pointcloud();
   const auto [current_icp, current_normals] =
-      vegvisir_.voxel_grid_.PerVoxelPointAndNormal();
+      vegvisir_.voxel_grid_.perVoxelPointAndNormal();
 
   Vegvisir::transformAndAppendPoints(current_mc, T_base_anchor_cur,
                                      query_points_mc);

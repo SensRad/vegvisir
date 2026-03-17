@@ -152,7 +152,7 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   Eigen::Matrix4d inverse_relative_motion = relative_motion.inverse();
 
   // Get points from voxel grid and transform by inverse relative motion
-  std::vector<Eigen::Vector3d> points = vegvisir_.voxel_grid_.Pointcloud();
+  std::vector<Eigen::Vector3d> points = vegvisir_.voxel_grid_.pointcloud();
   std::vector<Eigen::Vector3d> transformed_points;
   transformed_points.reserve(points.size());
   for (const auto &p : points) {
@@ -169,8 +169,8 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   uint64_t query_id_u64 = last_local_map.id();
   int query_id = static_cast<int>(query_id_u64);
 
-  auto query_points_mc = vegvisir_.voxel_grid_.Pointcloud();
-  auto [query_points_icp, _] = vegvisir_.voxel_grid_.PerVoxelPointAndNormal();
+  auto query_points_mc = vegvisir_.voxel_grid_.pointcloud();
+  auto [query_points_icp, _] = vegvisir_.voxel_grid_.perVoxelPointAndNormal();
 
   {
     // Lock: serializes with background optimizeKeyposeGraph which accesses
@@ -198,8 +198,8 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   }
 
   // Voxel grid is main-thread only — no lock needed
-  vegvisir_.voxel_grid_.Clear();
-  vegvisir_.voxel_grid_.AddPoints(transformed_points);
+  vegvisir_.voxel_grid_.clear();
+  vegvisir_.voxel_grid_.addPoints(transformed_points);
 
   // Shared closure processing (async — runs on background thread)
   vegvisir_.processLoopClosuresAsync(query_id, std::move(query_points_mc),
