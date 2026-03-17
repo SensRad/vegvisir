@@ -1,21 +1,21 @@
 // Copyright (c) Sensrad 2025-2026
 
 #include "SlamBackend.hpp"
-#include "Vegvisir.hpp"
 
 #include <iostream>
 
+#include "Vegvisir.hpp"
+
 namespace vegvisir {
 
-SlamBackend::SlamBackend(Vegvisir &vegvisir) : VegvisirBackend(vegvisir) {}
+SlamBackend::SlamBackend(Vegvisir& vegvisir) : VegvisirBackend(vegvisir) {}
 
 void SlamBackend::initialize() {
   pose_at_nodes_.clear();
   pose_at_nodes_.emplace_back(Eigen::Matrix4d::Identity());
 
   const int max_iterations = 10;
-  keypose_optimizer_ =
-      std::make_unique<pgo::PoseGraphOptimizer>(max_iterations);
+  keypose_optimizer_ = std::make_unique<pgo::PoseGraphOptimizer>(max_iterations);
 
   // If the graph is empty, create new variable for the first keypose and fix it
   if (vegvisir_.local_map_graph_.empty()) {
@@ -28,7 +28,7 @@ void SlamBackend::initialize() {
   // If we have loaded reference poses, use them to decide which variables to
   // fix. reference_poses maps map_id -> pose and is non-empty when a DB was
   // loaded.
-  const auto &reference_poses = vegvisir_.getReferencePoses();
+  const auto& reference_poses = vegvisir_.getReferencePoses();
 
   for (const auto &[map_id, local_map] : vegvisir_.local_map_graph_) {
     keypose_optimizer_->addVariable(static_cast<int>(map_id), local_map.keypose());
@@ -82,8 +82,7 @@ void SlamBackend::preIntegrate(const Eigen::Matrix4d &pose_odom_base,
 
 void SlamBackend::postIntegrate() {
   // Append compensated pose to the current local map's trajectory
-  vegvisir_.local_map_graph_.lastLocalMap().addToTrajectory(
-      vegvisir_.current_pose_);
+  vegvisir_.local_map_graph_.lastLocalMap().addToTrajectory(vegvisir_.current_pose_);
 }
 
 double SlamBackend::queryDistanceM() const {
@@ -96,7 +95,7 @@ void SlamBackend::runQueryCycle(const Eigen::Matrix4d &pose_odom_base) {
 }
 
 std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
-    int query_id, const std::vector<Eigen::Vector3d> &query_points_mc) {
+    int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) {
   if (!vegvisir_.map_closer_) {
     return {};
   }
@@ -104,9 +103,8 @@ std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
   return vegvisir_.map_closer_->getTopKClosures(query_id, query_points_mc, 1);
 }
 
-void SlamBackend::applyAcceptedClosure(
-    const map_closures::ClosureCandidate &c,
-    const Eigen::Matrix4d & /*query_odom_base*/) {
+void SlamBackend::applyAcceptedClosure(const map_closures::ClosureCandidate& c,
+                                       const Eigen::Matrix4d& /*query_odom_base*/) {
   if (!keypose_optimizer_) {
     return;
   }
@@ -128,7 +126,7 @@ void SlamBackend::optimizeKeyposeGraph() {
   keypose_optimizer_->optimize();
   auto estimates = keypose_optimizer_->estimates();
 
-  for (const auto &[map_id, local_map] : vegvisir_.local_map_graph_) {
+  for (const auto& [map_id, local_map] : vegvisir_.local_map_graph_) {
     auto it = estimates.find(static_cast<int>(map_id));
     if (it != estimates.end()) {
       vegvisir_.local_map_graph_.updateKeypose(map_id, it->second);
@@ -139,10 +137,10 @@ void SlamBackend::optimizeKeyposeGraph() {
 void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   // Generate a new SLAM node and check for loop closures
 
-  LocalMap &last_local_map = vegvisir_.local_map_graph_.lastLocalMap();
+  LocalMap& last_local_map = vegvisir_.local_map_graph_.lastLocalMap();
 
   // Get the relative motion (last element of local trajectory)
-  const auto &local_trajectory = last_local_map.localTrajectory();
+  const auto& local_trajectory = last_local_map.localTrajectory();
   if (local_trajectory.empty()) {
     std::cerr << "generateNewNode: local trajectory is empty, skipping"
               << '\n';
@@ -206,4 +204,4 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
                                      std::move(query_points_icp), pose_odom_base);
 }
 
-} // namespace vegvisir
+}  // namespace vegvisir

@@ -1,6 +1,7 @@
 // Copyright (c) Sensrad 2025-2026
 
 #include "Vegvisir.hpp"
+
 #include "LocalizationBackend.hpp"
 #include "SlamBackend.hpp"
 
@@ -51,8 +52,7 @@ Vegvisir::Vegvisir(const std::string &map_database_path, Mode mode)
     // Rebuild the LocalMapGraph from loaded data (useful for SLAM resume /
     // visualization)
     if (result.success && !map_closer_->getReferencePoses().empty()) {
-      rebuildLocalMapGraph(local_map_graph_, map_closer_->getReferencePoses(),
-                           local_map_points_);
+      rebuildLocalMapGraph(local_map_graph_, map_closer_->getReferencePoses(), local_map_points_);
     }
 
   } catch (const std::exception &e) {
@@ -89,9 +89,8 @@ Vegvisir::~Vegvisir() {
   }
 }
 
-void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
-                      const Sophus::SE3d &absolute_pose) {
-
+void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
+                      const Sophus::SE3d& absolute_pose) {
   if (!loop_closure_enabled_) {
     std::cout << "Loop closure disabled" << '\n';
     return;
@@ -137,10 +136,10 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d> &points,
   backend_->runQueryCycle(pose_odom_base);
 }
 
-void Vegvisir::processLoopClosures(
-    int query_id, const std::vector<Eigen::Vector3d> &query_points_mc,
-    const std::vector<Eigen::Vector3d> &query_points_icp,
-    const Eigen::Matrix4d &query_odom_base) {
+void Vegvisir::processLoopClosures(int query_id,
+                                   const std::vector<Eigen::Vector3d>& query_points_mc,
+                                   const std::vector<Eigen::Vector3d>& query_points_icp,
+                                   const Eigen::Matrix4d& query_odom_base) {
   if (!backend_ || !map_closer_) {
     return;
   }
@@ -148,20 +147,17 @@ void Vegvisir::processLoopClosures(
   std::vector<map_closures::ClosureCandidate> closures =
       backend_->retrieveCandidates(query_id, query_points_mc);
 
-  for (auto &closure : closures) {
-
+  for (auto& closure : closures) {
     // Check minimum inliers and availability of local map points
-    if (closure.number_of_inliers < INLIERS_THRESHOLD ||
-        !hasLocalMapPoints(closure.source_id)) {
+    if (closure.number_of_inliers < INLIERS_THRESHOLD || !hasLocalMapPoints(closure.source_id)) {
       continue;
     }
 
     // Read reference points from map
-    const auto &reference_points = getLocalMapPoints(closure.source_id);
+    const auto& reference_points = getLocalMapPoints(closure.source_id);
 
     // Refine closure pose with ICP
-    auto [_, refined_pose] =
-        performICPRefinement(query_points_icp, reference_points, closure.pose);
+    auto [_, refined_pose] = performICPRefinement(query_points_icp, reference_points, closure.pose);
 
     // Validate refined pose using overlap computation
     const bool is_valid =
@@ -185,22 +181,18 @@ void Vegvisir::processLoopClosures(
   }
 }
 
-void Vegvisir::processLoopClosuresAsync(
-    int query_id, std::vector<Eigen::Vector3d> query_points_mc,
-    std::vector<Eigen::Vector3d> query_points_icp,
-    Eigen::Matrix4d query_odom_base) {
-
+void Vegvisir::processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
+                                        std::vector<Eigen::Vector3d> query_points_icp,
+                                        Eigen::Matrix4d query_odom_base) {
   // Skip if a previous closure job is still running
   if (closure_future_.valid() &&
-      closure_future_.wait_for(std::chrono::seconds(0)) !=
-          std::future_status::ready) {
+      closure_future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
     return;
   }
 
-  closure_future_ = std::async(
-      std::launch::async,
-      [this, query_id, pts_mc = std::move(query_points_mc),
-       pts_icp = std::move(query_points_icp), query_odom_base]() {
+  closure_future_ =
+      std::async(std::launch::async, [this, query_id, pts_mc = std::move(query_points_mc),
+                                      pts_icp = std::move(query_points_icp), query_odom_base]() {
         // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
         const struct sched_param param{};
         pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
@@ -211,10 +203,8 @@ void Vegvisir::processLoopClosuresAsync(
 
 // ICP refinement and overlap validation
 std::pair<bool, Eigen::Matrix4d> Vegvisir::performICPRefinement(
-    const std::vector<Eigen::Vector3d> &query_points,
-    const std::vector<Eigen::Vector3d> &reference_points,
-    const Eigen::Matrix4d &initial_pose) {
-
+    const std::vector<Eigen::Vector3d>& query_points,
+    const std::vector<Eigen::Vector3d>& reference_points, const Eigen::Matrix4d& initial_pose) {
   if (query_points.empty() || reference_points.empty()) {
     return {false, initial_pose};
   }
@@ -228,11 +218,9 @@ std::pair<bool, Eigen::Matrix4d> Vegvisir::performICPRefinement(
   return {result.converged, result.transform};
 }
 
-bool Vegvisir::validateClosurePose(
-    const std::vector<Eigen::Vector3d> &query_points,
-    const std::vector<Eigen::Vector3d> &reference_points,
-    const Eigen::Matrix4d &pose) {
-
+bool Vegvisir::validateClosurePose(const std::vector<Eigen::Vector3d>& query_points,
+                                   const std::vector<Eigen::Vector3d>& reference_points,
+                                   const Eigen::Matrix4d& pose) {
   if (query_points.empty() || reference_points.empty()) {
     return false;
   }
@@ -274,10 +262,9 @@ Eigen::Matrix4d Vegvisir::getBaseInMapFrame() const {
   return t_map_base.matrix();
 }
 
-void Vegvisir::transformAndAppendPoints(const std::vector<Eigen::Vector3d> &in,
-                                        const Eigen::Matrix4d &transform_matrix,
-                                        std::vector<Eigen::Vector3d> &out) {
-
+void Vegvisir::transformAndAppendPoints(const std::vector<Eigen::Vector3d>& in,
+                                        const Eigen::Matrix4d& transform_matrix,
+                                        std::vector<Eigen::Vector3d>& out) {
   out.reserve(out.size() + in.size());
   for (const auto &p : in) {
     const Eigen::Vector4d hp(p.x(), p.y(), p.z(), 1.0);
@@ -294,15 +281,13 @@ bool Vegvisir::saveDatabase() {
     return false;
   }
 
-  database_saved_ =
-      vegvisir::saveDatabase(map_database_path_, map_metadata_, *map_closer_,
-                             local_map_graph_, local_map_points_);
+  database_saved_ = vegvisir::saveDatabase(map_database_path_, map_metadata_, *map_closer_,
+                                           local_map_graph_, local_map_points_);
   return database_saved_;
 }
 
 // Access methods for map closure data
-const std::unordered_map<int, Eigen::Matrix4d> &
-Vegvisir::getReferencePoses() const {
+const std::unordered_map<int, Eigen::Matrix4d>& Vegvisir::getReferencePoses() const {
   if (!map_closer_) {
     static const std::unordered_map<int, Eigen::Matrix4d> EMPTY;
     return EMPTY;
@@ -310,11 +295,11 @@ Vegvisir::getReferencePoses() const {
   return map_closer_->getReferencePoses();
 }
 
-const Eigen::Matrix4d &Vegvisir::getReferencePose(int map_id) const {
+const Eigen::Matrix4d& Vegvisir::getReferencePose(int map_id) const {
   return map_closer_->getReferencePose(map_id);
 }
 
-const map_closures::DensityMap &Vegvisir::getDensityMap(int map_id) const {
+const map_closures::DensityMap& Vegvisir::getDensityMap(int map_id) const {
   return map_closer_->getDensityMapFromId(map_id);
 }
 
@@ -325,16 +310,17 @@ std::vector<int> Vegvisir::getAvailableMapIds() const {
   return map_closer_->getAvailableMapIds();
 }
 
-const Eigen::Matrix4d &Vegvisir::getGroundAlignment(int map_id) const {
+const Eigen::Matrix4d& Vegvisir::getGroundAlignment(int map_id) const {
   return map_closer_->getGroundAlignment(map_id);
 }
 
-const std::vector<map_closures::ClosureCandidate> &
-Vegvisir::getClosures() const {
+const std::vector<map_closures::ClosureCandidate>& Vegvisir::getClosures() const {
   return closures_;
 }
 
-size_t Vegvisir::getNumClosures() const { return closures_.size(); }
+size_t Vegvisir::getNumClosures() const {
+  return closures_.size();
+}
 
 // Local map points access methods
 bool Vegvisir::hasLocalMapPoints(int map_id) const {
@@ -351,24 +337,25 @@ Vegvisir::getLocalMapPoints(int map_id) const {
   return EMPTY;
 }
 
-void Vegvisir::addGnssMeasurement(int pose_index,
-                                  const Eigen::Vector3d &position_enu,
-                                  const Eigen::Matrix3d &information_matrix) {
+void Vegvisir::addGnssMeasurement(int pose_index, const Eigen::Vector3d& position_enu,
+                                  const Eigen::Matrix3d& information_matrix) {
   gnss_measurements_.push_back({pose_index, position_enu, information_matrix});
 }
 
-void Vegvisir::clearGnssMeasurements() { gnss_measurements_.clear(); }
+void Vegvisir::clearGnssMeasurements() {
+  gnss_measurements_.clear();
+}
 
-void Vegvisir::addGnssPoseMeasurement(
-    int pose_index, const Eigen::Matrix4d &pose_enu,
-    const Eigen::Matrix<double, 6, 6> &information_matrix) {
+void Vegvisir::addGnssPoseMeasurement(int pose_index, const Eigen::Matrix4d& pose_enu,
+                                      const Eigen::Matrix<double, 6, 6>& information_matrix) {
   gnss_pose_measurements_.push_back({pose_index, pose_enu, information_matrix});
 }
 
-void Vegvisir::clearGnssPoseMeasurements() { gnss_pose_measurements_.clear(); }
+void Vegvisir::clearGnssPoseMeasurements() {
+  gnss_pose_measurements_.clear();
+}
 
-std::vector<Eigen::Matrix4d>
-Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
+std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
   // First run PGO to get optimized poses
   std::vector<Eigen::Matrix4d> optimized_poses = fineGrainedOptimization();
 
@@ -470,7 +457,7 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
           traj.empty() ? node.keypose() : node.keypose() * traj[0];
       pgo.addVariable(id, first_pose);
       pgo.fixVariable(id);
-      odom_to_pgo.push_back(id); // Node 0: traj[0] IS an odom frame
+      odom_to_pgo.push_back(id);  // Node 0: traj[0] IS an odom frame
       first = false;
     } else {
       // Add the first trajectory pose of this node as a new vertex
@@ -495,12 +482,11 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
       pgo.addVariable(id + 1, node.keypose() * traj[i + 1]);
       pgo.addFactor(id + 1, id, factor, odom_info);
       ++id;
-      odom_to_pgo.push_back(id); // traj[i+1] is always a real odom frame
+      odom_to_pgo.push_back(id);  // traj[i+1] is always a real odom frame
     }
 
     // Track last world-frame pose for inter-node factor computation
-    prev_last_world_pose =
-        traj.empty() ? node.keypose() : node.keypose() * traj.back();
+    prev_last_world_pose = traj.empty() ? node.keypose() : node.keypose() * traj.back();
   }
 
   // Fix the last vertex when there's no GNSS to anchor the graph
@@ -509,12 +495,11 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
   }
 
   // Add loop closure constraints
-  for (const auto &closure : closures_) {
+  for (const auto& closure : closures_) {
     auto src_it = keypose_to_pose_id.find(closure.source_id);
     auto tgt_it = keypose_to_pose_id.find(closure.target_id);
 
-    if (src_it != keypose_to_pose_id.end() &&
-        tgt_it != keypose_to_pose_id.end()) {
+    if (src_it != keypose_to_pose_id.end() && tgt_it != keypose_to_pose_id.end()) {
       // closure.pose transforms source-local points to target-local frame:
       // T * p_source_local ≈ p_target_local, i.e. closure.pose ≈ keypose_tgt⁻¹
       // * keypose_src Same convention as the online keypose optimizer in
@@ -555,12 +540,12 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
 
   // Collect optimised poses in insertion order
   std::vector<Eigen::Matrix4d> result;
-  const auto &estimates = pgo.estimates();
+  const auto& estimates = pgo.estimates();
   result.reserve(estimates.size());
-  for (const auto &[_, pose] : estimates) {
+  for (const auto& [_, pose] : estimates) {
     result.push_back(pose);
   }
   return result;
 }
 
-} // namespace vegvisir
+}  // namespace vegvisir

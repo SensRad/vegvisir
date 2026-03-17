@@ -25,13 +25,14 @@
 
 #include "GroundAlign.hpp"
 
-#include <Eigen/Core>
 #include <algorithm>
 #include <numeric>
-#include <sophus/se3.hpp>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
+#include <sophus/se3.hpp>
 
 namespace {
 struct PixelHash {
@@ -50,7 +51,7 @@ void transformPoints(const Sophus::SE3d &t,
 using LinearSystem = std::pair<Eigen::Matrix3d, Eigen::Vector3d>;
 LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d> &points,
                                const double resolution) {
-  auto compute_jacobian_and_residual = [](const auto &point) {
+  auto compute_jacobian_and_residual = [](const auto& point) {
     const double residual = point.z();
     Eigen::Matrix<double, 1, 3> j;
     j(0, 0) = 1.0;
@@ -59,7 +60,7 @@ LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d> &points,
     return std::make_pair(j, residual);
   };
 
-  auto sum_linear_systems = [](LinearSystem a, const LinearSystem &b) {
+  auto sum_linear_systems = [](LinearSystem a, const LinearSystem& b) {
     a.first += b.first;
     a.second += b.second;
     return a;
@@ -101,11 +102,10 @@ computeLowestPoints(const std::vector<Eigen::Vector3d> &pointcloud,
 
   std::vector<Eigen::Vector3d> low_lying_points(lowest_point_hash_map.size());
   std::transform(lowest_point_hash_map.cbegin(), lowest_point_hash_map.cend(),
-                 low_lying_points.begin(),
-                 [](const auto &entry) { return entry.second; });
+                 low_lying_points.begin(), [](const auto& entry) { return entry.second; });
   return low_lying_points;
 }
-} // namespace
+}  // namespace
 
 namespace map_closures {
 Eigen::Matrix4d
@@ -129,4 +129,4 @@ alignToLocalGround(const std::vector<Eigen::Vector3d> &pointcloud,
   }
   return t.matrix();
 }
-} // namespace map_closures
+}  // namespace map_closures

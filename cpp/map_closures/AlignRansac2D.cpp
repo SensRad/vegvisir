@@ -25,14 +25,16 @@
 
 #include "AlignRansac2D.hpp"
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-#include <Eigen/SVD>
-#include <algorithm>
 #include <cmath>
+
+#include <algorithm>
 #include <random>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <Eigen/SVD>
 
 namespace {
 
@@ -42,7 +44,7 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
   const auto n = static_cast<double>(keypoint_pairs.size());
   Eigen::Vector2d mean_ref = Eigen::Vector2d::Zero();
   Eigen::Vector2d mean_query = Eigen::Vector2d::Zero();
-  for (const auto &kp : keypoint_pairs) {
+  for (const auto& kp : keypoint_pairs) {
     mean_ref += kp.ref;
     mean_query += kp.query;
   }
@@ -50,9 +52,8 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
   mean_query /= n;
 
   Eigen::Matrix2d covariance_matrix = Eigen::Matrix2d::Zero();
-  for (const auto &kp : keypoint_pairs) {
-    covariance_matrix +=
-        (kp.ref - mean_ref) * (kp.query - mean_query).transpose();
+  for (const auto& kp : keypoint_pairs) {
+    covariance_matrix += (kp.ref - mean_ref) * (kp.query - mean_query).transpose();
   }
 
   const Eigen::JacobiSVD<Eigen::Matrix2d> svd(
@@ -71,7 +72,7 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
   return alignment;
 }
 
-} // namespace
+}  // namespace
 
 namespace map_closures {
 
@@ -103,7 +104,7 @@ ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
     }
   };
 
-  auto fit_on_indices = [&](const std::vector<int> &indices) {
+  auto fit_on_indices = [&](const std::vector<int>& indices) {
     std::vector<PointPair> subset;
     subset.reserve(indices.size());
     for (const auto idx : indices) {
@@ -135,8 +136,7 @@ ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
     max_iterations = std::min(
         max_iterations,
         std::max(RANSAC_MIN_TRIALS,
-                 static_cast<int>(std::ceil(
-                     std::log(1.0 - RANSAC_PROBABILITY_SUCCESS) / denom))));
+                 static_cast<int>(std::ceil(std::log(1.0 - RANSAC_PROBABILITY_SUCCESS) / denom))));
   }
 
   if (optimal_inlier_indices.size() < 2) {
@@ -148,4 +148,4 @@ ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
   return {transform, optimal_inlier_indices.size()};
 }
 
-} // namespace map_closures
+}  // namespace map_closures

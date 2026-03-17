@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include <Eigen/Dense>
 #include <sophus/se3.hpp>
-#include <vector>
 
 #include "map_closures/MapClosures.hpp"
 
@@ -15,8 +16,8 @@ class Vegvisir;
 
 // Backend interface (abstract base class for SLAM and Localization modes)
 class VegvisirBackend {
-public:
-  explicit VegvisirBackend(Vegvisir &vegvisir) : vegvisir_(vegvisir) {}
+ public:
+  explicit VegvisirBackend(Vegvisir& vegvisir) : vegvisir_(vegvisir) {}
   virtual ~VegvisirBackend() = default;
   VegvisirBackend(const VegvisirBackend &) = delete;
   VegvisirBackend &operator=(const VegvisirBackend &) = delete;
@@ -51,12 +52,11 @@ public:
   // Backend must apply accepted closure:
   // SLAM: add factor + optimize keypose graph
   // Localization: Kalman measurement update (uses query_odom_base)
-  virtual void
-  applyAcceptedClosure(const map_closures::ClosureCandidate &c,
-                       const Eigen::Matrix4d &query_odom_base) = 0;
+  virtual void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
+                                    const Eigen::Matrix4d& query_odom_base) = 0;
 
-protected:
-  Vegvisir &vegvisir_;
+ protected:
+  Vegvisir& vegvisir_;
 };
 
-} // namespace vegvisir
+}  // namespace vegvisir

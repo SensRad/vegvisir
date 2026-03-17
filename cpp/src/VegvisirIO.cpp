@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 namespace vegvisir {
 
-std::string extractMapName(const std::string &map_dir) {
+std::string extractMapName(const std::string& map_dir) {
   fs::path p(map_dir);
   // Remove trailing slashes and get the last component
   while (p.filename().empty() && p.has_parent_path()) {
@@ -22,7 +22,7 @@ std::string extractMapName(const std::string &map_dir) {
   return p.filename().string();
 }
 
-MapMetadata createDefaultMetadata(const std::string &map_dir) {
+MapMetadata createDefaultMetadata(const std::string& map_dir) {
   MapMetadata metadata;
   metadata.name = extractMapName(map_dir);
   metadata.location = "";
@@ -172,8 +172,8 @@ bool loadMetadata(const std::string &map_dir, MapMetadata &metadata) {
       }
     }
     // Check if we're exiting a section (non-indented, non-array line)
-    else if (current_section != Section::NONE && !line.empty() &&
-             line[0] != ' ' && line[0] != '-') {
+    else if (current_section != Section::NONE && !line.empty() && line[0] != ' ' &&
+             line[0] != '-') {
       current_section = Section::NONE;
     }
   }
@@ -193,10 +193,8 @@ bool loadMetadata(const std::string &map_dir, MapMetadata &metadata) {
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 DatabaseLoadResult loadDatabase(
-    const std::string &map_dir, map_closures::MapClosures &map_closer,
-    std::unordered_map<int, std::vector<Eigen::Vector3d>> &local_map_points,
-    bool require_exists) {
-
+    const std::string& map_dir, map_closures::MapClosures& map_closer,
+    std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points, bool require_exists) {
   DatabaseLoadResult result;
   result.success = true;
   result.loop_closure_enabled = false;
@@ -230,33 +228,31 @@ DatabaseLoadResult loadDatabase(
       result.success = false;
       result.loop_closure_enabled = false;
       result.message =
-          "ERROR: Localization mode requires existing map database at: " +
-          db_path.string() + ". Map directory or database file does not exist.";
+          "ERROR: Localization mode requires existing map database at: " + db_path.string() +
+          ". Map directory or database file does not exist.";
       return result;
     }
 
     if (!map_closer.load(db_path.string())) {
       result.success = false;
       result.loop_closure_enabled = false;
-      result.message =
-          "ERROR: Failed to load map database from: " + db_path.string();
+      result.message = "ERROR: Failed to load map database from: " + db_path.string();
       return result;
     }
 
     result.message =
-        "Localization mode: Successfully loaded map database from: " +
-        db_path.string();
+        "Localization mode: Successfully loaded map database from: " + db_path.string();
     result.loop_closure_enabled = true;
 
   } else {
     // SLAM mode: OK if database doesn't exist, we'll create a new one
     if (database_exists) {
       if (map_closer.load(db_path.string())) {
-        result.message =
-            "SLAM mode: Loaded existing map database from: " + db_path.string();
+        result.message = "SLAM mode: Loaded existing map database from: " + db_path.string();
       } else {
-        result.message = "Warning: Failed to load existing database, starting "
-                         "with empty map";
+        result.message =
+            "Warning: Failed to load existing database, starting "
+            "with empty map";
       }
     } else {
       result.message = "SLAM mode: Starting with new empty map at: " + map_dir;
@@ -293,9 +289,8 @@ DatabaseLoadResult loadDatabase(
   return result;
 }
 
-bool loadLocalMapPoints(
-    const std::string &points_path,
-    std::unordered_map<int, std::vector<Eigen::Vector3d>> &local_map_points) {
+bool loadLocalMapPoints(const std::string& points_path,
+                        std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   std::ifstream file(points_path, std::ios::binary);
 
   if (!file.is_open()) {
@@ -350,8 +345,7 @@ bool loadLocalMapPoints(
   }
 }
 
-bool savePosesBinary(const std::string &file_path,
-                     const LocalMapGraph &local_map_graph) {
+bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_map_graph) {
   // Save poses in C++ readable binary format
   std::ofstream file(file_path, std::ios::binary);
   if (!file.is_open()) {
@@ -375,7 +369,7 @@ bool savePosesBinary(const std::string &file_path,
     file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
 
     // Write 4x4 matrix in row-major order (16 doubles, 128 bytes)
-    const Eigen::Matrix4d &pose = local_map.keypose();
+    const Eigen::Matrix4d& pose = local_map.keypose();
     for (int i = 0; i < 4; ++i) {
       for (int j = 0; j < 4; ++j) {
         double val = pose(i, j);
@@ -391,9 +385,8 @@ bool savePosesBinary(const std::string &file_path,
 }
 
 bool saveLocalMapPointsBinary(
-    const std::string &file_path, const LocalMapGraph &local_map_graph,
-    const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-        &local_map_points) {
+    const std::string& file_path, const LocalMapGraph& local_map_graph,
+    const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   // Save local map point clouds in C++ readable binary format
   std::ofstream file(file_path, std::ios::binary);
   if (!file.is_open()) {
@@ -417,7 +410,7 @@ bool saveLocalMapPointsBinary(
     // Get point cloud - prefer from LocalMapGraph, fallback to
     // local_map_points
     std::vector<Eigen::Vector3d> points;
-    const auto &local_map = local_map_graph[map_id];
+    const auto& local_map = local_map_graph[map_id];
     if (local_map.hasPointCloud()) {
       points = local_map.pointCloud();
     } else {
@@ -433,7 +426,7 @@ bool saveLocalMapPointsBinary(
     file.write(reinterpret_cast<const char *>(&num_points), sizeof(uint64_t));
 
     // Write points (each point is 3 doubles = 24 bytes)
-    for (const auto &point : points) {
+    for (const auto& point : points) {
       double x = point.x();
       double y = point.y();
       double z = point.z();
@@ -449,11 +442,9 @@ bool saveLocalMapPointsBinary(
   return true;
 }
 
-bool saveDatabase(const std::string &map_dir, const MapMetadata &metadata,
-                  map_closures::MapClosures &map_closer,
-                  const LocalMapGraph &local_map_graph,
-                  const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-                      &local_map_points) {
+bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
+                  map_closures::MapClosures& map_closer, const LocalMapGraph& local_map_graph,
+                  const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   try {
     // Create map directory if it doesn't exist
     if (!fs::exists(map_dir)) {
@@ -505,11 +496,8 @@ bool saveDatabase(const std::string &map_dir, const MapMetadata &metadata,
 }
 
 void rebuildLocalMapGraph(
-    LocalMapGraph &local_map_graph,
-    const std::unordered_map<int, Eigen::Matrix4d> &reference_poses,
-    const std::unordered_map<int, std::vector<Eigen::Vector3d>>
-        &local_map_points) {
-
+    LocalMapGraph& local_map_graph, const std::unordered_map<int, Eigen::Matrix4d>& reference_poses,
+    const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   if (reference_poses.empty()) {
     std::cout << "No reference poses to rebuild LocalMapGraph from"
               << '\n';
@@ -519,7 +507,7 @@ void rebuildLocalMapGraph(
   // Collect and sort map IDs to ensure ordered insertion
   std::vector<int> sorted_ids;
   sorted_ids.reserve(reference_poses.size());
-  for (const auto &[id, pose] : reference_poses) {
+  for (const auto& [id, pose] : reference_poses) {
     sorted_ids.push_back(id);
   }
   std::sort(sorted_ids.begin(), sorted_ids.end());
@@ -531,15 +519,13 @@ void rebuildLocalMapGraph(
   // Set the keypose for the first node
   auto first_pose_it = reference_poses.find(first_id);
   if (first_pose_it != reference_poses.end()) {
-    local_map_graph.updateKeypose(static_cast<uint64_t>(first_id),
-                                  first_pose_it->second);
+    local_map_graph.updateKeypose(static_cast<uint64_t>(first_id), first_pose_it->second);
   }
 
   // Set point cloud for first node if available
   auto first_points_it = local_map_points.find(first_id);
   if (first_points_it != local_map_points.end()) {
-    local_map_graph.setPointCloud(static_cast<uint64_t>(first_id),
-                                  first_points_it->second);
+    local_map_graph.setPointCloud(static_cast<uint64_t>(first_id), first_points_it->second);
   }
 
   // Add remaining local maps
@@ -567,4 +553,4 @@ void rebuildLocalMapGraph(
             << " local maps from loaded database" << '\n';
 }
 
-} // namespace vegvisir
+}  // namespace vegvisir

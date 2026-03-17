@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include <opencv2/core.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/line_descriptor.hpp>
 #include <ranges>
 #include <unordered_map>
 #include <vector>
+
+#include <opencv2/core.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/line_descriptor.hpp>
 
 #include "FeatureLayer.hpp"
 
@@ -24,27 +25,25 @@ public:
   explicit LbdFeatureLayer(const LbdConfig &config = {},
                            float match_ratio = 0.80F);
 
-  void extract(int map_id, const cv::Mat &gray_image,
-               const Eigen::Vector2i &lower_bound) override;
+  void extract(int map_id, const cv::Mat& gray_image, const Eigen::Vector2i& lower_bound) override;
 
-  std::vector<Correspondence>
-  matchAgainstAll(int query_id, float ratio_threshold) const override;
+  std::vector<Correspondence> matchAgainstAll(int query_id, float ratio_threshold) const override;
 
   void erase(int map_id) override;
 
   std::size_t featureCount(int map_id) const override;
 
-  bool save(std::ostream &os) const override;
-  bool load(std::istream &is) override;
+  bool save(std::ostream& os) const override;
+  bool load(std::istream& is) override;
 
   std::vector<int> storedIds() const override;
 
   float matchRatio() const override { return match_ratio_; }
 
-private:
+ private:
   struct Entry {
     std::vector<cv::line_descriptor::KeyLine> lines;
-    cv::Mat descriptors; // rows x 32, CV_8U (binary)
+    cv::Mat descriptors;  // rows x 32, CV_8U (binary)
   };
 
   float match_ratio_;
@@ -55,4 +54,4 @@ private:
   std::unordered_map<int, Entry> database_;
 };
 
-} // namespace map_closures
+}  // namespace map_closures

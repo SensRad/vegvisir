@@ -6,7 +6,6 @@ project(vegvisir)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(oden_interfaces REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -23,13 +22,13 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../cpp
 
 # vegvisir_node (ROS2 executable)
 add_executable(vegvisir_node src/main.cpp src/VegvisirNode.cpp)
-target_include_directories(vegvisir_node PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(vegvisir_node
+                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(vegvisir_node vegvisir)
 ament_target_dependencies(
   vegvisir_node
   rclcpp
   sensor_msgs
-  oden_interfaces
   message_filters
   tf2_ros
   geometry_msgs

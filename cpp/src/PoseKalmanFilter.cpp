@@ -57,11 +57,11 @@ Eigen::Matrix<double, 6, 1> PoseKalmanFilter::se3Log(const Sophus::SE3d &transfo
   return xi;
 }
 
-Sophus::SE3d PoseKalmanFilter::se3Exp(const Eigen::Matrix<double, 6, 1> &xi) {
+Sophus::SE3d PoseKalmanFilter::se3Exp(const Eigen::Matrix<double, 6, 1>& xi) {
   return Sophus::SE3d::exp(xi);
 }
 
-void PoseKalmanFilter::predict(const Sophus::SE3d &delta) {
+void PoseKalmanFilter::predict(const Sophus::SE3d& delta) {
   // For map->odom tracking: the transform is static between measurements
   // Robot motion in odom frame doesn't change the map->odom relationship
   // However, uncertainty grows proportionally to motion (odometry drift)
@@ -112,4 +112,4 @@ void PoseKalmanFilter::update(const Sophus::SE3d &measurement) {
   covariance_ = 0.5 * (covariance_ + covariance_.transpose());
 }
 
-} // namespace vegvisir
+}  // namespace vegvisir

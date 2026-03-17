@@ -14,8 +14,8 @@ namespace vegvisir {
 class Vegvisir;
 
 class LocalizationBackend final : public VegvisirBackend {
-public:
-  explicit LocalizationBackend(Vegvisir &vegvisir);
+ public:
+  explicit LocalizationBackend(Vegvisir& vegvisir);
 
   void initialize() override;
 
@@ -29,11 +29,10 @@ public:
   void runQueryCycle(const Eigen::Matrix4d &pose_odom_base) override;
 
   std::vector<map_closures::ClosureCandidate> retrieveCandidates(
-      int query_id,
-      const std::vector<Eigen::Vector3d> &query_points_mc) override;
+      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) override;
 
-  void applyAcceptedClosure(const map_closures::ClosureCandidate &c,
-                            const Eigen::Matrix4d &query_odom_base) override;
+  void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
+                            const Eigen::Matrix4d& query_odom_base) override;
 
 private:
   void handleClosureMeasurementUpdate(int source_id,
@@ -55,4 +54,4 @@ private:
   static constexpr double DETERMINANT_TOLERANCE = 1e-2;
 };
 
-} // namespace vegvisir
+}  // namespace vegvisir

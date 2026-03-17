@@ -25,23 +25,26 @@
 
 #include "DensityMap.hpp"
 
-#include <Eigen/Core>
-#include <algorithm>
 #include <cmath>
+
+#include <algorithm>
 #include <limits>
 #include <opencv2/core.hpp>
 #include <utility>
 #include <vector>
 
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
+
 namespace {
 struct ComparePixels {
-  bool operator()(const Eigen::Array2i &lhs, const Eigen::Array2i &rhs) const {
+  bool operator()(const Eigen::Array2i& lhs, const Eigen::Array2i& rhs) const {
     return lhs.x() < rhs.x() || (lhs.x() == rhs.x() && lhs.y() < rhs.y());
   }
 };
 constexpr int MAX_INT = std::numeric_limits<int>::max();
 constexpr int MIN_INT = std::numeric_limits<int>::min();
-} // namespace
+}  // namespace
 
 namespace map_closures {
 
@@ -83,7 +86,7 @@ DensityMap generateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
   const auto n_cols = rows_and_columns.y() + 1;
 
   cv::Mat counting_grid(n_rows, n_cols, CV_64FC1, 0.0);
-  std::for_each(pixels.cbegin(), pixels.cend(), [&](const auto &pixel) {
+  std::for_each(pixels.cbegin(), pixels.cend(), [&](const auto& pixel) {
     const auto px = pixel - lower_bound_coordinates;
     counting_grid.at<double>(px.x(), px.y()) += 1;
     max_points = std::max(max_points, counting_grid.at<double>(px.x(), px.y()));
@@ -124,4 +127,4 @@ void applyGammaCorrection(DensityMap &density_map, const float gamma) {
   density_map.grid.forEach<uint8_t>(
       [&](uint8_t &pixel, const int * /*pos*/) { pixel = lut[pixel]; }); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 }
-} // namespace map_closures
+}  // namespace map_closures

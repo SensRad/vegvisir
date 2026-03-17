@@ -25,9 +25,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include <Eigen/Core>
 #include <opencv2/core.hpp>
-#include <vector>
 
 namespace map_closures {
 

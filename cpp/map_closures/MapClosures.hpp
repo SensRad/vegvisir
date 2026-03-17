@@ -25,12 +25,13 @@
 
 #pragma once
 
-#include <Eigen/Core>
 #include <algorithm>
 #include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+#include <Eigen/Core>
 
 #include "DensityMap.hpp"
 #include "FeatureLayer.hpp"
@@ -70,9 +71,9 @@ struct ClosureCandidate {
 };
 
 class MapClosures {
-public:
+ public:
   MapClosures() : MapClosures(Config{}) {}
-  explicit MapClosures(const Config &config);
+  explicit MapClosures(const Config& config);
   ~MapClosures() = default;
   MapClosures(const MapClosures &) = delete;
   MapClosures &operator=(const MapClosures &) = delete;
@@ -98,58 +99,50 @@ public:
     return queryTopKClosures(query_id, local_map, -1);
   }
 
-  const DensityMap &getDensityMapFromId(int map_id) const {
-    return density_maps_.at(map_id);
-  }
+  const DensityMap& getDensityMapFromId(int map_id) const { return density_maps_.at(map_id); }
 
   std::vector<int> getAvailableMapIds() const {
     std::vector<int> ids;
     ids.reserve(density_maps_.size());
-    std::transform(density_maps_.begin(), density_maps_.end(),
-                   std::back_inserter(ids),
-                   [](const auto &pair) { return pair.first; });
+    std::transform(density_maps_.begin(), density_maps_.end(), std::back_inserter(ids),
+                   [](const auto& pair) { return pair.first; });
     std::sort(ids.begin(), ids.end());
     return ids;
   }
 
-  const Eigen::Matrix4d &getGroundAlignment(int map_id) const {
+  const Eigen::Matrix4d& getGroundAlignment(int map_id) const {
     return ground_alignments_.at(map_id);
   }
 
-  const std::unordered_map<int, Eigen::Matrix4d> &getReferencePoses() const {
+  const std::unordered_map<int, Eigen::Matrix4d>& getReferencePoses() const {
     return reference_poses_;
   }
 
-  const Eigen::Matrix4d &getReferencePose(int map_id) const {
-    return reference_poses_.at(map_id);
-  }
+  const Eigen::Matrix4d& getReferencePose(int map_id) const { return reference_poses_.at(map_id); }
 
-  void setReferencePose(int map_id, const Eigen::Matrix4d &pose) {
+  void setReferencePose(int map_id, const Eigen::Matrix4d& pose) {
     reference_poses_[map_id] = pose;
   }
 
-  const std::vector<Eigen::Vector3d> &getLocalMapPoints(int map_id) const {
+  const std::vector<Eigen::Vector3d>& getLocalMapPoints(int map_id) const {
     return local_map_points_.at(map_id);
   }
 
-  bool hasLocalMapPoints(int map_id) const {
-    return local_map_points_.contains(map_id);
-  }
+  bool hasLocalMapPoints(int map_id) const { return local_map_points_.contains(map_id); }
 
   // Persistence methods
-  bool save(const std::string &file_path) const;
-  bool load(const std::string &file_path);
+  bool save(const std::string& file_path) const;
+  bool load(const std::string& file_path);
 
-  bool loadReferencePoses(const std::string &file_path);
-  bool loadLocalMapPoints(const std::string &file_path);
+  bool loadReferencePoses(const std::string& file_path);
+  bool loadLocalMapPoints(const std::string& file_path);
 
-protected:
-  static bool compareByWeightedScore(const ClosureCandidate &a,
-                                     const ClosureCandidate &b);
+ protected:
+  static bool compareByWeightedScore(const ClosureCandidate& a, const ClosureCandidate& b);
   static bool isFarEnough(int ref_id, int query_id);
 
-  void match(int id, const std::vector<Eigen::Vector3d> &local_map,
-             std::vector<Correspondence> &out_correspondences);
+  void match(int id, const std::vector<Eigen::Vector3d>& local_map,
+             std::vector<Correspondence>& out_correspondences);
 
   ClosureCandidate
   validateClosureWithMatches(int reference_id, int query_id,
@@ -162,4 +155,4 @@ protected:
   std::unordered_map<int, Eigen::Matrix4d> reference_poses_;
   std::unordered_map<int, std::vector<Eigen::Vector3d>> local_map_points_;
 };
-} // namespace map_closures
+}  // namespace map_closures

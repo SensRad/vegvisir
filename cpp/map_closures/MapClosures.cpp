@@ -29,12 +29,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <numeric>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
 
 #include "AlignRansac2D.hpp"
 #include "DensityMap.hpp"
@@ -51,7 +55,7 @@ struct FileHeader {
   uint32_t version = 6; // v6: FeatureLayer abstraction
 };
 
-} // namespace
+}  // namespace
 
 namespace map_closures {
 
@@ -64,8 +68,7 @@ MapClosures::MapClosures(const Config &config) : config_(config) {
       std::make_unique<LbdFeatureLayer>(lbd_cfg, config_.lbd_match_ratio));
 }
 
-bool MapClosures::compareByWeightedScore(const ClosureCandidate &a,
-                                         const ClosureCandidate &b) {
+bool MapClosures::compareByWeightedScore(const ClosureCandidate& a, const ClosureCandidate& b) {
   return a.weighted_score > b.weighted_score;
 }
 
@@ -73,8 +76,8 @@ bool MapClosures::isFarEnough(int ref_id, int query_id) {
   return std::abs(query_id - ref_id) > LOCAL_MAPS_TO_SKIP;
 }
 
-void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
-                        std::vector<Correspondence> &out_correspondences) {
+void MapClosures::match(int id, const std::vector<Eigen::Vector3d>& local_map,
+                        std::vector<Correspondence>& out_correspondences) {
   // Ground alignment and density map
   const Eigen::Matrix4d ground_transform =
       alignToLocalGround(local_map, GROUND_ALIGNMENT_RESOLUTION);
@@ -85,7 +88,7 @@ void MapClosures::match(int id, const std::vector<Eigen::Vector3d> &local_map,
   applyGammaCorrection(density_map, config_.density_map_gamma);
 
   // Extract features from all layers
-  for (auto &layer : feature_layers_) {
+  for (auto& layer : feature_layers_) {
     layer->extract(id, density_map.grid, density_map.lower_bound);
     auto correspondences = layer->matchAgainstAll(id, layer->matchRatio());
     out_correspondences.insert(out_correspondences.end(),
@@ -105,7 +108,7 @@ ClosureCandidate MapClosures::validateClosureWithMatches(
   // Filter correspondences for this reference map, track layer indices
   std::vector<PointPair> keypoint_pairs;
   std::vector<int> layer_indices;
-  for (const auto &c : matches) {
+  for (const auto& c : matches) {
     if (c.ref_map_id == reference_id) {
       keypoint_pairs.push_back(c.pair);
       layer_indices.push_back(c.layer_index);
@@ -140,16 +143,15 @@ ClosureCandidate MapClosures::validateClosureWithMatches(
   closure.source_id = reference_id;
   closure.target_id = query_id;
   closure.pose.block<2, 2>(0, 0) = pose2d.linear();
-  closure.pose.block<2, 1>(0, 3) =
-      pose2d.translation() * config_.density_map_resolution;
+  closure.pose.block<2, 1>(0, 3) = pose2d.translation() * config_.density_map_resolution;
   closure.pose = ground_alignments_.at(query_id).inverse() * closure.pose *
                  ground_alignments_.at(reference_id);
   closure.number_of_inliers = point_inliers;
   closure.sift_inliers = sift_inliers;
   closure.lbd_inliers = lbd_inliers;
-  closure.weighted_score = static_cast<double>(sift_inliers) +
-                           static_cast<double>(config_.lbd_weight) *
-                               static_cast<double>(lbd_inliers);
+  closure.weighted_score =
+      static_cast<double>(sift_inliers) +
+      static_cast<double>(config_.lbd_weight) * static_cast<double>(lbd_inliers);
 
   return closure;
 }
@@ -204,14 +206,14 @@ MapClosures::queryTopKClosures(int query_id,
   // Clean up temporary data (remove query from internal storage)
   density_maps_.erase(query_id);
   ground_alignments_.erase(query_id);
-  for (auto &layer : feature_layers_) {
+  for (auto& layer : feature_layers_) {
     layer->erase(query_id);
   }
 
   return closures;
 }
 
-bool MapClosures::save(const std::string &file_path) const {
+bool MapClosures::save(const std::string& file_path) const {
   std::ofstream out(file_path, std::ios::binary);
   if (!out) {
     std::cerr << "save|ERROR: open " << file_path << "\n";
@@ -256,7 +258,7 @@ bool MapClosures::save(const std::string &file_path) const {
   return true;
 }
 
-bool MapClosures::load(const std::string &file_path) {
+bool MapClosures::load(const std::string& file_path) {
   std::ifstream in(file_path, std::ios::binary);
   if (!in) {
     std::cerr << "load|ERROR: open " << file_path << "\n";
@@ -304,7 +306,7 @@ bool MapClosures::load(const std::string &file_path) {
   return true;
 }
 
-bool MapClosures::loadReferencePoses(const std::string &file_path) {
+bool MapClosures::loadReferencePoses(const std::string& file_path) {
   std::ifstream in(file_path, std::ios::binary);
   if (!in) {
     std::cerr << "loadReferencePoses|ERROR: open " << file_path << "\n";
@@ -341,7 +343,7 @@ bool MapClosures::loadReferencePoses(const std::string &file_path) {
   return true;
 }
 
-bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
+bool MapClosures::loadLocalMapPoints(const std::string& file_path) {
   std::ifstream in(file_path, std::ios::binary);
   if (!in) {
     std::cerr << "loadLocalMapPoints|ERROR: open " << file_path << "\n";
@@ -392,4 +394,4 @@ bool MapClosures::loadLocalMapPoints(const std::string &file_path) {
   return true;
 }
 
-} // namespace map_closures
+}  // namespace map_closures

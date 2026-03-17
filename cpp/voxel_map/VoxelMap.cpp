@@ -24,13 +24,15 @@
 // SOFTWARE.
 #include "VoxelMap.hpp"
 
-#include <Eigen/Core>
-#include <Eigen/Eigenvalues>
-#include <algorithm>
 #include <cmath>
+
+#include <algorithm>
 #include <numeric>
 #include <tuple>
 #include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Eigenvalues>
 
 namespace {
 
@@ -59,7 +61,7 @@ computeCentroidAndNormal(const voxel_map::VoxelBlock &coordinates) {
   return std::make_tuple(mean, normal);
 }
 
-} // namespace
+}  // namespace
 
 namespace voxel_map {
 
@@ -81,7 +83,7 @@ std::vector<Eigen::Vector3d> VoxelMap::pointcloud() const {
   std::for_each(map_.cbegin(), map_.cend(), [&](const auto &map_element) {
     const auto &voxel_points = map_element.second;
     std::for_each(voxel_points.cbegin(), voxel_points.cend(),
-                  [&](const auto &p) { points.emplace_back(p); });
+                  [&](const auto& p) { points.emplace_back(p); });
   });
   points.shrink_to_fit();
   return points;
@@ -100,7 +102,7 @@ void VoxelMap::integrateFrame(const std::vector<Eigen::Vector3d> &points,
 void VoxelMap::addPoints(const std::vector<Eigen::Vector3d> &points) {
   std::for_each(points.cbegin(), points.cend(), [&](const auto &point) {
     const auto voxel = pointToVoxel(point, voxel_size_);
-    const auto &[it, inserted] = map_.insert({voxel, VoxelBlock()});
+    const auto& [it, inserted] = map_.insert({voxel, VoxelBlock()});
     if (!inserted) {
       auto &voxel_points = it.value();
       if (voxel_points.size() == MAX_POINTS_PER_NORMAL_COMPUTATION ||
@@ -149,7 +151,7 @@ void VoxelMap::pruneFarPoints(const Eigen::Matrix4d &reference_pose,
       voxels_to_remove.push_back(voxel);
     }
   }
-  for (const auto &voxel : voxels_to_remove) {
+  for (const auto& voxel : voxels_to_remove) {
     map_.erase(voxel);
   }
 }
@@ -188,8 +190,8 @@ VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   const double fy = (qy - cy) * voxel_size_;
   const double fz = (qz - cz) * voxel_size_;
   // Distance from query to each face of the center voxel
-  const double dx_neg = fx;               // distance to x-low face
-  const double dx_pos = voxel_size_ - fx; // distance to x-high face
+  const double dx_neg = fx;                // distance to x-low face
+  const double dx_pos = voxel_size_ - fx;  // distance to x-high face
   const double dy_neg = fy;
   const double dy_pos = voxel_size_ - fy;
   const double dz_neg = fz;
@@ -215,18 +217,16 @@ VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
     }
 
     for (int dy = -1; dy <= 1; ++dy) {
-      const double min_dxy_sq =
-          min_dx_sq + std::pow(axis_min(dy, dy_neg, dy_pos), 2);
+      const double min_dxy_sq = min_dx_sq + std::pow(axis_min(dy, dy_neg, dy_pos), 2);
       if (min_dxy_sq >= best_dist_sq) {
         continue;
       }
 
       for (int dz = -1; dz <= 1; ++dz) {
         if (dx == 0 && dy == 0 && dz == 0) {
-          continue; // already checked
+          continue;  // already checked
         }
-        const double min_dist_sq =
-            min_dxy_sq + std::pow(axis_min(dz, dz_neg, dz_pos), 2);
+        const double min_dist_sq = min_dxy_sq + std::pow(axis_min(dz, dz_neg, dz_pos), 2);
         if (min_dist_sq >= best_dist_sq) {
           continue;
         }
@@ -243,4 +243,4 @@ VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   return {best_point, best_dist_sq};
 }
 
-} // namespace voxel_map
+}  // namespace voxel_map

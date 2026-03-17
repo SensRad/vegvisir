@@ -16,8 +16,8 @@ namespace vegvisir {
 class Vegvisir;
 
 class SlamBackend final : public VegvisirBackend {
-public:
-  explicit SlamBackend(Vegvisir &vegvisir);
+ public:
+  explicit SlamBackend(Vegvisir& vegvisir);
 
   void initialize() override;
 
@@ -31,13 +31,12 @@ public:
   void runQueryCycle(const Eigen::Matrix4d &pose_odom_base) override;
 
   std::vector<map_closures::ClosureCandidate> retrieveCandidates(
-      int query_id,
-      const std::vector<Eigen::Vector3d> &query_points_mc) override;
+      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) override;
 
-  void applyAcceptedClosure(const map_closures::ClosureCandidate &c,
-                            const Eigen::Matrix4d &query_odom_base) override;
+  void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
+                            const Eigen::Matrix4d& query_odom_base) override;
 
-private:
+ private:
   void optimizeKeyposeGraph();
   void generateNewNode(const Eigen::Matrix4d &pose_odom_base);
 
@@ -46,4 +45,4 @@ private:
   std::unique_ptr<pgo::PoseGraphOptimizer> keypose_optimizer_;
 };
 
-} // namespace vegvisir
+}  // namespace vegvisir

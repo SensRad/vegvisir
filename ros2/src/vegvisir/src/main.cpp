@@ -1,8 +1,8 @@
 // Copyright (c) Sensrad 2025-2026
 
-#include <rclcpp/rclcpp.hpp>
-
 #include "VegvisirNode.hpp"
+
+#include <rclcpp/rclcpp.hpp>
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);

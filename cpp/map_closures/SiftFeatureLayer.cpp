@@ -8,27 +8,26 @@ namespace map_closures {
 
 SiftFeatureLayer::SiftFeatureLayer(float match_ratio)
     : match_ratio_(match_ratio),
-      sift_(cv::SIFT::create(NFEATURES, NOCTAVE_LAYERS, CONTRAST_THRESHOLD,
-                             EDGE_THRESHOLD, SIGMA)) {}
+      sift_(
+          cv::SIFT::create(NFEATURES, NOCTAVE_LAYERS, CONTRAST_THRESHOLD, EDGE_THRESHOLD, SIGMA)) {}
 
-void SiftFeatureLayer::extract(int map_id, const cv::Mat &gray_image,
-                               const Eigen::Vector2i &lower_bound) {
+void SiftFeatureLayer::extract(int map_id, const cv::Mat& gray_image,
+                               const Eigen::Vector2i& lower_bound) {
   std::vector<cv::KeyPoint> keypoints;
   cv::Mat descriptors;
   sift_->detectAndCompute(gray_image, cv::noArray(), keypoints, descriptors);
 
   // Adjust keypoint coordinates to global map frame
-  for (auto &kp : keypoints) {
+  for (auto& kp : keypoints) {
     kp.pt.x += static_cast<float>(lower_bound.y());
     kp.pt.y += static_cast<float>(lower_bound.x());
   }
 
-  database_.insert_or_assign(
-      map_id, Entry{std::move(keypoints), std::move(descriptors)});
+  database_.insert_or_assign(map_id, Entry{std::move(keypoints), std::move(descriptors)});
 }
 
-std::vector<Correspondence>
-SiftFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
+std::vector<Correspondence> SiftFeatureLayer::matchAgainstAll(int query_id,
+                                                              float ratio_threshold) const {
   std::vector<Correspondence> result;
 
   auto query_it = database_.find(query_id);
@@ -36,10 +35,10 @@ SiftFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
     return result;
   }
 
-  const auto &query_kps = query_it->second.keypoints;
-  const auto &query_desc = query_it->second.descriptors;
+  const auto& query_kps = query_it->second.keypoints;
+  const auto& query_desc = query_it->second.descriptors;
 
-  for (const auto &[ref_id, ref_entry] : database_) {
+  for (const auto& [ref_id, ref_entry] : database_) {
     if (ref_id == query_id || ref_entry.descriptors.empty()) {
       continue;
     }
@@ -49,12 +48,11 @@ SiftFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
 
     // Ratio test + one-to-one enforcement
     std::unordered_map<int, cv::DMatch> best_by_train;
-    for (const auto &match_pair : knn) {
+    for (const auto& match_pair : knn) {
       if (match_pair.size() >= 2 &&
           match_pair[0].distance < ratio_threshold * match_pair[1].distance) {
         auto it = best_by_train.find(match_pair[0].trainIdx);
-        if (it == best_by_train.end() ||
-            match_pair[0].distance < it->second.distance) {
+        if (it == best_by_train.end() || match_pair[0].distance < it->second.distance) {
           best_by_train[match_pair[0].trainIdx] = match_pair[0];
         }
       }
@@ -74,7 +72,9 @@ SiftFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
   return result;
 }
 
-void SiftFeatureLayer::erase(int map_id) { database_.erase(map_id); }
+void SiftFeatureLayer::erase(int map_id) {
+  database_.erase(map_id);
+}
 
 std::size_t SiftFeatureLayer::featureCount(int map_id) const {
   auto it = database_.find(map_id);
@@ -116,7 +116,7 @@ bool SiftFeatureLayer::save(std::ostream &os) const {
   return true;
 }
 
-bool SiftFeatureLayer::load(std::istream &is) {
+bool SiftFeatureLayer::load(std::istream& is) {
   int num_maps = 0;
   if (!io::readPod(is, num_maps)) {
     return false;
@@ -151,10 +151,9 @@ bool SiftFeatureLayer::load(std::istream &is) {
       return false;
     }
 
-    database_.insert_or_assign(map_id,
-                               Entry{std::move(kps), std::move(descriptors)});
+    database_.insert_or_assign(map_id, Entry{std::move(kps), std::move(descriptors)});
   }
   return true;
 }
 
-} // namespace map_closures
+}  // namespace map_closures

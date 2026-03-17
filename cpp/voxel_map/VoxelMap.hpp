@@ -24,17 +24,20 @@
 // SOFTWARE.
 #pragma once
 
-#include <Eigen/Core>
-#include <array>
 #include <cstdint>
+
+#include <array>
 #include <limits>
 #include <tuple>
 #include <vector>
 
+#include <Eigen/Core>
+
 // VoxelUtils.hpp provides Voxel type, hash, and pointToVoxel — must come
 // before robin_map.h so the hash specialization is visible.
-#include "voxel_map/VoxelUtils.hpp"
 #include <tsl/robin_map.h>
+
+#include "voxel_map/VoxelUtils.hpp"
 
 using Vector3dVector = std::vector<Eigen::Vector3d>;
 
@@ -92,4 +95,4 @@ private:
   double map_resolution_;
   tsl::robin_map<Voxel, VoxelBlock> map_;
 };
-} // namespace voxel_map
+}  // namespace voxel_map

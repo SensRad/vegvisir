@@ -9,13 +9,14 @@
 
 namespace map_closures {
 
-LbdFeatureLayer::LbdFeatureLayer(const LbdConfig &config, float match_ratio)
-    : match_ratio_(match_ratio), config_(config),
+LbdFeatureLayer::LbdFeatureLayer(const LbdConfig& config, float match_ratio)
+    : match_ratio_(match_ratio),
+      config_(config),
       lsd_(cv::line_descriptor::LSDDetector::createLSDDetector()),
       lbd_(cv::line_descriptor::BinaryDescriptor::createBinaryDescriptor()) {}
 
-void LbdFeatureLayer::extract(int map_id, const cv::Mat &gray_image,
-                              const Eigen::Vector2i &lower_bound) {
+void LbdFeatureLayer::extract(int map_id, const cv::Mat& gray_image,
+                              const Eigen::Vector2i& lower_bound) {
   Entry entry;
 
   if (gray_image.empty()) {
@@ -32,23 +33,21 @@ void LbdFeatureLayer::extract(int map_id, const cv::Mat &gray_image,
   lsd_->detect(smoothed, detected_lines, config_.scale, config_.num_octaves);
 
   // Filter by minimum length
-  std::copy_if(detected_lines.begin(), detected_lines.end(),
-               std::back_inserter(entry.lines), [&](const auto &line) {
-                 return line.lineLength >= config_.min_line_length;
-               });
+  std::copy_if(detected_lines.begin(), detected_lines.end(), std::back_inserter(entry.lines),
+               [&](const auto& line) { return line.lineLength >= config_.min_line_length; });
 
   if (!entry.lines.empty()) {
     // Compute LBD descriptors on the smoothed image
     try {
       lbd_->compute(smoothed, entry.lines, entry.descriptors);
-    } catch (const cv::Exception &) {
+    } catch (const cv::Exception&) {
       entry.lines.clear();
       entry.descriptors = cv::Mat();
     }
   }
 
   // Adjust line coordinates to global map frame
-  for (auto &line : entry.lines) {
+  for (auto& line : entry.lines) {
     line.startPointX += static_cast<float>(lower_bound.y());
     line.startPointY += static_cast<float>(lower_bound.x());
     line.endPointX += static_cast<float>(lower_bound.y());
@@ -58,8 +57,8 @@ void LbdFeatureLayer::extract(int map_id, const cv::Mat &gray_image,
   database_.insert_or_assign(map_id, std::move(entry));
 }
 
-std::vector<Correspondence>
-LbdFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
+std::vector<Correspondence> LbdFeatureLayer::matchAgainstAll(int query_id,
+                                                             float ratio_threshold) const {
   std::vector<Correspondence> result;
 
   auto query_it = database_.find(query_id);
@@ -67,10 +66,10 @@ LbdFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
     return result;
   }
 
-  const auto &query_lines = query_it->second.lines;
-  const auto &query_desc = query_it->second.descriptors;
+  const auto& query_lines = query_it->second.lines;
+  const auto& query_desc = query_it->second.descriptors;
 
-  for (const auto &[ref_id, ref_entry] : database_) {
+  for (const auto& [ref_id, ref_entry] : database_) {
     if (ref_id == query_id || ref_entry.descriptors.rows == 0) {
       continue;
     }
@@ -80,22 +79,21 @@ LbdFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
 
     // Ratio test + one-to-one enforcement
     std::unordered_map<int, cv::DMatch> best_by_train;
-    for (const auto &match_pair : knn) {
+    for (const auto& match_pair : knn) {
       if (match_pair.size() >= 2 &&
           match_pair[0].distance < ratio_threshold * match_pair[1].distance) {
         auto it = best_by_train.find(match_pair[0].trainIdx);
-        if (it == best_by_train.end() ||
-            match_pair[0].distance < it->second.distance) {
+        if (it == best_by_train.end() || match_pair[0].distance < it->second.distance) {
           best_by_train[match_pair[0].trainIdx] = match_pair[0];
         }
       }
     }
 
     // Convert matched lines to point correspondences via midpoints
-    const auto &ref_lines = ref_entry.lines;
-    for (const auto &[_, m] : best_by_train) {
-      const auto &q_line = query_lines[m.queryIdx];
-      const auto &r_line = ref_lines[m.trainIdx];
+    const auto& ref_lines = ref_entry.lines;
+    for (const auto& [_, m] : best_by_train) {
+      const auto& q_line = query_lines[m.queryIdx];
+      const auto& r_line = ref_lines[m.trainIdx];
 
       // Midpoints as correspondences (row, col) = (y, x)
       const Eigen::Vector2d q_mid(
@@ -111,7 +109,9 @@ LbdFeatureLayer::matchAgainstAll(int query_id, float ratio_threshold) const {
   return result;
 }
 
-void LbdFeatureLayer::erase(int map_id) { database_.erase(map_id); }
+void LbdFeatureLayer::erase(int map_id) {
+  database_.erase(map_id);
+}
 
 std::size_t LbdFeatureLayer::featureCount(int map_id) const {
   auto it = database_.find(map_id);
@@ -155,7 +155,7 @@ bool LbdFeatureLayer::save(std::ostream &os) const {
   return true;
 }
 
-bool LbdFeatureLayer::load(std::istream &is) {
+bool LbdFeatureLayer::load(std::istream& is) {
   int num_maps = 0;
   if (!io::readPod(is, num_maps)) {
     return false;
@@ -192,10 +192,9 @@ bool LbdFeatureLayer::load(std::istream &is) {
       return false;
     }
 
-    database_.insert_or_assign(map_id,
-                               Entry{std::move(lines), std::move(descriptors)});
+    database_.insert_or_assign(map_id, Entry{std::move(lines), std::move(descriptors)});
   }
   return true;
 }
 
-} // namespace map_closures
+}  // namespace map_closures

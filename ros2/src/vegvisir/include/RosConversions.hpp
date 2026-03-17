@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include <cstring>
+
+#include <vector>
+
 #include <Eigen/Dense>
 #include <sophus/se3.hpp>
 
@@ -10,15 +14,12 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/header.hpp>
 
-#include <cstring>
-#include <vector>
-
 namespace vegvisir::ros_conversions {
 
-inline geometry_msgs::msg::Transform toTransform(const Sophus::SE3d &T) {
+inline geometry_msgs::msg::Transform toTransform(const Sophus::SE3d& T) {
   geometry_msgs::msg::Transform tf;
-  const auto &t = T.translation();
-  const auto &q = T.unit_quaternion();
+  const auto& t = T.translation();
+  const auto& q = T.unit_quaternion();
   tf.translation.x = t.x();
   tf.translation.y = t.y();
   tf.translation.z = t.z();
@@ -29,10 +30,10 @@ inline geometry_msgs::msg::Transform toTransform(const Sophus::SE3d &T) {
   return tf;
 }
 
-inline geometry_msgs::msg::Pose toPose(const Sophus::SE3d &T) {
+inline geometry_msgs::msg::Pose toPose(const Sophus::SE3d& T) {
   geometry_msgs::msg::Pose pose;
-  const auto &t = T.translation();
-  const auto &q = T.unit_quaternion();
+  const auto& t = T.translation();
+  const auto& q = T.unit_quaternion();
   pose.position.x = t.x();
   pose.position.y = t.y();
   pose.position.z = t.z();
@@ -43,9 +44,8 @@ inline geometry_msgs::msg::Pose toPose(const Sophus::SE3d &T) {
   return pose;
 }
 
-inline sensor_msgs::msg::PointCloud2
-toPointCloud2(const std::vector<Eigen::Vector3d> &points,
-              const std_msgs::msg::Header &header) {
+inline sensor_msgs::msg::PointCloud2 toPointCloud2(const std::vector<Eigen::Vector3d>& points,
+                                                   const std_msgs::msg::Header& header) {
   sensor_msgs::msg::PointCloud2 msg;
   msg.header = header;
   msg.height = 1;
@@ -81,4 +81,4 @@ toPointCloud2(const std::vector<Eigen::Vector3d> &points,
   return msg;
 }
 
-} // namespace vegvisir::ros_conversions
+}  // namespace vegvisir::ros_conversions

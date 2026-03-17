@@ -1,11 +1,12 @@
 // Copyright (c) Sensrad 2025-2026
 
 #pragma once
-#include <Eigen/Core>
 #include <fstream>
-#include <opencv2/core.hpp>
 #include <type_traits>
 #include <unordered_map>
+
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
 
 #include "DensityMap.hpp"
 #include "MapClosures.hpp"
@@ -163,7 +164,7 @@ struct DensityMapIO {
 // Eigen::Matrix4d serializer --------------------------------------------------
 struct Mat4IO {
   using Value = Eigen::Matrix4d;
-  bool operator()(std::ostream &os, const Value &m) const {
+  bool operator()(std::ostream& os, const Value& m) const {
     for (int i = 0; i < 4; ++i) {
       for (int j = 0; j < 4; ++j) {
         if (!writePod(os, m(i, j))) {
@@ -173,7 +174,7 @@ struct Mat4IO {
     }
     return true;
   }
-  bool operator()(std::istream &is, Value &m) const {
+  bool operator()(std::istream& is, Value& m) const {
     for (int i = 0; i < 4; ++i) {
       for (int j = 0; j < 4; ++j) {
         if (!readPod(is, m(i, j))) {
@@ -185,4 +186,4 @@ struct Mat4IO {
   }
 };
 
-} // namespace io
+}  // namespace io

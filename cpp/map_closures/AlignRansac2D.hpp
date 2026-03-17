@@ -25,10 +25,11 @@
 
 #pragma once
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace map_closures {
 
@@ -50,4 +51,4 @@ struct PointPair {
 std::pair<Eigen::Isometry2d, std::size_t>
 ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs);
 
-} // namespace map_closures
+}  // namespace map_closures

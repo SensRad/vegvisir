@@ -22,16 +22,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 #pragma once
-#include <g2o/core/sparse_optimizer.h>
-
-#include <Eigen/Geometry>
 #include <fstream>
 #include <memory>
 #include <string>
 
+#include <Eigen/Geometry>
+#include <g2o/core/sparse_optimizer.h>
+
 namespace Eigen {
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
-} // namespace Eigen
+}  // namespace Eigen
 
 namespace pgo {
 
@@ -42,7 +42,7 @@ namespace pgo {
 static constexpr int ALIGNMENT_VERTEX_ID = 1000000;
 
 class PoseGraphOptimizer {
-public:
+ public:
   using PoseIDMap = std::map<int, Eigen::Matrix4d>;
   explicit PoseGraphOptimizer(int max_iterations, bool verbose = false);
 
@@ -56,7 +56,7 @@ public:
   // Initialize the ENU-to-map alignment transform variable.
   // This should be called once before adding GNSS constraints.
   // @param initial_estimate Initial guess for T_ENU_map
-  void initializeAlignmentVariable(const Eigen::Matrix4d &initial_estimate);
+  void initializeAlignmentVariable(const Eigen::Matrix4d& initial_estimate);
 
   // Add a GNSS position constraint with alignment estimation.
   // The GNSS position should be in ENU frame. The optimization will estimate
@@ -105,4 +105,4 @@ private:
   int max_iterations_;
   bool alignment_initialized_ = false;
 };
-} // namespace pgo
+}  // namespace pgo
