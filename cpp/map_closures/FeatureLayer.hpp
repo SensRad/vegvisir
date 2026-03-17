@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <opencv2/core.hpp>
 
 #include "AlignRansac2D.hpp"
 
@@ -20,19 +21,19 @@ struct Correspondence {
 };
 
 class FeatureLayer {
-public:
+ public:
   FeatureLayer() = default;
   virtual ~FeatureLayer() = default;
-  FeatureLayer(const FeatureLayer &) = default;
-  FeatureLayer(FeatureLayer &&) = default;
-  FeatureLayer &operator=(const FeatureLayer &) = default;
-  FeatureLayer &operator=(FeatureLayer &&) = default;
+  FeatureLayer(const FeatureLayer&) = default;
+  FeatureLayer(FeatureLayer&&) = default;
+  FeatureLayer& operator=(const FeatureLayer&) = default;
+  FeatureLayer& operator=(FeatureLayer&&) = default;
 
   virtual void extract(int map_id, const cv::Mat& gray_image,
                        const Eigen::Vector2i& lower_bound) = 0;
 
-  [[nodiscard]] virtual std::vector<Correspondence>
-  matchAgainstAll(int query_id, float ratio_threshold) const = 0;
+  [[nodiscard]] virtual std::vector<Correspondence> matchAgainstAll(
+      int query_id, float ratio_threshold) const = 0;
 
   virtual void erase(int map_id) = 0;
 
