@@ -12,7 +12,6 @@
 
   <depend>rclpy</depend>
   <depend>nav_msgs</depend>
-  <depend>oden_interfaces</depend>
 
   <exec_depend>vegvisir</exec_depend>
   <exec_depend>kiss_icp</exec_depend>
