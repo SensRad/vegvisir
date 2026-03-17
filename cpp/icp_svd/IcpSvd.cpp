@@ -8,15 +8,16 @@
 
 namespace icp {
 
-Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d& R, const Eigen::Vector3d& t) {
-  Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-  T.block<3, 3>(0, 0) = R;
-  T.block<3, 1>(0, 3) = t;
-  return T;
+Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d &rotation_matrix,
+                                const Eigen::Vector3d &translation) {
+  Eigen::Matrix4d transform_matrix = Eigen::Matrix4d::Identity();
+  transform_matrix.block<3, 3>(0, 0) = rotation_matrix;
+  transform_matrix.block<3, 1>(0, 3) = translation;
+  return transform_matrix;
 }
 
-double IcpSvd::rotationAngle(const Eigen::Matrix3d& R) {
-  const double cos_a = std::clamp((R.trace() - 1.0) * 0.5, -1.0, 1.0);
+double IcpSvd::rotationAngle(const Eigen::Matrix3d &rotation_matrix) {
+  const double cos_a = std::clamp((rotation_matrix.trace() - 1.0) * 0.5, -1.0, 1.0);
   return std::acos(cos_a);
 }
 
@@ -50,34 +51,35 @@ std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> IcpSvd::computeAlignm
   tgt_mean /= w_sum;
 
   // Weighted cross-covariance
-  Eigen::Matrix3d H = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d cross_covariance = Eigen::Matrix3d::Zero();
   for (size_t i = 0; i < count; ++i) {
     const uint32_t idx = indices[i];
     const double w = 1.0 / (1.0 + dist_sq[idx] / cauchy_c_sq);
-    H += w * (src[idx] - src_mean) * (tgt[idx] - tgt_mean).transpose();
+    cross_covariance += w * (src[idx] - src_mean) * (tgt[idx] - tgt_mean).transpose();
   }
 
   // SVD + degeneracy check
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  Eigen::JacobiSVD<Eigen::Matrix3d> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
-  const auto& sigma = svd.singularValues();
+  const Eigen::JacobiSVD<Eigen::Matrix3d> svd(cross_covariance, Eigen::ComputeFullU |
+                                                                     Eigen::ComputeFullV);
+  const auto &sigma = svd.singularValues();
 
   if (sigma(2) < 1e-6 * sigma(0)) {
     return std::nullopt;
   }
 
   // Reflection correction
-  Eigen::Matrix3d V = svd.matrixV();
-  const Eigen::Matrix3d& U = svd.matrixU();
+  Eigen::Matrix3d svd_v = svd.matrixV();
+  const Eigen::Matrix3d &svd_u = svd.matrixU();
 #pragma GCC diagnostic pop
-  if ((V * U.transpose()).determinant() < 0.0) {
-    V.col(2) *= -1.0;
+  if ((svd_v * svd_u.transpose()).determinant() < 0.0) {
+    svd_v.col(2) *= -1.0;
   }
 
-  const Eigen::Matrix3d dR = V * U.transpose();
-  const Eigen::Vector3d dt = tgt_mean - dR * src_mean;
-  return std::pair{dR, dt};
+  const Eigen::Matrix3d delta_rotation = svd_v * svd_u.transpose();
+  const Eigen::Vector3d delta_translation = tgt_mean - delta_rotation * src_mean;
+  return std::pair{delta_rotation, delta_translation};
 }
 
 Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
@@ -86,16 +88,16 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
                                int max_iterations, double convergence_threshold,
                                double max_correspondence_distance) {
   voxel_map::VoxelMap target_map(voxel_size);
-  target_map.AddPoints(target);
+  target_map.addPoints(target);
 
   const double max_dist_sq = max_correspondence_distance * max_correspondence_distance;
   const double cauchy_c_sq = 0.25 * max_dist_sq;
 
-  // Track R, t separately; only build 4x4 at return
-  Eigen::Matrix3d R = initial_guess.block<3, 3>(0, 0);
-  Eigen::Vector3d t = initial_guess.block<3, 1>(0, 3);
-  Eigen::Matrix3d best_R = R;
-  Eigen::Vector3d best_t = t;
+  // Track rotation, translation separately; only build 4x4 at return
+  Eigen::Matrix3d rotation_matrix = initial_guess.block<3, 3>(0, 0);
+  Eigen::Vector3d translation = initial_guess.block<3, 1>(0, 3);
+  Eigen::Matrix3d best_rotation = rotation_matrix;
+  Eigen::Vector3d best_translation = translation;
   double best_mse = std::numeric_limits<double>::max();
   double prev_mse = std::numeric_limits<double>::max();
 
@@ -111,8 +113,8 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
     size_t num_corr = 0;
     double mse = 0.0;
     for (size_t i = 0; i < n; ++i) {
-      const Eigen::Vector3d tp = R * source[i] + t;
-      auto [neighbor, dsq] = target_map.GetClosestNeighbor(tp);
+      const Eigen::Vector3d tp = rotation_matrix * source[i] + translation;
+      auto [neighbor, dsq] = target_map.getClosestNeighbor(tp);
       if (dsq < max_dist_sq) {
         src_world[num_corr] = tp;
         tgt_matched[num_corr] = neighbor;
@@ -123,44 +125,45 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
     }
 
     if (num_corr < MIN_CORRESPONDENCES) {
-      return {makeSE3(best_R, best_t), false, iter};
+      return {makeSE3(best_rotation, best_translation), false, iter};
     }
 
     mse /= static_cast<double>(num_corr);
 
     if (mse < best_mse) {
       best_mse = mse;
-      best_R = R;
-      best_t = t;
+      best_rotation = rotation_matrix;
+      best_translation = translation;
     }
     if (iter > 0 && mse > prev_mse) {
-      return {makeSE3(best_R, best_t), true, iter};
+      return {makeSE3(best_rotation, best_translation), true, iter};
     }
     prev_mse = mse;
 
     // ---- Trim + align ----
-    std::iota(indices.begin(), indices.begin() + num_corr, uint32_t(0));
-    const size_t kept = trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
+    std::iota(indices.begin(), indices.begin() + static_cast<std::ptrdiff_t>(num_corr), uint32_t(0));
+    const size_t kept =
+        trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
 
     auto alignment = computeAlignment(src_world.data(), tgt_matched.data(), dist_sq_arr.data(),
                                       indices.data(), kept, cauchy_c_sq);
     if (!alignment) {
-      return {makeSE3(best_R, best_t), false, iter};
+      return {makeSE3(best_rotation, best_translation), false, iter};
     }
-    const auto& [dR, dt] = *alignment;
+    const auto &[delta_rotation, delta_translation] = *alignment;
 
     // ---- Compose ----
-    R = dR * R;
-    t = dR * t + dt;
+    rotation_matrix = delta_rotation * rotation_matrix;
+    translation = delta_rotation * translation + delta_translation;
 
     // ---- Convergence check ----
-    if (dt.norm() < convergence_threshold &&
-        rotationAngle(dR) < convergence_threshold * ROT_CONVERGENCE_SCALE) {
-      return {makeSE3(R, t), true, iter + 1};
+    if (delta_translation.norm() < convergence_threshold &&
+        rotationAngle(delta_rotation) < convergence_threshold * ROT_CONVERGENCE_SCALE) {
+      return {makeSE3(rotation_matrix, translation), true, iter + 1};
     }
   }
 
-  return {makeSE3(best_R, best_t), false, max_iterations};
+  return {makeSE3(best_rotation, best_translation), false, max_iterations};
 }
 
 }  // namespace icp

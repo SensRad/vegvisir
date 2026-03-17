@@ -3,7 +3,7 @@
 #include "VegvisirIO.hpp"
 
 #include <cmath>
-
+#include <cstdint>
 #include <filesystem>
 #include <iomanip>
 #include <regex>
@@ -31,12 +31,13 @@ MapMetadata createDefaultMetadata(const std::string& map_dir) {
   return metadata;
 }
 
-bool saveMetadata(const std::string& map_dir, const MapMetadata& metadata) {
-  fs::path metadata_path = fs::path(map_dir) / "metadata.yaml";
+bool saveMetadata(const std::string &map_dir, const MapMetadata &metadata) {
+  const fs::path metadata_path = fs::path(map_dir) / "metadata.yaml";
   std::ofstream file(metadata_path);
 
   if (!file.is_open()) {
-    std::cerr << "Could not open metadata file for writing: " << metadata_path << std::endl;
+    std::cerr << "Could not open metadata file for writing: " << metadata_path
+              << '\n';
     return false;
   }
 
@@ -52,9 +53,10 @@ bool saveMetadata(const std::string& map_dir, const MapMetadata& metadata) {
   // Write GNSS anchor transform if available
   if (metadata.has_gnss_anchor) {
     file << "gnss_anchor_transform:\n";
-    const auto& T = metadata.gnss_anchor_transform;
+    const auto &t = metadata.gnss_anchor_transform;
     for (int i = 0; i < 4; ++i) {
-      file << "  - [" << T(i, 0) << ", " << T(i, 1) << ", " << T(i, 2) << ", " << T(i, 3) << "]\n";
+      file << "  - [" << t(i, 0) << ", " << t(i, 1) << ", " << t(i, 2) << ", "
+           << t(i, 3) << "]\n";
     }
 
     if (metadata.gnss_origin.valid) {
@@ -68,26 +70,27 @@ bool saveMetadata(const std::string& map_dir, const MapMetadata& metadata) {
   }
 
   file.close();
-  std::cout << "Saved metadata to: " << metadata_path << std::endl;
+  std::cout << "Saved metadata to: " << metadata_path << '\n';
   return true;
 }
 
-bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
-  fs::path metadata_path = fs::path(map_dir) / "metadata.yaml";
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+bool loadMetadata(const std::string &map_dir, MapMetadata &metadata) {
+  const fs::path metadata_path = fs::path(map_dir) / "metadata.yaml";
   std::ifstream file(metadata_path);
 
   if (!file.is_open()) {
-    std::cerr << "Could not open metadata file: " << metadata_path << std::endl;
+    std::cerr << "Could not open metadata file: " << metadata_path << '\n';
     return false;
   }
 
   // Simple YAML parser for our specific format
   std::string line;
-  std::regex key_value_regex(R"(^\s*(\w+):\s*\"?([^\"]*)\"?\s*$)");
-  std::regex nested_key_value_regex(R"(^\s{2}(\w+):\s*\"?([^\"]*)\"?\s*$)");
-  std::regex array_row_regex(R"(^\s+-\s*\[([^\]]+)\]\s*$)");
+  const std::regex key_value_regex(R"(^\s*(\w+):\s*\"?([^\"]*)\"?\s*$)");
+  const std::regex nested_key_value_regex(R"(^\s{2}(\w+):\s*\"?([^\"]*)\"?\s*$)");
+  const std::regex array_row_regex(R"(^\s+-\s*\[([^\]]+)\]\s*$)");
 
-  enum class Section { NONE, FILES, GNSS_TRANSFORM, GNSS_ORIGIN };
+  enum class Section : std::uint8_t { NONE, FILES, GNSS_TRANSFORM, GNSS_ORIGIN };
   Section current_section = Section::NONE;
   int transform_row = 0;
 
@@ -102,7 +105,7 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
     // Check for array rows (gnss_anchor_transform)
     if (current_section == Section::GNSS_TRANSFORM &&
         std::regex_match(line, match, array_row_regex)) {
-      std::string values_str = match[1].str();
+      const std::string values_str = match[1].str();
       std::stringstream ss(values_str);
       std::string token;
       int col = 0;
@@ -121,8 +124,8 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
     // Check for nested keys
     if (current_section == Section::FILES &&
         std::regex_match(line, match, nested_key_value_regex)) {
-      std::string key = match[1].str();
-      std::string value = match[2].str();
+      const std::string key = match[1].str();
+      const std::string value = match[2].str();
 
       if (key == "database") {
         metadata.files.database = value;
@@ -133,8 +136,8 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
       }
     } else if (current_section == Section::GNSS_ORIGIN &&
                std::regex_match(line, match, nested_key_value_regex)) {
-      std::string key = match[1].str();
-      std::string value = match[2].str();
+      const std::string key = match[1].str();
+      const std::string value = match[2].str();
 
       if (key == "lat0") {
         metadata.gnss_origin.lat0 = std::stod(value);
@@ -147,8 +150,8 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
     }
     // Check for top-level keys
     else if (std::regex_match(line, match, key_value_regex)) {
-      std::string key = match[1].str();
-      std::string value = match[2].str();
+      const std::string key = match[1].str();
+      const std::string value = match[2].str();
 
       if (key == "name") {
         metadata.name = value;
@@ -176,17 +179,19 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
   }
 
   file.close();
-  std::cout << "Loaded metadata from: " << metadata_path << std::endl;
-  std::cout << "  Map name: " << metadata.name << std::endl;
-  std::cout << "  Location: " << metadata.location << std::endl;
+  std::cout << "Loaded metadata from: " << metadata_path << '\n';
+  std::cout << "  Map name: " << metadata.name << '\n';
+  std::cout << "  Location: " << metadata.location << '\n';
   if (metadata.has_gnss_anchor) {
-    double yaw =
-        std::atan2(metadata.gnss_anchor_transform(1, 0), metadata.gnss_anchor_transform(0, 0));
-    std::cout << "  GNSS anchor: yaw=" << (yaw * 180.0 / M_PI) << "°" << std::endl;
+    const double yaw = std::atan2(metadata.gnss_anchor_transform(1, 0),
+                            metadata.gnss_anchor_transform(0, 0));
+    std::cout << "  GNSS anchor: yaw=" << (yaw * 180.0 / M_PI) << "°"
+              << '\n';
   }
   return true;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 DatabaseLoadResult loadDatabase(
     const std::string& map_dir, map_closures::MapClosures& map_closer,
     std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points, bool require_exists) {
@@ -195,7 +200,7 @@ DatabaseLoadResult loadDatabase(
   result.loop_closure_enabled = false;
 
   // Check if map directory exists
-  bool dir_exists = fs::exists(map_dir) && fs::is_directory(map_dir);
+  const bool dir_exists = fs::exists(map_dir) && fs::is_directory(map_dir);
 
   // Load or create default metadata
   MapMetadata metadata;
@@ -203,19 +208,19 @@ DatabaseLoadResult loadDatabase(
     if (!loadMetadata(map_dir, metadata)) {
       // Use defaults if metadata file doesn't exist
       metadata = createDefaultMetadata(map_dir);
-      std::cout << "Using default metadata for map directory" << std::endl;
+      std::cout << "Using default metadata for map directory" << '\n';
     }
   } else {
     metadata = createDefaultMetadata(map_dir);
   }
 
   // Construct file paths from metadata
-  fs::path db_path = fs::path(map_dir) / metadata.files.database;
-  fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
-  fs::path points_path = fs::path(map_dir) / metadata.files.points;
+  const fs::path db_path = fs::path(map_dir) / metadata.files.database;
+  const fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
+  const fs::path points_path = fs::path(map_dir) / metadata.files.points;
 
   // Check if database file exists
-  bool database_exists = fs::exists(db_path);
+  const bool database_exists = fs::exists(db_path);
 
   if (require_exists) {
     // LOCALIZATION mode: Database MUST exist
@@ -259,12 +264,14 @@ DatabaseLoadResult loadDatabase(
   if (database_exists) {
     if (!map_closer.loadReferencePoses(poses_path.string())) {
       if (require_exists) {
-        std::cerr << "Warning: Could not load reference poses from " << poses_path << std::endl;
-        std::cerr << "Localization will work but without global pose correction" << std::endl;
+        std::cerr << "Warning: Could not load reference poses from "
+                  << poses_path << '\n';
+        std::cerr << "Localization will work but without global pose correction"
+                  << '\n';
       } else {
         std::cout << "Warning: Could not load reference poses, continuing with "
                      "empty pose graph"
-                  << std::endl;
+                  << '\n';
       }
     }
 
@@ -272,9 +279,9 @@ DatabaseLoadResult loadDatabase(
     if (!loadLocalMapPoints(points_path.string(), local_map_points)) {
       if (require_exists) {
         std::cerr << "Warning: Could not load local map points. "
-                  << "ICP refinement will be disabled" << std::endl;
+                  << "ICP refinement will be disabled" << '\n';
       } else {
-        std::cout << "Warning: Could not load local map points" << std::endl;
+        std::cout << "Warning: Could not load local map points" << '\n';
       }
     }
   }
@@ -287,25 +294,27 @@ bool loadLocalMapPoints(const std::string& points_path,
   std::ifstream file(points_path, std::ios::binary);
 
   if (!file.is_open()) {
-    std::cerr << "Could not open local map points file: " << points_path << std::endl;
+    std::cerr << "Could not open local map points file: " << points_path
+              << '\n';
     return false;
   }
 
   try {
     // Read number of maps (size_t, 8 bytes)
-    uint64_t num_maps;
+    uint64_t num_maps = 0;
     file.read(reinterpret_cast<char *>(&num_maps), sizeof(uint64_t));
 
-    std::cout << "Loading " << num_maps << " local map point clouds..." << std::endl;
+    std::cout << "Loading " << num_maps << " local map point clouds..."
+              << '\n';
 
     // Read each local map's points
     for (uint64_t i = 0; i < num_maps; ++i) {
       // Read map_id (int, 4 bytes)
-      int32_t map_id;
+      int32_t map_id = 0;
       file.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
 
       // Read number of points (size_t, 8 bytes)
-      uint64_t num_points;
+      uint64_t num_points = 0;
       file.read(reinterpret_cast<char *>(&num_points), sizeof(uint64_t));
 
       // Read points (each point is 3 doubles = 24 bytes)
@@ -313,7 +322,9 @@ bool loadLocalMapPoints(const std::string& points_path,
       points.reserve(num_points);
 
       for (uint64_t j = 0; j < num_points; ++j) {
-        double x, y, z;
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
         file.read(reinterpret_cast<char *>(&x), sizeof(double));
         file.read(reinterpret_cast<char *>(&y), sizeof(double));
         file.read(reinterpret_cast<char *>(&z), sizeof(double));
@@ -324,12 +335,12 @@ bool loadLocalMapPoints(const std::string& points_path,
     }
 
     file.close();
-    std::cout << "Successfully loaded " << local_map_points.size() << " local map point clouds"
-              << std::endl;
+    std::cout << "Successfully loaded " << local_map_points.size()
+              << " local map point clouds" << '\n';
     return true;
 
-  } catch (const std::exception& e) {
-    std::cerr << "Error loading local map points: " << e.what() << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "Error loading local map points: " << e.what() << '\n';
     return false;
   }
 }
@@ -338,7 +349,7 @@ bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_ma
   // Save poses in C++ readable binary format
   std::ofstream file(file_path, std::ios::binary);
   if (!file.is_open()) {
-    std::cerr << "Could not open file for writing: " << file_path << std::endl;
+    std::cerr << "Could not open file for writing: " << file_path << '\n';
     return false;
   }
 
@@ -350,11 +361,11 @@ bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_ma
   file.write(reinterpret_cast<const char *>(&num_poses), sizeof(uint64_t));
 
   // Write each pose
-  for (uint64_t map_id : all_ids) {
-    const auto& local_map = local_map_graph[map_id];
+  for (const uint64_t map_id : all_ids) {
+    const auto &local_map = local_map_graph[map_id];
 
     // Write map_id (int, 4 bytes)
-    int32_t id = static_cast<int32_t>(map_id);
+    auto id = static_cast<int32_t>(map_id);
     file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
 
     // Write 4x4 matrix in row-major order (16 doubles, 128 bytes)
@@ -368,8 +379,8 @@ bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_ma
   }
 
   file.close();
-  std::cout << "Saved " << num_poses << " poses to " << file_path << " (binary format)"
-            << std::endl;
+  std::cout << "Saved " << num_poses << " poses to " << file_path
+            << " (binary format)" << '\n';
   return true;
 }
 
@@ -379,7 +390,7 @@ bool saveLocalMapPointsBinary(
   // Save local map point clouds in C++ readable binary format
   std::ofstream file(file_path, std::ios::binary);
   if (!file.is_open()) {
-    std::cerr << "Could not open file for writing: " << file_path << std::endl;
+    std::cerr << "Could not open file for writing: " << file_path << '\n';
     return false;
   }
 
@@ -391,9 +402,9 @@ bool saveLocalMapPointsBinary(
   file.write(reinterpret_cast<const char *>(&num_maps), sizeof(uint64_t));
 
   // Write each local map's points
-  for (uint64_t map_id : all_ids) {
+  for (const uint64_t map_id : all_ids) {
     // Write map_id (int, 4 bytes)
-    int32_t id = static_cast<int32_t>(map_id);
+    auto id = static_cast<int32_t>(map_id);
     file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
 
     // Get point cloud - prefer from LocalMapGraph, fallback to
@@ -426,8 +437,8 @@ bool saveLocalMapPointsBinary(
   }
 
   file.close();
-  std::cout << "Saved " << num_maps << " local map point clouds to " << file_path
-            << " (binary format)" << std::endl;
+  std::cout << "Saved " << num_maps << " local map point clouds to "
+            << file_path << " (binary format)" << '\n';
   return true;
 }
 
@@ -438,46 +449,48 @@ bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
     // Create map directory if it doesn't exist
     if (!fs::exists(map_dir)) {
       if (!fs::create_directories(map_dir)) {
-        std::cerr << "Failed to create map directory: " << map_dir << std::endl;
+        std::cerr << "Failed to create map directory: " << map_dir << '\n';
         return false;
       }
-      std::cout << "Created map directory: " << map_dir << std::endl;
+      std::cout << "Created map directory: " << map_dir << '\n';
     }
 
     // Construct file paths from metadata
-    fs::path db_path = fs::path(map_dir) / metadata.files.database;
-    fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
-    fs::path points_path = fs::path(map_dir) / metadata.files.points;
+    const fs::path db_path = fs::path(map_dir) / metadata.files.database;
+    const fs::path poses_path = fs::path(map_dir) / metadata.files.poses;
+    const fs::path points_path = fs::path(map_dir) / metadata.files.points;
 
     // Save the map closures database
     if (!map_closer.save(db_path.string())) {
-      std::cerr << "Failed to save map closures database" << std::endl;
+      std::cerr << "Failed to save map closures database" << '\n';
       return false;
     }
-    std::cout << "Saved map closures database to: " << db_path << std::endl;
+    std::cout << "Saved map closures database to: " << db_path << '\n';
 
     // Save poses in binary format
     if (!savePosesBinary(poses_path.string(), local_map_graph)) {
-      std::cerr << "Failed to save poses binary file" << std::endl;
+      std::cerr << "Failed to save poses binary file" << '\n';
       return false;
     }
 
     // Save local map points in binary format
-    if (!saveLocalMapPointsBinary(points_path.string(), local_map_graph, local_map_points)) {
-      std::cerr << "Failed to save local map points binary file" << std::endl;
+    if (!saveLocalMapPointsBinary(points_path.string(), local_map_graph,
+                                  local_map_points)) {
+      std::cerr << "Failed to save local map points binary file" << '\n';
       return false;
     }
 
     // Save metadata
     if (!saveMetadata(map_dir, metadata)) {
-      std::cerr << "Failed to save metadata file" << std::endl;
+      std::cerr << "Failed to save metadata file" << '\n';
       return false;
     }
 
-    std::cout << "Successfully saved complete map database to: " << map_dir << std::endl;
+    std::cout << "Successfully saved complete map database to: " << map_dir
+              << '\n';
     return true;
-  } catch (const std::exception& e) {
-    std::cerr << "Exception while saving database: " << e.what() << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "Exception while saving database: " << e.what() << '\n';
     return false;
   }
 }
@@ -486,7 +499,8 @@ void rebuildLocalMapGraph(
     LocalMapGraph& local_map_graph, const std::unordered_map<int, Eigen::Matrix4d>& reference_poses,
     const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   if (reference_poses.empty()) {
-    std::cout << "No reference poses to rebuild LocalMapGraph from" << std::endl;
+    std::cout << "No reference poses to rebuild LocalMapGraph from"
+              << '\n';
     return;
   }
 
@@ -499,7 +513,7 @@ void rebuildLocalMapGraph(
   std::sort(sorted_ids.begin(), sorted_ids.end());
 
   // Clear and reinitialize with the first map ID
-  int first_id = sorted_ids.front();
+  const int first_id = sorted_ids.front();
   local_map_graph.clear(first_id);
 
   // Set the keypose for the first node
@@ -516,8 +530,8 @@ void rebuildLocalMapGraph(
 
   // Add remaining local maps
   for (size_t i = 1; i < sorted_ids.size(); ++i) {
-    int map_id = sorted_ids[i];
-    uint64_t id = static_cast<uint64_t>(map_id);
+    const int map_id = sorted_ids[i];
+    const auto id = static_cast<uint64_t>(map_id);
 
     // Get keypose
     auto pose_it = reference_poses.find(map_id);
@@ -536,7 +550,7 @@ void rebuildLocalMapGraph(
   }
 
   std::cout << "Rebuilt LocalMapGraph with " << local_map_graph.size()
-            << " local maps from loaded database" << std::endl;
+            << " local maps from loaded database" << '\n';
 }
 
 }  // namespace vegvisir

@@ -1,0 +1,51 @@
+name: Clang-Tidy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'cpp/**'
+      - '.clang-tidy'
+  pull_request:
+    paths:
+      - 'cpp/**'
+      - '.clang-tidy'
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-tidy \
+            cmake \
+            build-essential \
+            libeigen3-dev \
+            libtbb-dev \
+            libopencv-dev \
+            libsuitesparse-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -S cpp -B build \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Run clang-tidy
+        run: |
+          # Collect all project source files (exclude fetched dependencies in build/)
+          find cpp/src cpp/icp_svd cpp/map_closures cpp/pgo cpp/voxel_map \
+            -name '*.cpp' -o -name '*.hpp' | sort > /tmp/files.txt
+
+          echo "Files to check:"
+          cat /tmp/files.txt
+
+          clang-tidy \
+            -p build \
+            --config-file=.clang-tidy \
+            $(cat /tmp/files.txt)

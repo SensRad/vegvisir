@@ -107,12 +107,13 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     using namespace voxel_map;
     py::class_<VoxelMap> vmap(m, "_VoxelMap", "");
     vmap.def(py::init<double>(), "voxel_size"_a)
-        .def("_integrate_frame", &VoxelMap::IntegrateFrame, "points"_a, "pose"_a)
-        .def("_add_points", &VoxelMap::AddPoints, "points"_a)
-        .def("_point_cloud", &VoxelMap::Pointcloud)
-        .def("_clear", &VoxelMap::Clear)
-        .def("_num_voxels", &VoxelMap::NumVoxels)
-        .def("_per_voxel_point_and_normal", &VoxelMap::PerVoxelPointAndNormal);
+        .def("_integrate_frame", &VoxelMap::integrateFrame, "points"_a,
+             "pose"_a)
+        .def("_add_points", &VoxelMap::addPoints, "points"_a)
+        .def("_point_cloud", &VoxelMap::pointcloud)
+        .def("_clear", &VoxelMap::clear)
+        .def("_num_voxels", &VoxelMap::numVoxels)
+        .def("_per_voxel_point_and_normal", &VoxelMap::perVoxelPointAndNormal);
   }
 
   // ---- ClosureCandidate ----
@@ -139,11 +140,14 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
                return std::make_shared<MapClosures>(config);
              }),
              "config"_a)
-        .def("_GetTopKClosures", &MapClosures::GetTopKClosures, "query_id"_a, "local_map"_a, "k"_a)
-        .def("_GetClosures", &MapClosures::GetClosures, "query_id"_a, "local_map"_a)
-        .def("_QueryTopKClosures", &MapClosures::QueryTopKClosures, "query_id"_a, "local_map"_a,
-             "k"_a)
-        .def("_QueryClosures", &MapClosures::QueryClosures, "query_id"_a, "local_map"_a)
+        .def("_getTopKClosures", &MapClosures::getTopKClosures, "query_id"_a,
+             "local_map"_a, "k"_a)
+        .def("_getClosures", &MapClosures::getClosures, "query_id"_a,
+             "local_map"_a)
+        .def("_queryTopKClosures", &MapClosures::queryTopKClosures,
+             "query_id"_a, "local_map"_a, "k"_a)
+        .def("_queryClosures", &MapClosures::queryClosures, "query_id"_a,
+             "local_map"_a)
         .def("_getDensityMapFromId",
              [](MapClosures& self, const int& map_id) {
                const auto& density_map = self.getDensityMapFromId(map_id);
@@ -421,8 +425,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   }
 
   // ---- Free functions ----
-  m.def("_align_map_to_local_ground", &map_closures::AlignToLocalGround, "pointcloud"_a,
-        "resolution"_a);
+  m.def("_align_map_to_local_ground", &map_closures::alignToLocalGround,
+        "pointcloud"_a, "resolution"_a);
 
   // ---- Constants ----
   m.attr("LOCAL_MAPS_TO_SKIP") = map_closures::LOCAL_MAPS_TO_SKIP;

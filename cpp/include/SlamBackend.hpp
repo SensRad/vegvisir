@@ -21,13 +21,14 @@ class SlamBackend final : public VegvisirBackend {
 
   void initialize() override;
 
-  void preIntegrate(const Eigen::Matrix4d& T_odom_base, const Sophus::SE3d& delta_pose) override;
+  void preIntegrate(const Eigen::Matrix4d &pose_odom_base,
+                    const Sophus::SE3d &delta_pose) override;
 
   void postIntegrate() override;
 
-  double queryDistanceM() const override;
+  [[nodiscard]] double queryDistanceM() const override;
 
-  void runQueryCycle(const Eigen::Matrix4d& T_odom_base) override;
+  void runQueryCycle(const Eigen::Matrix4d &pose_odom_base) override;
 
   std::vector<map_closures::ClosureCandidate> retrieveCandidates(
       int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) override;
@@ -37,9 +38,8 @@ class SlamBackend final : public VegvisirBackend {
 
  private:
   void optimizeKeyposeGraph();
-  void generateNewNode(const Eigen::Matrix4d& T_odom_base);
+  void generateNewNode(const Eigen::Matrix4d &pose_odom_base);
 
- private:
   // SLAM-only state
   std::vector<Eigen::Matrix4d> pose_at_nodes_;
   std::unique_ptr<pgo::PoseGraphOptimizer> keypose_optimizer_;

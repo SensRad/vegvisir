@@ -16,32 +16,32 @@ class PoseKalmanFilter {
   PoseKalmanFilter();
 
   // Initialize with an SE3 pose (uses default covariances)
-  void init(const Sophus::SE3d& X0);
+  void init(const Sophus::SE3d &initial_state);
 
   // Predict using odometry delta
   void predict(const Sophus::SE3d& delta);
 
   // Update using a measured absolute pose
-  void update(const Sophus::SE3d& Z);
+  void update(const Sophus::SE3d &measurement);
 
   // Accessors
-  Sophus::SE3d state() const { return X_; }
-  Matrix6d covariance() const { return P_; }
+  [[nodiscard]] Sophus::SE3d state() const { return state_; }
+  [[nodiscard]] Matrix6d covariance() const { return covariance_; }
 
- private:
-  Sophus::SE3d X_;  // State
-  Matrix6d P_;      // Covariance in tangent space
+private:
+  Sophus::SE3d state_; // State
+  Matrix6d covariance_;     // Covariance in tangent space
 
   // Kalman filter parameters (stored internally for self-contained operation)
-  Matrix6d Q_;   // Process noise covariance
-  Matrix6d R_;   // Measurement noise covariance
-  Matrix6d P0_;  // Initial covariance
+  Matrix6d process_noise_;  // Process noise covariance
+  Matrix6d measurement_noise_;  // Measurement noise covariance
+  Matrix6d initial_covariance_; // Initial covariance
 
   // Adjoint map of SE(3) for the 6-vector ordering
-  static Matrix6d adjoint(const Sophus::SE3d& T);
+  static Matrix6d adjoint(const Sophus::SE3d &transform);
 
   // convert Sophus::SE3 log to 6-vector
-  static Eigen::Matrix<double, 6, 1> se3Log(const Sophus::SE3d& T);
+  static Eigen::Matrix<double, 6, 1> se3Log(const Sophus::SE3d &transform);
 
   // Exponential map from 6-vector to SE3
   static Sophus::SE3d se3Exp(const Eigen::Matrix<double, 6, 1>& xi);

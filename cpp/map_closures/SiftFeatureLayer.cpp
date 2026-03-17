@@ -59,10 +59,12 @@ std::vector<Correspondence> SiftFeatureLayer::matchAgainstAll(int query_id,
     }
 
     // Convert to Correspondence (PointPair uses row,col = y,x)
-    const auto& ref_kps = ref_entry.keypoints;
-    for (const auto& [_, m] : best_by_train) {
-      Eigen::Vector2d query_pt(query_kps[m.queryIdx].pt.y, query_kps[m.queryIdx].pt.x);
-      Eigen::Vector2d ref_pt(ref_kps[m.trainIdx].pt.y, ref_kps[m.trainIdx].pt.x);
+    const auto &ref_kps = ref_entry.keypoints;
+    for (const auto &[_, m] : best_by_train) {
+      const Eigen::Vector2d query_pt(query_kps[m.queryIdx].pt.y,
+                                     query_kps[m.queryIdx].pt.x);
+      const Eigen::Vector2d ref_pt(ref_kps[m.trainIdx].pt.y,
+                                   ref_kps[m.trainIdx].pt.x);
       result.push_back({ref_id, 0, PointPair(ref_pt, query_pt)});
     }
   }
@@ -84,59 +86,70 @@ std::vector<int> SiftFeatureLayer::storedIds() const {
   return {keys.begin(), keys.end()};
 }
 
-bool SiftFeatureLayer::save(std::ostream& os) const {
-  if (!io::write_pod(os, static_cast<int>(database_.size())))
+bool SiftFeatureLayer::save(std::ostream &os) const {
+  if (!io::writePod(os, static_cast<int>(database_.size()))) {
     return false;
+  }
 
-  for (const auto& [map_id, entry] : database_) {
-    if (!io::write_pod(os, map_id))
+  for (const auto &[map_id, entry] : database_) {
+    if (!io::writePod(os, map_id)) {
       return false;
+    }
 
     // Write keypoints
-    if (!io::write_pod(os, static_cast<int>(entry.keypoints.size())))
+    if (!io::writePod(os, static_cast<int>(entry.keypoints.size()))) {
       return false;
-    for (const auto& kp : entry.keypoints) {
-      if (!io::write_pod(os, kp.pt.x) || !io::write_pod(os, kp.pt.y) ||
-          !io::write_pod(os, kp.size) || !io::write_pod(os, kp.angle) ||
-          !io::write_pod(os, kp.response))
+    }
+    for (const auto &kp : entry.keypoints) {
+      if (!io::writePod(os, kp.pt.x) || !io::writePod(os, kp.pt.y) ||
+          !io::writePod(os, kp.size) || !io::writePod(os, kp.angle) ||
+          !io::writePod(os, kp.response)) {
         return false;
+      }
     }
 
     // Write descriptors
-    if (!io::write_mat(os, entry.descriptors))
+    if (!io::writeMat(os, entry.descriptors)) {
       return false;
+    }
   }
   return true;
 }
 
 bool SiftFeatureLayer::load(std::istream& is) {
   int num_maps = 0;
-  if (!io::read_pod(is, num_maps))
+  if (!io::readPod(is, num_maps)) {
     return false;
+  }
 
   database_.clear();
   for (int i = 0; i < num_maps; ++i) {
     int map_id = 0;
-    if (!io::read_pod(is, map_id))
+    if (!io::readPod(is, map_id)) {
       return false;
+    }
 
     int num_kps = 0;
-    if (!io::read_pod(is, num_kps))
+    if (!io::readPod(is, num_kps)) {
       return false;
+    }
 
     std::vector<cv::KeyPoint> kps;
     kps.reserve(num_kps);
     for (int j = 0; j < num_kps; ++j) {
       cv::KeyPoint kp;
-      if (!io::read_pod(is, kp.pt.x) || !io::read_pod(is, kp.pt.y) || !io::read_pod(is, kp.size) ||
-          !io::read_pod(is, kp.angle) || !io::read_pod(is, kp.response))
+      if (!io::readPod(is, kp.pt.x) || !io::readPod(is, kp.pt.y) ||
+          !io::readPod(is, kp.size) || !io::readPod(is, kp.angle) ||
+          !io::readPod(is, kp.response)) {
         return false;
+      }
       kps.push_back(kp);
     }
 
     cv::Mat descriptors;
-    if (!io::read_mat(is, descriptors))
+    if (!io::readMat(is, descriptors)) {
       return false;
+    }
 
     database_.insert_or_assign(map_id, Entry{std::move(kps), std::move(descriptors)});
   }

@@ -30,8 +30,9 @@
 #include <Eigen/Core>
 
 namespace map_closures {
-Eigen::Matrix4d AlignToLocalGround(const std::vector<Eigen::Vector3d>& pointcloud,
-                                   const double resolution);
+Eigen::Matrix4d
+alignToLocalGround(const std::vector<Eigen::Vector3d> &pointcloud,
+                   double resolution);
 
 // Constants
 static constexpr double CONVERGENCE_THRESHOLD = 1e-3;

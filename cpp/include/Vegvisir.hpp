@@ -23,9 +23,9 @@
 
 namespace vegvisir {
 
-enum class Mode {
-  LOCALIZATION,  // Localization-only mode (query existing map)
-  SLAM           // SLAM mode (build map and optimize pose graph)
+enum class Mode : std::uint8_t {
+  LOCALIZATION, // Localization-only mode (query existing map)
+  SLAM          // SLAM mode (build map and optimize pose graph)
 };
 
 // Forward declarations for backend classes
@@ -37,6 +37,10 @@ class Vegvisir {
  public:
   Vegvisir(const std::string& map_database_path, Mode mode = Mode::LOCALIZATION);
   ~Vegvisir();
+  Vegvisir(const Vegvisir &) = delete;
+  Vegvisir &operator=(const Vegvisir &) = delete;
+  Vegvisir(Vegvisir &&) = delete;
+  Vegvisir &operator=(Vegvisir &&) = delete;
 
   void update(const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& absolute_pose);
 
@@ -49,8 +53,8 @@ class Vegvisir {
   void setMapMetadata(const MapMetadata& metadata) { map_metadata_ = metadata; }
 
   /// Set the GNSS anchor transform (T_ENU_map) to be saved with the map.
-  void setGnssAnchorTransform(const Eigen::Matrix4d& T_enu_map) {
-    map_metadata_.gnss_anchor_transform = T_enu_map;
+  void setGnssAnchorTransform(const Eigen::Matrix4d &pose_enu_map) {
+    map_metadata_.gnss_anchor_transform = pose_enu_map;
     map_metadata_.has_gnss_anchor = true;
   }
 
@@ -118,11 +122,13 @@ class Vegvisir {
   size_t getNumGnssPoseMeasurements() const { return gnss_pose_measurements_.size(); }
 
   // GNSS alignment transform methods
-  void setInitialAlignmentEstimate(const Eigen::Matrix4d& T_enu_map) {
-    initial_T_enu_map_ = T_enu_map;
+  void setInitialAlignmentEstimate(const Eigen::Matrix4d &pose_enu_map) {
+    initial_pose_enu_map_ = pose_enu_map;
     has_initial_alignment_ = true;
   }
-  Eigen::Matrix4d getOptimizedAlignmentTransform() const { return optimized_T_enu_map_; }
+  Eigen::Matrix4d getOptimizedAlignmentTransform() const {
+    return optimized_pose_enu_map_;
+  }
 
   // Get current mode
   Mode getMode() const { return mode_; }
@@ -151,7 +157,6 @@ class Vegvisir {
 
   static constexpr int INLIERS_THRESHOLD = 10;
 
- private:
   // Shared mapping state/resources (used by both backends)
   voxel_map::VoxelMap voxel_grid_;
   LocalMapGraph local_map_graph_;
@@ -169,7 +174,7 @@ class Vegvisir {
   // Pose estimation state/output
   PoseKalmanFilter pose_filter_;
   Eigen::Matrix4d tf_map_odom_ = Eigen::Matrix4d::Identity();
-  Sophus::SE3d current_odom_base_ = Sophus::SE3d();  // Current base_link pose in odom frame
+  Sophus::SE3d current_odom_base_; // Current base_link pose in odom frame
 
   bool has_previous_pose_ = false;
 
@@ -199,8 +204,8 @@ class Vegvisir {
   std::vector<GnssPoseMeasurement> gnss_pose_measurements_;
 
   // GNSS alignment state
-  Eigen::Matrix4d optimized_T_enu_map_ = Eigen::Matrix4d::Identity();
-  Eigen::Matrix4d initial_T_enu_map_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d optimized_pose_enu_map_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d initial_pose_enu_map_ = Eigen::Matrix4d::Identity();
   bool has_initial_alignment_ = false;
 
   // Save state tracking (prevents redundant saves in destructor)
@@ -213,19 +218,19 @@ class Vegvisir {
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
- private:
   // Shared algorithms: ICP refinement + overlap validation
   // filterPointCloud disabled — vegvisir now accepts generic xyz point clouds.
   // void filterPointCloud(const std::vector<Eigen::VectorXd> &input_points,
   //                       std::vector<Eigen::Vector3d> &filtered_points);
 
-  std::pair<bool, Eigen::Matrix4d> performICPRefinement(
-      const std::vector<Eigen::Vector3d>& query_points,
-      const std::vector<Eigen::Vector3d>& reference_points, const Eigen::Matrix4d& initial_pose);
+  static std::pair<bool, Eigen::Matrix4d>
+  performICPRefinement(const std::vector<Eigen::Vector3d> &query_points,
+                       const std::vector<Eigen::Vector3d> &reference_points,
+                       const Eigen::Matrix4d &initial_pose);
 
-  bool validateClosurePose(const std::vector<Eigen::Vector3d>& query_points,
-                           const std::vector<Eigen::Vector3d>& reference_points,
-                           const Eigen::Matrix4d& pose);
+  static bool validateClosurePose(const std::vector<Eigen::Vector3d> &query_points,
+                                  const std::vector<Eigen::Vector3d> &reference_points,
+                                  const Eigen::Matrix4d &pose);
 
   // Shared closure processing: candidate gating + ICP refine + overlap
   // validate. Retrieval + application are delegated to backend.
@@ -245,7 +250,6 @@ class Vegvisir {
                                        const Eigen::Matrix4d& transform_matrix,
                                        std::vector<Eigen::Vector3d>& out);
 
- private:
   // Allow backends to access internal state.
   // Note: C++ friendship is not inherited, so we must friend each backend
   // class.

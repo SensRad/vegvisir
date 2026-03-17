@@ -96,10 +96,12 @@ std::vector<Correspondence> LbdFeatureLayer::matchAgainstAll(int query_id,
       const auto& r_line = ref_lines[m.trainIdx];
 
       // Midpoints as correspondences (row, col) = (y, x)
-      Eigen::Vector2d q_mid((q_line.startPointY + q_line.endPointY) / 2.0,
-                            (q_line.startPointX + q_line.endPointX) / 2.0);
-      Eigen::Vector2d r_mid((r_line.startPointY + r_line.endPointY) / 2.0,
-                            (r_line.startPointX + r_line.endPointX) / 2.0);
+      const Eigen::Vector2d q_mid(
+          (q_line.startPointY + q_line.endPointY) / 2.0,
+          (q_line.startPointX + q_line.endPointX) / 2.0);
+      const Eigen::Vector2d r_mid(
+          (r_line.startPointY + r_line.endPointY) / 2.0,
+          (r_line.startPointX + r_line.endPointX) / 2.0);
       result.push_back({ref_id, 1, PointPair(r_mid, q_mid)});
     }
   }
@@ -121,60 +123,74 @@ std::vector<int> LbdFeatureLayer::storedIds() const {
   return {keys.begin(), keys.end()};
 }
 
-bool LbdFeatureLayer::save(std::ostream& os) const {
-  if (!io::write_pod(os, static_cast<int>(database_.size())))
+bool LbdFeatureLayer::save(std::ostream &os) const {
+  if (!io::writePod(os, static_cast<int>(database_.size()))) {
     return false;
+  }
 
-  for (const auto& [map_id, entry] : database_) {
-    if (!io::write_pod(os, map_id))
+  for (const auto &[map_id, entry] : database_) {
+    if (!io::writePod(os, map_id)) {
       return false;
+    }
 
     // Only persist geometry needed for midpoint correspondences
-    if (!io::write_pod(os, static_cast<int>(entry.lines.size())))
+    if (!io::writePod(os, static_cast<int>(entry.lines.size()))) {
       return false;
-    for (const auto& line : entry.lines) {
-      if (!io::write_pod(os, line.startPointX) || !io::write_pod(os, line.startPointY) ||
-          !io::write_pod(os, line.endPointX) || !io::write_pod(os, line.endPointY) ||
-          !io::write_pod(os, line.lineLength))
+    }
+    for (const auto &line : entry.lines) {
+      if (!io::writePod(os, line.startPointX) ||
+          !io::writePod(os, line.startPointY) ||
+          !io::writePod(os, line.endPointX) ||
+          !io::writePod(os, line.endPointY) ||
+          !io::writePod(os, line.lineLength)) {
         return false;
+      }
     }
 
     // Write descriptors
-    if (!io::write_mat(os, entry.descriptors))
+    if (!io::writeMat(os, entry.descriptors)) {
       return false;
+    }
   }
   return true;
 }
 
 bool LbdFeatureLayer::load(std::istream& is) {
   int num_maps = 0;
-  if (!io::read_pod(is, num_maps))
+  if (!io::readPod(is, num_maps)) {
     return false;
+  }
 
   database_.clear();
   for (int i = 0; i < num_maps; ++i) {
     int map_id = 0;
-    if (!io::read_pod(is, map_id))
+    if (!io::readPod(is, map_id)) {
       return false;
+    }
 
     int num_lines = 0;
-    if (!io::read_pod(is, num_lines))
+    if (!io::readPod(is, num_lines)) {
       return false;
+    }
 
     std::vector<cv::line_descriptor::KeyLine> lines;
     lines.reserve(num_lines);
     for (int j = 0; j < num_lines; ++j) {
       cv::line_descriptor::KeyLine line;
-      if (!io::read_pod(is, line.startPointX) || !io::read_pod(is, line.startPointY) ||
-          !io::read_pod(is, line.endPointX) || !io::read_pod(is, line.endPointY) ||
-          !io::read_pod(is, line.lineLength))
+      if (!io::readPod(is, line.startPointX) ||
+          !io::readPod(is, line.startPointY) ||
+          !io::readPod(is, line.endPointX) ||
+          !io::readPod(is, line.endPointY) ||
+          !io::readPod(is, line.lineLength)) {
         return false;
+      }
       lines.push_back(line);
     }
 
     cv::Mat descriptors;
-    if (!io::read_mat(is, descriptors))
+    if (!io::readMat(is, descriptors)) {
       return false;
+    }
 
     database_.insert_or_assign(map_id, Entry{std::move(lines), std::move(descriptors)});
   }

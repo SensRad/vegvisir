@@ -47,23 +47,23 @@ class MapClosures:
         self, query_idx: int, local_map: np.ndarray, k: int
     ) -> list[ClosureCandidate]:
         pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._GetTopKClosures(query_idx, pcd, k)
+        return self._pipeline._getTopKClosures(query_idx, pcd, k)
 
     def get_closures(self, query_idx: int, local_map: np.ndarray) -> list[ClosureCandidate]:
         pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._GetClosures(query_idx, pcd)
+        return self._pipeline._getClosures(query_idx, pcd)
 
     def query_top_k_closures(
         self, query_idx: int, local_map: np.ndarray, k: int
     ) -> list[ClosureCandidate]:
         """Query for top-k closures without adding the map to the database."""
         pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._QueryTopKClosures(query_idx, pcd, k)
+        return self._pipeline._queryTopKClosures(query_idx, pcd, k)
 
     def query_closures(self, query_idx: int, local_map: np.ndarray) -> list[ClosureCandidate]:
         """Query for all closures without adding the map to the database."""
         pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._QueryClosures(query_idx, pcd)
+        return self._pipeline._queryClosures(query_idx, pcd)
 
     def get_density_map_from_id(self, map_id: int) -> np.ndarray:
         return self._pipeline._getDensityMapFromId(map_id)

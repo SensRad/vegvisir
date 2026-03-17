@@ -42,40 +42,55 @@
 using Vector3dVector = std::vector<Eigen::Vector3d>;
 
 // Same default as Open3d
-static constexpr unsigned int max_points_per_normal_computation = 20;
+static constexpr unsigned int MAX_POINTS_PER_NORMAL_COMPUTATION = 20;
 
 namespace voxel_map {
 
 struct VoxelBlock {
-  void emplace_back(const Eigen::Vector3d& point);
-  inline constexpr size_t size() const { return num_points; }
-  auto cbegin() const { return points.cbegin(); }
-  auto cend() const { return std::next(points.cbegin(), num_points); }
-  std::array<Eigen::Vector3d, max_points_per_normal_computation> points;
-  size_t num_points = 0;
+  void emplaceBack(const Eigen::Vector3d &point);
+  [[nodiscard]] constexpr size_t size() const { return num_points_; }
+  [[nodiscard]] auto begin() const { return points_.cbegin(); }
+  [[nodiscard]] auto end() const {
+    return std::next(points_.cbegin(),
+                     static_cast<std::ptrdiff_t>(num_points_));
+  }
+  [[nodiscard]] auto cbegin() const { return points_.cbegin(); }
+  [[nodiscard]] auto cend() const {
+    return std::next(points_.cbegin(),
+                     static_cast<std::ptrdiff_t>(num_points_));
+  }
+
+private:
+  std::array<Eigen::Vector3d, MAX_POINTS_PER_NORMAL_COMPUTATION> points_;
+  size_t num_points_ = 0;
 };
 
 struct VoxelMap {
-  explicit VoxelMap(const double voxel_size);
+  explicit VoxelMap(double voxel_size);
 
-  inline void Clear() { map_.clear(); }
-  inline bool Empty() const { return map_.empty(); }
-  void IntegrateFrame(const std::vector<Eigen::Vector3d>& points, const Eigen::Matrix4d& pose);
-  void AddPoints(const std::vector<Eigen::Vector3d>& points);
-  Vector3dVector Pointcloud() const;
+  void clear() { map_.clear(); }
+  [[nodiscard]] bool empty() const { return map_.empty(); }
+  void integrateFrame(const std::vector<Eigen::Vector3d> &points,
+                      const Eigen::Matrix4d &pose);
+  void addPoints(const std::vector<Eigen::Vector3d> &points);
+  [[nodiscard]] Vector3dVector pointcloud() const;
 
-  void PruneFarPoints(const Eigen::Matrix4d& reference_pose, double max_distance);
+  void pruneFarPoints(const Eigen::Matrix4d &reference_pose,
+                      double max_distance);
 
-  size_t NumVoxels() const { return map_.size(); }
+  [[nodiscard]] size_t numVoxels() const { return map_.size(); }
 
-  std::tuple<Vector3dVector, Vector3dVector> PerVoxelPointAndNormal() const;
+  [[nodiscard]] std::tuple<Vector3dVector, Vector3dVector>
+  perVoxelPointAndNormal() const;
 
   // Find the closest stored point to query using bounded neighbor search.
   // Checks center voxel first, then skips neighbor voxels whose bounding-box
   // minimum distance already exceeds the current best. Returns
   // {closest_point, squared_distance}.
-  std::pair<Eigen::Vector3d, double> GetClosestNeighbor(const Eigen::Vector3d& query) const;
+  [[nodiscard]] std::pair<Eigen::Vector3d, double>
+  getClosestNeighbor(const Eigen::Vector3d &query) const;
 
+private:
   double voxel_size_;
   double map_resolution_;
   tsl::robin_map<Voxel, VoxelBlock> map_;

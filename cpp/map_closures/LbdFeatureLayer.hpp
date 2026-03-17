@@ -15,14 +15,15 @@
 namespace map_closures {
 
 struct LbdConfig {
-  float min_line_length = 15.0f;
+  float min_line_length = 15.0F;
   int num_octaves = 2;
   int scale = 2;
 };
 
 class LbdFeatureLayer : public FeatureLayer {
- public:
-  explicit LbdFeatureLayer(const LbdConfig& config = {}, float match_ratio = 0.80f);
+public:
+  explicit LbdFeatureLayer(const LbdConfig &config = {},
+                           float match_ratio = 0.80F);
 
   void extract(int map_id, const cv::Mat& gray_image, const Eigen::Vector2i& lower_bound) override;
 
