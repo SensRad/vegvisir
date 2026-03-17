@@ -6,7 +6,6 @@ project(vegvisir)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(oden_interfaces REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -29,7 +28,6 @@ ament_target_dependencies(
   vegvisir_node
   rclcpp
   sensor_msgs
-  oden_interfaces
   message_filters
   tf2_ros
   geometry_msgs

@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-"""Entry point for the odometry_to_ego_motion adapter node."""
-
-from vegvisir_bringup.odometry_to_ego_motion_node import main
-
-main()
