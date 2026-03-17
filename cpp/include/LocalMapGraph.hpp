@@ -14,7 +14,7 @@
 namespace vegvisir {
 
 // Forward declaration of Mode enum (defined in Localizer.hpp)
-enum class Mode;
+enum class Mode : std::uint8_t;
 
 /**
  * Represents a single local map in the pose graph.
