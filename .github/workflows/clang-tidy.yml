@@ -5,9 +5,11 @@ on:
     branches: [master]
     paths:
       - 'cpp/**'
+      - '.clang-tidy'
   pull_request:
     paths:
       - 'cpp/**'
+      - '.clang-tidy'
 
 jobs:
   clang-tidy:
