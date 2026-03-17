@@ -4,7 +4,7 @@
 #include "LocalizationBackend.hpp"
 #include "SlamBackend.hpp"
 
-#include <unistd.h>
+#include <pthread.h>
 
 namespace vegvisir {
 
@@ -202,7 +202,8 @@ void Vegvisir::processLoopClosuresAsync(
       [this, query_id, pts_mc = std::move(query_points_mc),
        pts_icp = std::move(query_points_icp), query_odom_base]() {
         // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
-        nice(19);
+        struct sched_param param{};
+        pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
 
         processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base);
       });
