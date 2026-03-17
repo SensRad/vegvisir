@@ -9,7 +9,7 @@
       # Pipeline defaults
       data:
         max_range: 100.0
-        min_range: 0.5
+        min_range: 0.0
         deskew: true
       mapping:
         max_points_per_voxel: 20

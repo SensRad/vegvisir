@@ -129,7 +129,21 @@ void SlamBackend::optimizeKeyposeGraph() {
   for (const auto& [map_id, local_map] : vegvisir_.local_map_graph_) {
     auto it = estimates.find(static_cast<int>(map_id));
     if (it != estimates.end()) {
-      vegvisir_.local_map_graph_.updateKeypose(map_id, it->second);
+      Eigen::Matrix4d old_keypose = local_map.keypose();
+      Eigen::Matrix4d new_keypose = it->second;
+
+      vegvisir_.local_map_graph_.updateKeypose(map_id, new_keypose);
+
+      // Re-transform local_map_points_ from old keypose frame to new
+      auto points_it = vegvisir_.local_map_points_.find(static_cast<int>(map_id));
+      if (points_it != vegvisir_.local_map_points_.end()) {
+        Eigen::Matrix4d transform = new_keypose.inverse() * old_keypose;
+        for (auto& pt : points_it->second) {
+          Eigen::Vector4d hp(pt.x(), pt.y(), pt.z(), 1.0);
+          Eigen::Vector4d tp = transform * hp;
+          pt = Eigen::Vector3d(tp.x(), tp.y(), tp.z());
+        }
+      }
     }
   }
 }
