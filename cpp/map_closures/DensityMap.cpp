@@ -92,7 +92,7 @@ DensityMap generateDensityMap(const std::vector<Eigen::Vector3d> &pcd,
 
   DensityMap density_map(n_rows, n_cols, density_map_resolution,
                          lower_bound_coordinates);
-  counting_grid.forEach<double>([&](const double count, const int pos[]) { // NOLINT(modernize-avoid-c-arrays)
+  counting_grid.forEach<double>([&](const double count, const int pos[]) { // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     auto density = (count - min_points) / (max_points - min_points);
     density = density > density_threshold ? density : 0.0;
     density_map(pos[0], pos[1]) = static_cast<uint8_t>(255 * density);
@@ -117,11 +117,11 @@ void applyGammaCorrection(DensityMap &density_map, const float gamma) {
     // Apply gamma correction
     const float corrected = std::pow(normalized, gamma);
     // Scale back to [0, 255]
-    lut[i] = static_cast<uint8_t>(std::round(corrected * 255.0F));
+    lut[i] = static_cast<uint8_t>(std::round(corrected * 255.0F)); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
   }
 
   // Apply LUT to every pixel
   density_map.grid.forEach<uint8_t>(
-      [&](uint8_t &pixel, const int * /*pos*/) { pixel = lut[pixel]; });
+      [&](uint8_t &pixel, const int * /*pos*/) { pixel = lut[pixel]; }); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 }
 } // namespace map_closures

@@ -23,6 +23,7 @@ template <class T> inline bool readPod(std::istream &is, T &v) {
 }
 
 // cv::Mat helpers -----------------------------------------------------------
+// NOLINTNEXTLINE(misc-no-recursion)
 inline bool writeMat(std::ostream &os, const cv::Mat &m) {
   const int rows = m.rows;
   const int cols = m.cols;

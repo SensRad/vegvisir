@@ -65,8 +65,8 @@ namespace voxel_map {
 
 void VoxelBlock::emplaceBack(const Eigen::Vector3d &p) {
   if (size() < MAX_POINTS_PER_NORMAL_COMPUTATION) {
-    points.at(num_points) = p;
-    ++num_points;
+    points_.at(num_points_) = p;
+    ++num_points_;
   }
 }
 
@@ -154,8 +154,8 @@ void VoxelMap::pruneFarPoints(const Eigen::Matrix4d &reference_pose,
   }
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 std::pair<Eigen::Vector3d, double>
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 VoxelMap::getClosestNeighbor(const Eigen::Vector3d &query) const {
   const double qx = query.x() / voxel_size_;
   const double qy = query.y() / voxel_size_;

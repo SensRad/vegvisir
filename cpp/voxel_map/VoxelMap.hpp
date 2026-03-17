@@ -45,21 +45,21 @@ namespace voxel_map {
 
 struct VoxelBlock {
   void emplaceBack(const Eigen::Vector3d &point);
-  [[nodiscard]] constexpr size_t size() const { return num_points; }
-  [[nodiscard]] auto begin() const { return points.cbegin(); }
+  [[nodiscard]] constexpr size_t size() const { return num_points_; }
+  [[nodiscard]] auto begin() const { return points_.cbegin(); }
   [[nodiscard]] auto end() const {
-    return std::next(points.cbegin(),
-                     static_cast<std::ptrdiff_t>(num_points));
+    return std::next(points_.cbegin(),
+                     static_cast<std::ptrdiff_t>(num_points_));
   }
-  [[nodiscard]] auto cbegin() const { return points.cbegin(); }
+  [[nodiscard]] auto cbegin() const { return points_.cbegin(); }
   [[nodiscard]] auto cend() const {
-    return std::next(points.cbegin(),
-                     static_cast<std::ptrdiff_t>(num_points));
+    return std::next(points_.cbegin(),
+                     static_cast<std::ptrdiff_t>(num_points_));
   }
 
 private:
-  std::array<Eigen::Vector3d, MAX_POINTS_PER_NORMAL_COMPUTATION> points;
-  size_t num_points = 0;
+  std::array<Eigen::Vector3d, MAX_POINTS_PER_NORMAL_COMPUTATION> points_;
+  size_t num_points_ = 0;
 };
 
 struct VoxelMap {
