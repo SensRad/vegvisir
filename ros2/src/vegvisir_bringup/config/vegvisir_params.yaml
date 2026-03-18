@@ -3,3 +3,4 @@
     ros__parameters:
       map_database_path: "sensrad_maps/my_map"
       slam_mode: true
+      pointcloud_qos_reliability: "best_effort"

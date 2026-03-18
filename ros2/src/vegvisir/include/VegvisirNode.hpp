@@ -12,7 +12,7 @@
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <message_filters/subscriber.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -48,8 +48,8 @@ class VegvisirNode : public rclcpp::Node {
   std::unique_ptr<Vegvisir> vegvisir_;
 
   // Synchronizer
-  using SyncPolicy = message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2,
-                                                                     nav_msgs::msg::Odometry>;
+  using SyncPolicy = message_filters::sync_policies::ExactTime<sensor_msgs::msg::PointCloud2,
+                                                               nav_msgs::msg::Odometry>;
   std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
   // TF broadcaster
@@ -63,6 +63,11 @@ class VegvisirNode : public rclcpp::Node {
   // Frame IDs
   std::string map_frame_ = "map";
   std::string odom_frame_ = "odom";
+
+  // Diagnostic timer for detecting sync/QoS issues
+  rclcpp::TimerBase::SharedPtr diagnostic_timer_;
+  size_t process_count_ = 0;
+  size_t last_diagnostic_count_ = 0;
 
   // Track last published sizes for change detection
   size_t published_segment_count_ = 0;

@@ -9,8 +9,14 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   // Declare pointcloud_topic as a required parameter (no default)
   auto pointcloud_topic = this->declare_parameter<std::string>("pointcloud_topic");
 
+  // Configure pointcloud QoS — sensors publish best_effort, rosbags may use reliable
+  auto pc_reliability =
+      this->declare_parameter<std::string>("pointcloud_qos_reliability", "best_effort");
+  rmw_qos_profile_t pc_qos =
+      (pc_reliability == "best_effort") ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
+
   // Subscribe using the declared parameter value
-  pointcloud_sub_.subscribe(this, pointcloud_topic);
+  pointcloud_sub_.subscribe(this, pointcloud_topic, pc_qos);
   odometry_sub_.subscribe(this, "odometry");
 
   // Initialize localizer with map database
@@ -23,11 +29,10 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
 
   vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode);
 
-  // Create the synchronizer with a queue size of 10 and max time difference of
-  // 100ms
+  // Create the synchronizer — ExactTime matches identical timestamps (KISS-ICP
+  // copies the input header stamp to its odometry output)
   sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
       SyncPolicy(10), pointcloud_sub_, odometry_sub_);
-  sync_->setMaxIntervalDuration(rclcpp::Duration::from_seconds(0.1));
 
   // Register the callback
   sync_->registerCallback(
@@ -56,9 +61,25 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   publishMapPointCloud(this->now());
   publishKeyposes(this->now());
 
+  // Diagnostic timer — warn when no synchronized pairs arrive
+  diagnostic_timer_ = this->create_wall_timer(std::chrono::seconds(5), [this]() {
+    if (process_count_ == last_diagnostic_count_) {
+      RCLCPP_WARN(get_logger(),
+                  "No synchronized pointcloud/odometry pairs received in the last 5 s. "
+                  "Check that the odometry source is running and that pointcloud QoS matches "
+                  "the publisher (current: %s).",
+                  this->get_parameter("pointcloud_qos_reliability").as_string().c_str());
+    } else {
+      RCLCPP_INFO(get_logger(), "Processing rate: %.1f Hz",
+                  static_cast<double>(process_count_ - last_diagnostic_count_) / 5.0);
+    }
+    last_diagnostic_count_ = process_count_;
+  });
+
   RCLCPP_INFO(get_logger(), "Vegvisir node initialized with synchronized subscribers");
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
   RCLCPP_INFO(get_logger(), "Mode: %s", slam_mode ? "SLAM" : "LOCALIZATION");
+  RCLCPP_INFO(get_logger(), "Pointcloud QoS reliability: %s", pc_reliability.c_str());
 }
 
 std::vector<Eigen::Vector3d> VegvisirNode::pointcloudToEigen(
@@ -92,6 +113,8 @@ Sophus::SE3d VegvisirNode::odometryToSophus(
 
 void VegvisirNode::process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pointcloud_msg,
                            const nav_msgs::msg::Odometry::ConstSharedPtr& odometry_msg) {
+  ++process_count_;
+
   auto points = pointcloudToEigen(pointcloud_msg);
   auto absolute_pose = odometryToSophus(odometry_msg);
 
