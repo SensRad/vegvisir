@@ -14,8 +14,8 @@ void SlamBackend::initialize() {
   pose_at_nodes_.clear();
   pose_at_nodes_.emplace_back(Eigen::Matrix4d::Identity());
 
-  const int max_iterations = 10;
-  keypose_optimizer_ = std::make_unique<pgo::PoseGraphOptimizer>(max_iterations);
+  keypose_optimizer_ =
+      std::make_unique<pgo::PoseGraphOptimizer>(vegvisir_.config_.pgo_max_iterations);
 
   // If the graph is empty, create new variable for the first keypose and fix it
   if (vegvisir_.local_map_graph_.empty()) {
@@ -30,13 +30,13 @@ void SlamBackend::initialize() {
   // loaded.
   const auto& reference_poses = vegvisir_.getReferencePoses();
 
-  for (const auto &[map_id, local_map] : vegvisir_.local_map_graph_) {
+  for (const auto& [map_id, local_map] : vegvisir_.local_map_graph_) {
     keypose_optimizer_->addVariable(static_cast<int>(map_id), local_map.keypose());
 
     // If this map_id exists in the loaded reference poses, fix it.
     // That prevents the optimizer from moving the pre-built map.
-    if (!reference_poses.empty() && reference_poses.find(static_cast<int>(
-                                        map_id)) != reference_poses.end()) {
+    if (!reference_poses.empty() &&
+        reference_poses.find(static_cast<int>(map_id)) != reference_poses.end()) {
       keypose_optimizer_->fixVariable(static_cast<int>(map_id));
     }
   }
@@ -56,19 +56,19 @@ void SlamBackend::initialize() {
     vegvisir_.local_map_graph_.addLocalMap(new_id, Eigen::Matrix4d::Identity());
     keypose_optimizer_->addVariable(static_cast<int>(new_id), Eigen::Matrix4d::Identity());
 
-    std::cout << "Created new trajectory starting node " << new_id
-              << " at identity (unfixed)" << '\n';
+    std::cout << "Created new trajectory starting node " << new_id << " at identity (unfixed)"
+              << '\n';
   }
 
-  std::cout << "SLAM backend initialized optimizer with "
-            << vegvisir_.local_map_graph_.size() << " keyposes" << '\n';
+  std::cout << "SLAM backend initialized optimizer with " << vegvisir_.local_map_graph_.size()
+            << " keyposes" << '\n';
 }
 
-void SlamBackend::preIntegrate(const Eigen::Matrix4d &pose_odom_base,
-                               const Sophus::SE3d & /*delta_pose*/) {
+void SlamBackend::preIntegrate(const Eigen::Matrix4d& pose_odom_base,
+                               const Sophus::SE3d& /*delta_pose*/) {
   // Compensate for poses at previous nodes
   Eigen::Matrix4d compensated_pose = pose_odom_base;
-  for (const auto &pose : pose_at_nodes_) {
+  for (const auto& pose : pose_at_nodes_) {
     compensated_pose = pose.inverse() * compensated_pose;
   }
   vegvisir_.current_pose_ = compensated_pose;
@@ -86,10 +86,10 @@ void SlamBackend::postIntegrate() {
 }
 
 double SlamBackend::queryDistanceM() const {
-  return Vegvisir::QUERY_DISTANCE_SLAM_M;
+  return vegvisir_.config_.splitting_distance_slam;
 }
 
-void SlamBackend::runQueryCycle(const Eigen::Matrix4d &pose_odom_base) {
+void SlamBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base) {
   // In SLAM mode, generate a new node after each query (and handle closures)
   generateNewNode(pose_odom_base);
 }
@@ -109,8 +109,7 @@ void SlamBackend::applyAcceptedClosure(const map_closures::ClosureCandidate& c,
     return;
   }
 
-  const Eigen::Matrix<double, 6, 6> information =
-      Eigen::Matrix<double, 6, 6>::Identity();
+  const Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
 
   keypose_optimizer_->addFactor(c.source_id, c.target_id, c.pose, information);
 
@@ -148,7 +147,7 @@ void SlamBackend::optimizeKeyposeGraph() {
   }
 }
 
-void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
+void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base) {
   // Generate a new SLAM node and check for loop closures
 
   LocalMap& last_local_map = vegvisir_.local_map_graph_.lastLocalMap();
@@ -156,8 +155,7 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   // Get the relative motion (last element of local trajectory)
   const auto& local_trajectory = last_local_map.localTrajectory();
   if (local_trajectory.empty()) {
-    std::cerr << "generateNewNode: local trajectory is empty, skipping"
-              << '\n';
+    std::cerr << "generateNewNode: local trajectory is empty, skipping" << '\n';
     return;
   }
   const Eigen::Matrix4d relative_motion = local_trajectory.back();
@@ -167,11 +165,10 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
   const std::vector<Eigen::Vector3d> points = vegvisir_.voxel_grid_.pointcloud();
   std::vector<Eigen::Vector3d> transformed_points;
   transformed_points.reserve(points.size());
-  for (const auto &p : points) {
+  for (const auto& p : points) {
     const Eigen::Vector4d hp(p.x(), p.y(), p.z(), 1.0);
     const Eigen::Vector4d transformed = inverse_relative_motion * hp;
-    transformed_points.emplace_back(transformed.x(), transformed.y(),
-                                    transformed.z());
+    transformed_points.emplace_back(transformed.x(), transformed.y(), transformed.z());
   }
 
   // Log the pose of the last node
@@ -193,19 +190,18 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d &pose_odom_base) {
     vegvisir_.local_map_points_[query_id] = query_points_icp;
 
     // Finalize the local map and create a new one
-    const uint64_t new_id = vegvisir_.local_map_graph_.finalizeLocalMap(
-        vegvisir_.voxel_grid_, Mode::SLAM);
+    const uint64_t new_id =
+        vegvisir_.local_map_graph_.finalizeLocalMap(vegvisir_.voxel_grid_, Mode::SLAM);
 
     // Add variable to optimizer for the new keypose + odometry factor
     if (keypose_optimizer_) {
       keypose_optimizer_->addVariable(static_cast<int>(new_id),
                                       vegvisir_.local_map_graph_.lastKeypose());
 
-      const Eigen::Matrix<double, 6, 6> information =
-          Eigen::Matrix<double, 6, 6>::Identity();
+      const Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
 
-      keypose_optimizer_->addFactor(static_cast<int>(new_id), static_cast<int>(query_id_u64), relative_motion,
-                                    information);
+      keypose_optimizer_->addFactor(static_cast<int>(new_id), static_cast<int>(query_id_u64),
+                                    relative_motion, information);
     }
   }
 

@@ -15,6 +15,7 @@
 
 #include "LocalMapGraph.hpp"
 #include "Vegvisir.hpp"
+#include "VegvisirConfig.hpp"
 #include "VegvisirIO.hpp"
 #include "map_closures/AlignRansac2D.hpp"
 #include "map_closures/GroundAlign.hpp"
@@ -107,8 +108,7 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
     using namespace voxel_map;
     py::class_<VoxelMap> vmap(m, "_VoxelMap", "");
     vmap.def(py::init<double>(), "voxel_size"_a)
-        .def("_integrate_frame", &VoxelMap::integrateFrame, "points"_a,
-             "pose"_a)
+        .def("_integrate_frame", &VoxelMap::integrateFrame, "points"_a, "pose"_a)
         .def("_add_points", &VoxelMap::addPoints, "points"_a)
         .def("_point_cloud", &VoxelMap::pointcloud)
         .def("_clear", &VoxelMap::clear)
@@ -140,14 +140,11 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
                return std::make_shared<MapClosures>(config);
              }),
              "config"_a)
-        .def("_getTopKClosures", &MapClosures::getTopKClosures, "query_id"_a,
-             "local_map"_a, "k"_a)
-        .def("_getClosures", &MapClosures::getClosures, "query_id"_a,
-             "local_map"_a)
-        .def("_queryTopKClosures", &MapClosures::queryTopKClosures,
-             "query_id"_a, "local_map"_a, "k"_a)
-        .def("_queryClosures", &MapClosures::queryClosures, "query_id"_a,
-             "local_map"_a)
+        .def("_getTopKClosures", &MapClosures::getTopKClosures, "query_id"_a, "local_map"_a, "k"_a)
+        .def("_getClosures", &MapClosures::getClosures, "query_id"_a, "local_map"_a)
+        .def("_queryTopKClosures", &MapClosures::queryTopKClosures, "query_id"_a, "local_map"_a,
+             "k"_a)
+        .def("_queryClosures", &MapClosures::queryClosures, "query_id"_a, "local_map"_a)
         .def("_getDensityMapFromId",
              [](MapClosures& self, const int& map_id) {
                const auto& density_map = self.getDensityMapFromId(map_id);
@@ -283,11 +280,25 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def_readwrite("gnss_origin", &MapMetadata::gnss_origin);
   }
 
+  // ---- VegvisirConfig ----
+  {
+    using namespace vegvisir;
+    py::class_<VegvisirConfig>(m, "_VegvisirConfig")
+        .def(py::init<>())
+        .def_readwrite("voxel_size", &VegvisirConfig::voxel_size)
+        .def_readwrite("splitting_distance_slam", &VegvisirConfig::splitting_distance_slam)
+        .def_readwrite("splitting_distance_localization",
+                       &VegvisirConfig::splitting_distance_localization)
+        .def_readwrite("overlap_threshold", &VegvisirConfig::overlap_threshold)
+        .def_readwrite("pgo_max_iterations", &VegvisirConfig::pgo_max_iterations);
+  }
+
   // ---- Vegvisir ----
   {
     using namespace vegvisir;
     py::class_<Vegvisir>(m, "_Vegvisir")
-        .def(py::init<const std::string&, Mode>(), "map_database_path"_a, "mode"_a = Mode::SLAM)
+        .def(py::init<const std::string&, Mode, const VegvisirConfig&>(), "map_database_path"_a,
+             "mode"_a = Mode::SLAM, "config"_a = VegvisirConfig{})
         .def(
             "update",
             [](Vegvisir& self, const std::vector<Eigen::Vector3d>& points,
@@ -425,8 +436,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   }
 
   // ---- Free functions ----
-  m.def("_align_map_to_local_ground", &map_closures::alignToLocalGround,
-        "pointcloud"_a, "resolution"_a);
+  m.def("_align_map_to_local_ground", &map_closures::alignToLocalGround, "pointcloud"_a,
+        "resolution"_a);
 
   // ---- Constants ----
   m.attr("LOCAL_MAPS_TO_SKIP") = map_closures::LOCAL_MAPS_TO_SKIP;

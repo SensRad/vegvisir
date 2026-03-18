@@ -1,12 +1,85 @@
 # Copyright (c) Sensrad 2026
 """Python wrapper around the C++ vegvisir::Vegvisir pybind11 binding."""
 
+from typing import Optional
+
 import numpy as np
 
 from .pybind.vegvisir_pybind import (
     Mode,  # noqa: F401
     _Vegvisir,
+    _VegvisirConfig,
 )
+
+
+class VegvisirConfig:
+    """Runtime configuration for the Vegvisir engine.
+
+    All defaults match the original hardcoded values — zero behavioral change
+    when no overrides are provided.
+
+    Args:
+        voxel_size: Voxel grid cell size in meters.
+        splitting_distance_slam: Distance between keyframes in SLAM mode (meters).
+        splitting_distance_localization: Distance between submaps in localization mode (meters).
+        overlap_threshold: Minimum overlap fraction to accept a loop closure.
+        pgo_max_iterations: Maximum iterations for pose graph optimization.
+    """
+
+    def __init__(
+        self,
+        voxel_size: float = 0.8,
+        splitting_distance_slam: float = 50.0,
+        splitting_distance_localization: float = 5.0,
+        overlap_threshold: float = 0.10,
+        pgo_max_iterations: int = 10,
+    ):
+        self._impl = _VegvisirConfig()
+        self._impl.voxel_size = voxel_size
+        self._impl.splitting_distance_slam = splitting_distance_slam
+        self._impl.splitting_distance_localization = splitting_distance_localization
+        self._impl.overlap_threshold = overlap_threshold
+        self._impl.pgo_max_iterations = pgo_max_iterations
+
+    @property
+    def voxel_size(self) -> float:
+        return self._impl.voxel_size
+
+    @voxel_size.setter
+    def voxel_size(self, value: float) -> None:
+        self._impl.voxel_size = value
+
+    @property
+    def splitting_distance_slam(self) -> float:
+        return self._impl.splitting_distance_slam
+
+    @splitting_distance_slam.setter
+    def splitting_distance_slam(self, value: float) -> None:
+        self._impl.splitting_distance_slam = value
+
+    @property
+    def splitting_distance_localization(self) -> float:
+        return self._impl.splitting_distance_localization
+
+    @splitting_distance_localization.setter
+    def splitting_distance_localization(self, value: float) -> None:
+        self._impl.splitting_distance_localization = value
+
+    @property
+    def overlap_threshold(self) -> float:
+        return self._impl.overlap_threshold
+
+    @overlap_threshold.setter
+    def overlap_threshold(self, value: float) -> None:
+        self._impl.overlap_threshold = value
+
+    @property
+    def pgo_max_iterations(self) -> int:
+        return self._impl.pgo_max_iterations
+
+    @pgo_max_iterations.setter
+    def pgo_max_iterations(self, value: int) -> None:
+        self._impl.pgo_max_iterations = value
 
 
 class Vegvisir:
@@ -18,10 +91,17 @@ class Vegvisir:
     Args:
         map_database_path: Path to map directory for saving/loading.
         mode: ``Mode.SLAM`` (default) or ``Mode.LOCALIZATION``.
+        config: Optional runtime configuration. Uses defaults if not provided.
     """
 
-    def __init__(self, map_database_path: str = "", mode=Mode.SLAM):
-        self._impl = _Vegvisir(map_database_path, mode)
+    def __init__(
+        self,
+        map_database_path: str = "",
+        mode=Mode.SLAM,
+        config: Optional[VegvisirConfig] = None,
+    ):
+        cpp_config = config._impl if config is not None else _VegvisirConfig()
+        self._impl = _Vegvisir(map_database_path, mode, cpp_config)
 
     def update(
         self,

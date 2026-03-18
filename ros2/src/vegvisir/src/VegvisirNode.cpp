@@ -3,6 +3,8 @@
 
 #include "VegvisirNode.hpp"
 
+#include "VegvisirConfig.hpp"
+
 namespace vegvisir {
 
 VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
@@ -27,7 +29,19 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   bool slam_mode = this->declare_parameter<bool>("slam_mode", false);
   vegvisir::Mode mode = slam_mode ? vegvisir::Mode::SLAM : vegvisir::Mode::LOCALIZATION;
 
-  vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode);
+  // Declare runtime configuration parameters
+  vegvisir::VegvisirConfig config;
+  config.voxel_size = this->declare_parameter<double>("mapping.voxel_size", config.voxel_size);
+  config.splitting_distance_slam = this->declare_parameter<double>(
+      "mapping.splitting_distance_slam", config.splitting_distance_slam);
+  config.splitting_distance_localization = this->declare_parameter<double>(
+      "mapping.splitting_distance_localization", config.splitting_distance_localization);
+  config.overlap_threshold =
+      this->declare_parameter<double>("closure.overlap_threshold", config.overlap_threshold);
+  config.pgo_max_iterations =
+      this->declare_parameter<int>("optimization.pgo_max_iterations", config.pgo_max_iterations);
+
+  vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode, config);
 
   // Create the synchronizer — ExactTime matches identical timestamps (KISS-ICP
   // copies the input header stamp to its odometry output)
@@ -65,6 +79,12 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
   RCLCPP_INFO(get_logger(), "Mode: %s", slam_mode ? "SLAM" : "LOCALIZATION");
   RCLCPP_INFO(get_logger(), "Pointcloud QoS reliability: %s", pc_reliability.c_str());
+  RCLCPP_INFO(get_logger(),
+              "Config: voxel_size=%.2f, splitting_slam=%.1f, splitting_loc=%.1f, "
+              "overlap=%.2f, pgo_iters=%d",
+              config.voxel_size, config.splitting_distance_slam,
+              config.splitting_distance_localization, config.overlap_threshold,
+              config.pgo_max_iterations);
 }
 
 std::vector<Eigen::Vector3d> VegvisirNode::pointcloudToEigen(
