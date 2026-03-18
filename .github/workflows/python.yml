@@ -28,4 +28,4 @@ jobs:
           python -m pip install --verbose ./python/
       - name: Test import
         run: |
-          python -c "from vegvisir import Vegvisir, VegvisirConfig; print('import ok')"
+          python -c "from vegvisir.vegvisir import Vegvisir, VegvisirConfig; print('import ok')"
