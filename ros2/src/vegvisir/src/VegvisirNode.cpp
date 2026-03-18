@@ -9,8 +9,14 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   // Declare pointcloud_topic as a required parameter (no default)
   auto pointcloud_topic = this->declare_parameter<std::string>("pointcloud_topic");
 
+  // Configure pointcloud QoS — sensors publish best_effort, rosbags may use reliable
+  auto pc_reliability =
+      this->declare_parameter<std::string>("pointcloud_qos_reliability", "best_effort");
+  rmw_qos_profile_t pc_qos =
+      (pc_reliability == "best_effort") ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
+
   // Subscribe using the declared parameter value
-  pointcloud_sub_.subscribe(this, pointcloud_topic);
+  pointcloud_sub_.subscribe(this, pointcloud_topic, pc_qos);
   odometry_sub_.subscribe(this, "odometry");
 
   // Initialize localizer with map database
@@ -23,11 +29,10 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
 
   vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode);
 
-  // Create the synchronizer with a queue size of 10 and max time difference of
-  // 100ms
+  // Create the synchronizer — ExactTime matches identical timestamps (KISS-ICP
+  // copies the input header stamp to its odometry output)
   sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
       SyncPolicy(10), pointcloud_sub_, odometry_sub_);
-  sync_->setMaxIntervalDuration(rclcpp::Duration::from_seconds(0.1));
 
   // Register the callback
   sync_->registerCallback(
@@ -59,6 +64,7 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   RCLCPP_INFO(get_logger(), "Vegvisir node initialized with synchronized subscribers");
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
   RCLCPP_INFO(get_logger(), "Mode: %s", slam_mode ? "SLAM" : "LOCALIZATION");
+  RCLCPP_INFO(get_logger(), "Pointcloud QoS reliability: %s", pc_reliability.c_str());
 }
 
 std::vector<Eigen::Vector3d> VegvisirNode::pointcloudToEigen(
