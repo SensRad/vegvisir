@@ -40,7 +40,7 @@ namespace {
 
 // Compute rigid transform (rotation + translation) using Kabsch-Umeyama
 Eigen::Isometry2d kabschUmeyamaAlignment2D(
-    const std::vector<map_closures::PointPair> &keypoint_pairs) {
+    const std::vector<map_closures::PointPair>& keypoint_pairs) {
   const auto n = static_cast<double>(keypoint_pairs.size());
   Eigen::Vector2d mean_ref = Eigen::Vector2d::Zero();
   Eigen::Vector2d mean_query = Eigen::Vector2d::Zero();
@@ -56,17 +56,15 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
     covariance_matrix += (kp.ref - mean_ref) * (kp.query - mean_query).transpose();
   }
 
-  const Eigen::JacobiSVD<Eigen::Matrix2d> svd(
-      covariance_matrix, Eigen::ComputeFullU | Eigen::ComputeFullV);
+  const Eigen::JacobiSVD<Eigen::Matrix2d> svd(covariance_matrix,
+                                              Eigen::ComputeFullU | Eigen::ComputeFullV);
 
   // Standard Kabsch reflection correction
   Eigen::Matrix2d reflection_correction = Eigen::Matrix2d::Identity();
-  reflection_correction(1, 1) =
-      (svd.matrixV() * svd.matrixU().transpose()).determinant();
+  reflection_correction(1, 1) = (svd.matrixV() * svd.matrixU().transpose()).determinant();
 
   Eigen::Isometry2d alignment = Eigen::Isometry2d::Identity();
-  alignment.linear() =
-      svd.matrixV() * reflection_correction * svd.matrixU().transpose();
+  alignment.linear() = svd.matrixV() * reflection_correction * svd.matrixU().transpose();
   alignment.translation() = mean_query - alignment.linear() * mean_ref;
 
   return alignment;
@@ -76,8 +74,8 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
 
 namespace map_closures {
 
-std::pair<Eigen::Isometry2d, std::size_t>
-ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
+std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
+    const std::vector<PointPair>& keypoint_pairs) {
   if (keypoint_pairs.size() < 2) {
     return {Eigen::Isometry2d::Identity(), 0};
   }
@@ -93,8 +91,7 @@ ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
 
   std::mt19937 rng{std::random_device{}()};
 
-  auto find_inliers = [&](const Eigen::Isometry2d &transform,
-                          std::vector<int> &out) {
+  auto find_inliers = [&](const Eigen::Isometry2d& transform, std::vector<int>& out) {
     out.clear();
     for (int i = 0; i < n; ++i) {
       if ((transform * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() <
@@ -115,8 +112,8 @@ ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs) {
 
   int max_iterations = RANSAC_MAX_TRIALS;
   for (int iter = 0; iter < max_iterations; ++iter) {
-    std::sample(keypoint_pairs.begin(), keypoint_pairs.end(),
-                sample_keypoint_pairs.begin(), 2, rng);
+    std::sample(keypoint_pairs.begin(), keypoint_pairs.end(), sample_keypoint_pairs.begin(), 2,
+                rng);
     const auto transform = kabschUmeyamaAlignment2D(sample_keypoint_pairs);
     find_inliers(transform, inlier_indices);
 

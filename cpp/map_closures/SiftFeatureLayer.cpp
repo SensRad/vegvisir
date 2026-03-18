@@ -59,12 +59,10 @@ std::vector<Correspondence> SiftFeatureLayer::matchAgainstAll(int query_id,
     }
 
     // Convert to Correspondence (PointPair uses row,col = y,x)
-    const auto &ref_kps = ref_entry.keypoints;
-    for (const auto &[_, m] : best_by_train) {
-      const Eigen::Vector2d query_pt(query_kps[m.queryIdx].pt.y,
-                                     query_kps[m.queryIdx].pt.x);
-      const Eigen::Vector2d ref_pt(ref_kps[m.trainIdx].pt.y,
-                                   ref_kps[m.trainIdx].pt.x);
+    const auto& ref_kps = ref_entry.keypoints;
+    for (const auto& [_, m] : best_by_train) {
+      const Eigen::Vector2d query_pt(query_kps[m.queryIdx].pt.y, query_kps[m.queryIdx].pt.x);
+      const Eigen::Vector2d ref_pt(ref_kps[m.trainIdx].pt.y, ref_kps[m.trainIdx].pt.x);
       result.push_back({ref_id, 0, PointPair(ref_pt, query_pt)});
     }
   }
@@ -86,12 +84,12 @@ std::vector<int> SiftFeatureLayer::storedIds() const {
   return {keys.begin(), keys.end()};
 }
 
-bool SiftFeatureLayer::save(std::ostream &os) const {
+bool SiftFeatureLayer::save(std::ostream& os) const {
   if (!io::writePod(os, static_cast<int>(database_.size()))) {
     return false;
   }
 
-  for (const auto &[map_id, entry] : database_) {
+  for (const auto& [map_id, entry] : database_) {
     if (!io::writePod(os, map_id)) {
       return false;
     }
@@ -100,10 +98,9 @@ bool SiftFeatureLayer::save(std::ostream &os) const {
     if (!io::writePod(os, static_cast<int>(entry.keypoints.size()))) {
       return false;
     }
-    for (const auto &kp : entry.keypoints) {
-      if (!io::writePod(os, kp.pt.x) || !io::writePod(os, kp.pt.y) ||
-          !io::writePod(os, kp.size) || !io::writePod(os, kp.angle) ||
-          !io::writePod(os, kp.response)) {
+    for (const auto& kp : entry.keypoints) {
+      if (!io::writePod(os, kp.pt.x) || !io::writePod(os, kp.pt.y) || !io::writePod(os, kp.size) ||
+          !io::writePod(os, kp.angle) || !io::writePod(os, kp.response)) {
         return false;
       }
     }
@@ -138,9 +135,8 @@ bool SiftFeatureLayer::load(std::istream& is) {
     kps.reserve(num_kps);
     for (int j = 0; j < num_kps; ++j) {
       cv::KeyPoint kp;
-      if (!io::readPod(is, kp.pt.x) || !io::readPod(is, kp.pt.y) ||
-          !io::readPod(is, kp.size) || !io::readPod(is, kp.angle) ||
-          !io::readPod(is, kp.response)) {
+      if (!io::readPod(is, kp.pt.x) || !io::readPod(is, kp.pt.y) || !io::readPod(is, kp.size) ||
+          !io::readPod(is, kp.angle) || !io::readPod(is, kp.response)) {
         return false;
       }
       kps.push_back(kp);

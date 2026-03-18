@@ -96,12 +96,10 @@ std::vector<Correspondence> LbdFeatureLayer::matchAgainstAll(int query_id,
       const auto& r_line = ref_lines[m.trainIdx];
 
       // Midpoints as correspondences (row, col) = (y, x)
-      const Eigen::Vector2d q_mid(
-          (q_line.startPointY + q_line.endPointY) / 2.0,
-          (q_line.startPointX + q_line.endPointX) / 2.0);
-      const Eigen::Vector2d r_mid(
-          (r_line.startPointY + r_line.endPointY) / 2.0,
-          (r_line.startPointX + r_line.endPointX) / 2.0);
+      const Eigen::Vector2d q_mid((q_line.startPointY + q_line.endPointY) / 2.0,
+                                  (q_line.startPointX + q_line.endPointX) / 2.0);
+      const Eigen::Vector2d r_mid((r_line.startPointY + r_line.endPointY) / 2.0,
+                                  (r_line.startPointX + r_line.endPointX) / 2.0);
       result.push_back({ref_id, 1, PointPair(r_mid, q_mid)});
     }
   }
@@ -123,12 +121,12 @@ std::vector<int> LbdFeatureLayer::storedIds() const {
   return {keys.begin(), keys.end()};
 }
 
-bool LbdFeatureLayer::save(std::ostream &os) const {
+bool LbdFeatureLayer::save(std::ostream& os) const {
   if (!io::writePod(os, static_cast<int>(database_.size()))) {
     return false;
   }
 
-  for (const auto &[map_id, entry] : database_) {
+  for (const auto& [map_id, entry] : database_) {
     if (!io::writePod(os, map_id)) {
       return false;
     }
@@ -137,11 +135,9 @@ bool LbdFeatureLayer::save(std::ostream &os) const {
     if (!io::writePod(os, static_cast<int>(entry.lines.size()))) {
       return false;
     }
-    for (const auto &line : entry.lines) {
-      if (!io::writePod(os, line.startPointX) ||
-          !io::writePod(os, line.startPointY) ||
-          !io::writePod(os, line.endPointX) ||
-          !io::writePod(os, line.endPointY) ||
+    for (const auto& line : entry.lines) {
+      if (!io::writePod(os, line.startPointX) || !io::writePod(os, line.startPointY) ||
+          !io::writePod(os, line.endPointX) || !io::writePod(os, line.endPointY) ||
           !io::writePod(os, line.lineLength)) {
         return false;
       }
@@ -177,10 +173,8 @@ bool LbdFeatureLayer::load(std::istream& is) {
     lines.reserve(num_lines);
     for (int j = 0; j < num_lines; ++j) {
       cv::line_descriptor::KeyLine line;
-      if (!io::readPod(is, line.startPointX) ||
-          !io::readPod(is, line.startPointY) ||
-          !io::readPod(is, line.endPointX) ||
-          !io::readPod(is, line.endPointY) ||
+      if (!io::readPod(is, line.startPointX) || !io::readPod(is, line.startPointY) ||
+          !io::readPod(is, line.endPointX) || !io::readPod(is, line.endPointY) ||
           !io::readPod(is, line.lineLength)) {
         return false;
       }

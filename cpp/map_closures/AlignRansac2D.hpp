@@ -42,13 +42,12 @@ static constexpr int RANSAC_MAX_TRIALS = 100;
 
 struct PointPair {
   PointPair() = default;
-  PointPair(Eigen::Vector2d r, Eigen::Vector2d q)
-      : ref(std::move(r)), query(std::move(q)) {}
+  PointPair(Eigen::Vector2d r, Eigen::Vector2d q) : ref(std::move(r)), query(std::move(q)) {}
   Eigen::Vector2d ref = Eigen::Vector2d::Zero();
   Eigen::Vector2d query = Eigen::Vector2d::Zero();
 };
 
-std::pair<Eigen::Isometry2d, std::size_t>
-ransacAlignment2D(const std::vector<PointPair> &keypoint_pairs);
+std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
+    const std::vector<PointPair>& keypoint_pairs);
 
 }  // namespace map_closures

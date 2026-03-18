@@ -2,9 +2,9 @@
 
 #include "LocalMapGraph.hpp"
 
-#include "Vegvisir.hpp"  // For Mode enum definition
-
 #include <utility>
+
+#include "Vegvisir.hpp"  // For Mode enum definition
 
 namespace vegvisir {
 
@@ -12,8 +12,7 @@ namespace vegvisir {
 // LocalMap Implementation
 // ============================================================================
 
-LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose)
-    : id_(id), keypose_(std::move(keypose)) {
+LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose) : id_(id), keypose_(std::move(keypose)) {
   // Initialize with empty trajectory
   // The trajectory will be populated as poses are added
 }
@@ -40,7 +39,7 @@ bool LocalMap::write(const std::string& filename) const {
   }
 
   // Transform points by keypose before writing
-  for (const auto &point : pcd_) {
+  for (const auto& point : pcd_) {
     const Eigen::Vector4d p_hom(point.x(), point.y(), point.z(), 1.0);
     Eigen::Vector4d p_transformed = keypose_ * p_hom;
 
@@ -128,8 +127,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode m
     current_map.pointCloud() = voxel_grid.pointcloud();
   } else {
     // In SLAM mode, store only per-voxel points for efficiency
-    auto [query_points_icp, query_normals] =
-        voxel_grid.perVoxelPointAndNormal();
+    auto [query_points_icp, query_normals] = voxel_grid.perVoxelPointAndNormal();
     current_map.pointCloud() = query_points_icp;
   }
 
@@ -151,7 +149,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode m
 }
 
 uint64_t LocalMapGraph::finalizeLocalMap() {
-  const LocalMap &current_map = lastLocalMap();
+  const LocalMap& current_map = lastLocalMap();
 
   // Compute the new keypose (endpose of current map)
   uint64_t new_id = current_map.id() + 1;

@@ -44,12 +44,12 @@ class IcpSvd {
   static constexpr size_t MIN_CORRESPONDENCES = 6;
 
   // Build a 4x4 SE3 matrix from a 3x3 rotation and 3x1 translation.
-  static Eigen::Matrix4d makeSE3(const Eigen::Matrix3d &rotation_matrix,
-                                 const Eigen::Vector3d &translation);
+  static Eigen::Matrix4d makeSE3(const Eigen::Matrix3d& rotation_matrix,
+                                 const Eigen::Vector3d& translation);
 
   // Extract the rotation angle (radians) from a 3x3 rotation matrix
   // using the trace formula: angle = acos((trace(R) - 1) / 2).
-  static double rotationAngle(const Eigen::Matrix3d &rotation_matrix);
+  static double rotationAngle(const Eigen::Matrix3d& rotation_matrix);
 
   // Trim correspondences to the closest TRIM_RATIO fraction.
   // Reorders indices[0..num_corr-1] so that the closest `keep` entries come
@@ -59,10 +59,9 @@ class IcpSvd {
   // Compute Cauchy-weighted centroids and cross-covariance from
   // correspondences, then solve the rigid alignment via SVD.
   // Returns {delta_rotation, delta_translation} or nullopt if the SVD is degenerate.
-  static std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>>
-  computeAlignment(const Eigen::Vector3d *src, const Eigen::Vector3d *tgt,
-                   const double *dist_sq, const uint32_t *indices, size_t count,
-                   double cauchy_c_sq);
+  static std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> computeAlignment(
+      const Eigen::Vector3d *src, const Eigen::Vector3d *tgt, const double *dist_sq,
+      const uint32_t *indices, size_t count, double cauchy_c_sq);
 };
 
 }  // namespace icp

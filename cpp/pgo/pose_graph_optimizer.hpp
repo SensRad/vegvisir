@@ -47,11 +47,10 @@ class PoseGraphOptimizer {
   explicit PoseGraphOptimizer(int max_iterations, bool verbose = false);
 
   void fixVariable(int id);
-  void addVariable(int id, const Eigen::Matrix4d &t);
+  void addVariable(int id, const Eigen::Matrix4d& t);
 
-  void addFactor(int id_source, int id_target,
-                 const Eigen::Matrix4d &t,
-                 const Eigen::Matrix6d &information_matrix);
+  void addFactor(int id_source, int id_target, const Eigen::Matrix4d& t,
+                 const Eigen::Matrix6d& information_matrix);
 
   // Initialize the ENU-to-map alignment transform variable.
   // This should be called once before adding GNSS constraints.
@@ -65,9 +64,8 @@ class PoseGraphOptimizer {
   // @param position_enu The GNSS XYZ position in ENU frame
   // @param information_matrix 3x3 information matrix (inverse covariance)
   // @param huber_delta Huber loss delta for robustness (0 = no robust loss)
-  void addGnssConstraintWithAlignment(int pose_id,
-                                      const Eigen::Vector3d &position_enu,
-                                      const Eigen::Matrix3d &information_matrix,
+  void addGnssConstraintWithAlignment(int pose_id, const Eigen::Vector3d& position_enu,
+                                      const Eigen::Matrix3d& information_matrix,
                                       double huber_delta = 0.0);
 
   // Add a full SE3 GNSS pose constraint with alignment estimation.
@@ -77,9 +75,9 @@ class PoseGraphOptimizer {
   // @param pose_enu The full SE3 pose in ENU frame (4x4 matrix)
   // @param information_matrix 6x6 information matrix (inverse covariance)
   // @param huber_delta Huber loss delta for robustness (0 = no robust loss)
-  void addGnssPoseConstraintWithAlignment(
-      int pose_id, const Eigen::Matrix4d &pose_enu,
-      const Eigen::Matrix6d &information_matrix, double huber_delta = 0.0);
+  void addGnssPoseConstraintWithAlignment(int pose_id, const Eigen::Matrix4d& pose_enu,
+                                          const Eigen::Matrix6d& information_matrix,
+                                          double huber_delta = 0.0);
 
   // Get the optimized alignment transform T_ENU_map after optimization.
   [[nodiscard]] Eigen::Matrix4d getAlignmentTransform() const;
@@ -89,18 +87,16 @@ class PoseGraphOptimizer {
 
   [[nodiscard]] PoseIDMap estimates() const;
 
-  void readGraph(const std::string &filename) {
+  void readGraph(const std::string& filename) {
     std::ifstream file(filename.c_str());
     graph_->clear();
     graph_->load(file);
   }
-  void writeGraph(const std::string &filename) const {
-    graph_->save(filename.c_str());
-  }
+  void writeGraph(const std::string& filename) const { graph_->save(filename.c_str()); }
 
   void optimize();
 
-private:
+ private:
   std::unique_ptr<g2o::SparseOptimizer> graph_;
   int max_iterations_;
   bool alignment_initialized_ = false;

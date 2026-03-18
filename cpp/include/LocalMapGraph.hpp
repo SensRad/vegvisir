@@ -26,27 +26,27 @@ enum class Mode : std::uint8_t;
  * When the local map is finalized, the point cloud is stored in pcd.
  */
 class LocalMap {
-public:
+ public:
   LocalMap(uint64_t id, Eigen::Matrix4d keypose);
 
   // Getters
   [[nodiscard]] uint64_t id() const { return id_; }
-  [[nodiscard]] const Eigen::Matrix4d &keypose() const { return keypose_; }
-  Eigen::Matrix4d &keypose() { return keypose_; }
+  [[nodiscard]] const Eigen::Matrix4d& keypose() const { return keypose_; }
+  Eigen::Matrix4d& keypose() { return keypose_; }
 
-  [[nodiscard]] const std::vector<Eigen::Matrix4d> &localTrajectory() const {
+  [[nodiscard]] const std::vector<Eigen::Matrix4d>& localTrajectory() const {
     return local_trajectory_;
   }
-  std::vector<Eigen::Matrix4d> &localTrajectory() { return local_trajectory_; }
+  std::vector<Eigen::Matrix4d>& localTrajectory() { return local_trajectory_; }
 
-  [[nodiscard]] const std::vector<Eigen::Vector3d> &pointCloud() const { return pcd_; }
-  std::vector<Eigen::Vector3d> &pointCloud() { return pcd_; }
+  [[nodiscard]] const std::vector<Eigen::Vector3d>& pointCloud() const { return pcd_; }
+  std::vector<Eigen::Vector3d>& pointCloud() { return pcd_; }
 
   [[nodiscard]] Eigen::Matrix4d endpose() const;
 
   void addToTrajectory(const Eigen::Matrix4d& relative_pose);
   void clearTrajectory();
-  [[nodiscard]] bool write(const std::string &filename) const;
+  [[nodiscard]] bool write(const std::string& filename) const;
   [[nodiscard]] bool hasPointCloud() const { return !pcd_.empty(); }
 
  private:
@@ -81,11 +81,11 @@ class LocalMapGraph {
 
   [[nodiscard]] uint64_t lastId() const;
 
-  LocalMap &lastLocalMap();
-  [[nodiscard]] const LocalMap &lastLocalMap() const;
+  LocalMap& lastLocalMap();
+  [[nodiscard]] const LocalMap& lastLocalMap() const;
 
-  [[nodiscard]] const Eigen::Matrix4d &lastKeypose() const;
-  Eigen::Matrix4d &lastKeypose();
+  [[nodiscard]] const Eigen::Matrix4d& lastKeypose() const;
+  Eigen::Matrix4d& lastKeypose();
 
   void eraseLocalMap(uint64_t key);
   void eraseLastLocalMap();
