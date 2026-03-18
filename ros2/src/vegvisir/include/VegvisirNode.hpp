@@ -64,11 +64,6 @@ class VegvisirNode : public rclcpp::Node {
   std::string map_frame_ = "map";
   std::string odom_frame_ = "odom";
 
-  // Diagnostic timer for detecting sync/QoS issues
-  rclcpp::TimerBase::SharedPtr diagnostic_timer_;
-  size_t process_count_ = 0;
-  size_t last_diagnostic_count_ = 0;
-
   // Track last published sizes for change detection
   size_t published_segment_count_ = 0;
   size_t last_closure_count_ = 0;

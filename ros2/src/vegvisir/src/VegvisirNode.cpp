@@ -61,21 +61,6 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   publishMapPointCloud(this->now());
   publishKeyposes(this->now());
 
-  // Diagnostic timer — warn when no synchronized pairs arrive
-  diagnostic_timer_ = this->create_wall_timer(std::chrono::seconds(5), [this]() {
-    if (process_count_ == last_diagnostic_count_) {
-      RCLCPP_WARN(get_logger(),
-                  "No synchronized pointcloud/odometry pairs received in the last 5 s. "
-                  "Check that the odometry source is running and that pointcloud QoS matches "
-                  "the publisher (current: %s).",
-                  this->get_parameter("pointcloud_qos_reliability").as_string().c_str());
-    } else {
-      RCLCPP_INFO(get_logger(), "Processing rate: %.1f Hz",
-                  static_cast<double>(process_count_ - last_diagnostic_count_) / 5.0);
-    }
-    last_diagnostic_count_ = process_count_;
-  });
-
   RCLCPP_INFO(get_logger(), "Vegvisir node initialized with synchronized subscribers");
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
   RCLCPP_INFO(get_logger(), "Mode: %s", slam_mode ? "SLAM" : "LOCALIZATION");
@@ -113,8 +98,6 @@ Sophus::SE3d VegvisirNode::odometryToSophus(
 
 void VegvisirNode::process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& pointcloud_msg,
                            const nav_msgs::msg::Odometry::ConstSharedPtr& odometry_msg) {
-  ++process_count_;
-
   auto points = pointcloudToEigen(pointcloud_msg);
   auto absolute_pose = odometryToSophus(odometry_msg);
 
