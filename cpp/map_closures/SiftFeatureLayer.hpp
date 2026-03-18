@@ -14,7 +14,7 @@
 namespace map_closures {
 
 class SiftFeatureLayer : public FeatureLayer {
-public:
+ public:
   explicit SiftFeatureLayer(float match_ratio = 0.85F);
 
   void extract(int map_id, const cv::Mat& gray_image, const Eigen::Vector2i& lower_bound) override;

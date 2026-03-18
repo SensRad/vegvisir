@@ -8,15 +8,15 @@
 
 namespace icp {
 
-Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d &rotation_matrix,
-                                const Eigen::Vector3d &translation) {
+Eigen::Matrix4d IcpSvd::makeSE3(const Eigen::Matrix3d& rotation_matrix,
+                                const Eigen::Vector3d& translation) {
   Eigen::Matrix4d transform_matrix = Eigen::Matrix4d::Identity();
   transform_matrix.block<3, 3>(0, 0) = rotation_matrix;
   transform_matrix.block<3, 1>(0, 3) = translation;
   return transform_matrix;
 }
 
-double IcpSvd::rotationAngle(const Eigen::Matrix3d &rotation_matrix) {
+double IcpSvd::rotationAngle(const Eigen::Matrix3d& rotation_matrix) {
   const double cos_a = std::clamp((rotation_matrix.trace() - 1.0) * 0.5, -1.0, 1.0);
   return std::acos(cos_a);
 }
@@ -61,9 +61,9 @@ std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> IcpSvd::computeAlignm
   // SVD + degeneracy check
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-  const Eigen::JacobiSVD<Eigen::Matrix3d> svd(cross_covariance, Eigen::ComputeFullU |
-                                                                     Eigen::ComputeFullV);
-  const auto &sigma = svd.singularValues();
+  const Eigen::JacobiSVD<Eigen::Matrix3d> svd(cross_covariance,
+                                              Eigen::ComputeFullU | Eigen::ComputeFullV);
+  const auto& sigma = svd.singularValues();
 
   if (sigma(2) < 1e-6 * sigma(0)) {
     return std::nullopt;
@@ -71,7 +71,7 @@ std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> IcpSvd::computeAlignm
 
   // Reflection correction
   Eigen::Matrix3d svd_v = svd.matrixV();
-  const Eigen::Matrix3d &svd_u = svd.matrixU();
+  const Eigen::Matrix3d& svd_u = svd.matrixU();
 #pragma GCC diagnostic pop
   if ((svd_v * svd_u.transpose()).determinant() < 0.0) {
     svd_v.col(2) *= -1.0;
@@ -141,16 +141,16 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
     prev_mse = mse;
 
     // ---- Trim + align ----
-    std::iota(indices.begin(), indices.begin() + static_cast<std::ptrdiff_t>(num_corr), uint32_t(0));
-    const size_t kept =
-        trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
+    std::iota(indices.begin(), indices.begin() + static_cast<std::ptrdiff_t>(num_corr),
+              uint32_t(0));
+    const size_t kept = trimCorrespondences(indices.data(), dist_sq_arr.data(), num_corr);
 
     auto alignment = computeAlignment(src_world.data(), tgt_matched.data(), dist_sq_arr.data(),
                                       indices.data(), kept, cauchy_c_sq);
     if (!alignment) {
       return {makeSE3(best_rotation, best_translation), false, iter};
     }
-    const auto &[delta_rotation, delta_translation] = *alignment;
+    const auto& [delta_rotation, delta_translation] = *alignment;
 
     // ---- Compose ----
     rotation_matrix = delta_rotation * rotation_matrix;

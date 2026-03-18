@@ -5,17 +5,16 @@
 namespace vegvisir {
 
 PoseKalmanFilter::PoseKalmanFilter() {
-  state_ = Sophus::SE3d(); // identity
+  state_ = Sophus::SE3d();  // identity
   covariance_.setZero();
 
   // Default process noise
-  const Eigen::Vector3d position_variance(Q_POS_VARIANCE_XY, Q_POS_VARIANCE_XY,
-                                          Q_POS_VARIANCE_Z);
+  const Eigen::Vector3d position_variance(Q_POS_VARIANCE_XY, Q_POS_VARIANCE_XY, Q_POS_VARIANCE_Z);
 
   process_noise_ = Matrix6d::Zero();
   process_noise_.block<3, 3>(0, 0) =
-      Eigen::Matrix3d::Identity() * Q_ANGLE_VARIANCE_DEFAULT; // rotation
-  process_noise_.block<3, 3>(3, 3) = position_variance.asDiagonal();      // translation
+      Eigen::Matrix3d::Identity() * Q_ANGLE_VARIANCE_DEFAULT;         // rotation
+  process_noise_.block<3, 3>(3, 3) = position_variance.asDiagonal();  // translation
 
   // Measurement noise
   measurement_noise_ = process_noise_ * NOISE_SCALE_FACTOR;
@@ -23,18 +22,17 @@ PoseKalmanFilter::PoseKalmanFilter() {
   initial_covariance_ = Matrix6d::Zero();
   initial_covariance_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * P0_ANGLE_VARIANCE;
   initial_covariance_.block<3, 3>(3, 3) =
-      (Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY,
-                       P0_POS_VARIANCE_Z))
+      (Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z))
           .matrix()
           .asDiagonal();
 }
 
-void PoseKalmanFilter::init(const Sophus::SE3d &initial_state) {
+void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
   state_ = initial_state;
-  covariance_ = initial_covariance_; // Use default initial covariance
+  covariance_ = initial_covariance_;  // Use default initial covariance
 }
 
-Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d &transform) {
+Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
   const Eigen::Matrix3d r = transform.rotationMatrix();
   Eigen::Vector3d t = transform.translation();
 
@@ -51,7 +49,7 @@ Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d &transform) {
   return ad;
 }
 
-Eigen::Matrix<double, 6, 1> PoseKalmanFilter::se3Log(const Sophus::SE3d &transform) {
+Eigen::Matrix<double, 6, 1> PoseKalmanFilter::se3Log(const Sophus::SE3d& transform) {
   // Sophus::SE3d::log()
   Eigen::Matrix<double, 6, 1> xi = transform.log();
   return xi;
@@ -67,8 +65,8 @@ void PoseKalmanFilter::predict(const Sophus::SE3d& delta) {
   // However, uncertainty grows proportionally to motion (odometry drift)
 
   // Compute motion magnitude
-  const double translation_dist = delta.translation().norm(); // meters
-  const double rotation_angle = delta.so3().log().norm();     // radians
+  const double translation_dist = delta.translation().norm();  // meters
+  const double rotation_angle = delta.so3().log().norm();      // radians
 
   // Scale process noise by motion magnitude
   const double motion_scale = std::max(translation_dist, rotation_angle);
@@ -80,7 +78,7 @@ void PoseKalmanFilter::predict(const Sophus::SE3d& delta) {
   // state_ remains unchanged - map->odom is constant until next measurement
 }
 
-void PoseKalmanFilter::update(const Sophus::SE3d &measurement) {
+void PoseKalmanFilter::update(const Sophus::SE3d& measurement) {
   // Innovation: y = Log( X^{-1} * Z )
   const Sophus::SE3d xinv_z = state_.inverse() * measurement;
   const Eigen::Matrix<double, 6, 1> y = se3Log(xinv_z);
@@ -106,7 +104,8 @@ void PoseKalmanFilter::update(const Sophus::SE3d &measurement) {
   // Joseph form covariance update
   const Matrix6d i = Matrix6d::Identity();
 
-  covariance_ = (i - k) * covariance_ * (i - k).transpose() + k * measurement_noise_ * k.transpose();
+  covariance_ =
+      (i - k) * covariance_ * (i - k).transpose() + k * measurement_noise_ * k.transpose();
 
   // Force symmetric
   covariance_ = 0.5 * (covariance_ + covariance_.transpose());

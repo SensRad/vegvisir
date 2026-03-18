@@ -21,9 +21,8 @@ struct LbdConfig {
 };
 
 class LbdFeatureLayer : public FeatureLayer {
-public:
-  explicit LbdFeatureLayer(const LbdConfig &config = {},
-                           float match_ratio = 0.80F);
+ public:
+  explicit LbdFeatureLayer(const LbdConfig& config = {}, float match_ratio = 0.80F);
 
   void extract(int map_id, const cv::Mat& gray_image, const Eigen::Vector2i& lower_bound) override;
 
