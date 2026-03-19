@@ -151,7 +151,7 @@ class Vegvisir {
   static constexpr double ICP_REFINEMENT_VOXEL_SIZE = 0.5;  // meter
   static constexpr int ICP_MAX_ITERATIONS = 200;
   static constexpr double ICP_CONVERGENCE_CRITERION = 5 * 1e-5;
-  static constexpr double ICP_MAX_CORRESPONDENCE_DISTANCE = 1.5;  // meters
+  static constexpr double ICP_MAX_CORRESPONDENCE_DISTANCE = 2.0;  // meters
 
   // Shared mapping state/resources (used by both backends)
   voxel_map::VoxelMap voxel_grid_;

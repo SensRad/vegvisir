@@ -392,7 +392,6 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes(
       break;
     }
 
-    const Eigen::Matrix4d old_keypose = node.keypose();
     const Eigen::Matrix4d new_keypose =
         traj.empty() ? optimized_poses[pose_idx] : optimized_poses[pose_idx] * traj[0].inverse();
     pose_idx += static_cast<int>(traj.size());
@@ -405,18 +404,9 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes(
       map_closer_->setReferencePose(node_id, new_keypose);
     }
 
-    // Re-transform local map points from old keypose frame to new keypose frame
-    auto points_it = local_map_points_.find(node_id);
-    if (points_it != local_map_points_.end()) {
-      // Points are stored in keypose frame, so transform:
-      // new_points = new_keypose^-1 * old_keypose * old_points
-      const Eigen::Matrix4d transform = new_keypose.inverse() * old_keypose;
-      for (auto& pt : points_it->second) {
-        const Eigen::Vector4d hp(pt.x(), pt.y(), pt.z(), 1.0);
-        const Eigen::Vector4d tp = transform * hp;
-        pt = Eigen::Vector3d(tp.x(), tp.y(), tp.z());
-      }
-    }
+    // Point clouds in pcd_ and local_map_points_ are in keypose-local
+    // frame. Do NOT re-transform them: the updated keypose automatically
+    // gives the corrected world position via keypose * p_local.
   }
 
   return optimized_poses;
