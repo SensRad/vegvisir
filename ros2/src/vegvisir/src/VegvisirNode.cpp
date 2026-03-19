@@ -40,6 +40,8 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
       this->declare_parameter<double>("closure.overlap_threshold", config.overlap_threshold);
   config.pgo_max_iterations =
       this->declare_parameter<int>("optimization.pgo_max_iterations", config.pgo_max_iterations);
+  config.inliers_threshold = static_cast<std::size_t>(this->declare_parameter<int>(
+      "closure.inliers_threshold", static_cast<int>(config.inliers_threshold)));
 
   vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode, config);
 

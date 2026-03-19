@@ -137,7 +137,7 @@ class Vegvisir {
   VegvisirConfig config_;
 
   // Constants accessible by backends
-  static constexpr double LOCAL_MAP_RADIUS_M = 100.0;  // keep this much context
+  static constexpr double LOCAL_MAP_RADIUS_M = 60.0;  // keep this much context
 
   // Ring buffer size (includes the active submap node).
   // Rough heuristic: ceil(LOCAL_MAP_RADIUS_M /
@@ -148,12 +148,10 @@ class Vegvisir {
 
  private:
   // ICP and overlap validation parameters
-  static constexpr double ICP_REFINEMENT_VOXEL_SIZE = 0.3;  // meter
-  static constexpr int ICP_MAX_ITERATIONS = 50;
-  static constexpr double ICP_CONVERGENCE_CRITERION = 5 * 1e-3;
-  static constexpr double ICP_MAX_CORRESPONDENCE_DISTANCE = 1.5;  // meters
-
-  static constexpr int INLIERS_THRESHOLD = 10;
+  static constexpr double ICP_REFINEMENT_VOXEL_SIZE = 0.5;  // meter
+  static constexpr int ICP_MAX_ITERATIONS = 200;
+  static constexpr double ICP_CONVERGENCE_CRITERION = 5 * 1e-5;
+  static constexpr double ICP_MAX_CORRESPONDENCE_DISTANCE = 2.0;  // meters
 
   // Shared mapping state/resources (used by both backends)
   voxel_map::VoxelMap voxel_grid_;

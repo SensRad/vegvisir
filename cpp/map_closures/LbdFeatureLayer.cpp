@@ -46,12 +46,15 @@ void LbdFeatureLayer::extract(int map_id, const cv::Mat& gray_image,
     }
   }
 
-  // Adjust line coordinates to global map frame
+  // Adjust line coordinates from image-local to global map frame.
+  // lower_bound is (row_min, col_min); OpenCV PointX/Y is (col, row).
+  const auto col_offset = static_cast<float>(lower_bound.y());
+  const auto row_offset = static_cast<float>(lower_bound.x());
   for (auto& line : entry.lines) {
-    line.startPointX += static_cast<float>(lower_bound.y());
-    line.startPointY += static_cast<float>(lower_bound.x());
-    line.endPointX += static_cast<float>(lower_bound.y());
-    line.endPointY += static_cast<float>(lower_bound.x());
+    line.startPointX += col_offset;
+    line.startPointY += row_offset;
+    line.endPointX += col_offset;
+    line.endPointY += row_offset;
   }
 
   database_.insert_or_assign(map_id, std::move(entry));
@@ -95,11 +98,11 @@ std::vector<Correspondence> LbdFeatureLayer::matchAgainstAll(int query_id,
       const auto& q_line = query_lines[m.queryIdx];
       const auto& r_line = ref_lines[m.trainIdx];
 
-      // Midpoints as correspondences (row, col) = (y, x)
-      const Eigen::Vector2d q_mid((q_line.startPointY + q_line.endPointY) / 2.0,
-                                  (q_line.startPointX + q_line.endPointX) / 2.0);
-      const Eigen::Vector2d r_mid((r_line.startPointY + r_line.endPointY) / 2.0,
-                                  (r_line.startPointX + r_line.endPointX) / 2.0);
+      // Convert OpenCV (col, row) midpoints to PointPair world convention (row, col)
+      const Eigen::Vector2d q_mid((q_line.startPointY + q_line.endPointY) / 2.0,   // row
+                                  (q_line.startPointX + q_line.endPointX) / 2.0);  // col
+      const Eigen::Vector2d r_mid((r_line.startPointY + r_line.endPointY) / 2.0,   // row
+                                  (r_line.startPointX + r_line.endPointX) / 2.0);  // col
       result.push_back({ref_id, 1, PointPair(r_mid, q_mid)});
     }
   }

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 namespace vegvisir {
 
 struct VegvisirConfig {
@@ -10,6 +12,7 @@ struct VegvisirConfig {
   double splitting_distance_localization = 5.0;
   double overlap_threshold = 0.10;
   int pgo_max_iterations = 10;
+  std::size_t inliers_threshold = 10;
 };
 
 }  // namespace vegvisir

@@ -9,6 +9,7 @@
         splitting_distance_slam: 50.0
         splitting_distance_localization: 5.0
       closure:
-        overlap_threshold: 0.10
+        overlap_threshold: 0.20
+        inliers_threshold: 25
       optimization:
         pgo_max_iterations: 10

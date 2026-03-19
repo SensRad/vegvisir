@@ -290,7 +290,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def_readwrite("splitting_distance_localization",
                        &VegvisirConfig::splitting_distance_localization)
         .def_readwrite("overlap_threshold", &VegvisirConfig::overlap_threshold)
-        .def_readwrite("pgo_max_iterations", &VegvisirConfig::pgo_max_iterations);
+        .def_readwrite("pgo_max_iterations", &VegvisirConfig::pgo_max_iterations)
+        .def_readwrite("inliers_threshold", &VegvisirConfig::inliers_threshold);
   }
 
   // ---- Vegvisir ----
@@ -442,5 +443,5 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   // ---- Constants ----
   m.attr("LOCAL_MAPS_TO_SKIP") = map_closures::LOCAL_MAPS_TO_SKIP;
   m.attr("MIN_NUMBER_OF_MATCHES") = map_closures::MIN_NUMBER_OF_MATCHES;
-  m.attr("RANSAC_INLIER_THRESHOLD") = map_closures::RANSAC_INLIER_THRESHOLD;
+  m.attr("RANSAC_INLIER_THRESHOLD_M") = map_closures::RANSAC_INLIER_THRESHOLD_M;
 }
