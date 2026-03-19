@@ -24,6 +24,7 @@ class VegvisirConfig:
         splitting_distance_localization: Distance between submaps in localization mode (meters).
         overlap_threshold: Minimum overlap fraction to accept a loop closure.
         pgo_max_iterations: Maximum iterations for pose graph optimization.
+        inliers_threshold: Minimum number of feature inliers to consider a closure candidate.
     """
 
     def __init__(
@@ -33,6 +34,7 @@ class VegvisirConfig:
         splitting_distance_localization: float = 5.0,
         overlap_threshold: float = 0.10,
         pgo_max_iterations: int = 10,
+        inliers_threshold: int = 10,
     ):
         self._impl = _VegvisirConfig()
         self._impl.voxel_size = voxel_size
@@ -40,6 +42,7 @@ class VegvisirConfig:
         self._impl.splitting_distance_localization = splitting_distance_localization
         self._impl.overlap_threshold = overlap_threshold
         self._impl.pgo_max_iterations = pgo_max_iterations
+        self._impl.inliers_threshold = inliers_threshold
 
     @property
     def voxel_size(self) -> float:
@@ -80,6 +83,14 @@ class VegvisirConfig:
     @pgo_max_iterations.setter
     def pgo_max_iterations(self, value: int) -> None:
         self._impl.pgo_max_iterations = value
+
+    @property
+    def inliers_threshold(self) -> int:
+        return self._impl.inliers_threshold
+
+    @inliers_threshold.setter
+    def inliers_threshold(self, value: int) -> None:
+        self._impl.inliers_threshold = value
 
 
 class Vegvisir:

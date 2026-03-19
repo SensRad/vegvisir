@@ -75,7 +75,7 @@ Eigen::Isometry2d kabschUmeyamaAlignment2D(
 namespace map_closures {
 
 std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
-    const std::vector<PointPair>& keypoint_pairs) {
+    const std::vector<PointPair>& keypoint_pairs, double inlier_threshold) {
   if (keypoint_pairs.size() < 2) {
     return {Eigen::Isometry2d::Identity(), 0};
   }
@@ -94,8 +94,7 @@ std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
   auto find_inliers = [&](const Eigen::Isometry2d& transform, std::vector<int>& out) {
     out.clear();
     for (int i = 0; i < n; ++i) {
-      if ((transform * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() <
-          RANSAC_INLIER_THRESHOLD) {
+      if ((transform * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() < inlier_threshold) {
         out.emplace_back(i);
       }
     }

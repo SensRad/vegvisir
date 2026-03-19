@@ -110,18 +110,19 @@ ClosureCandidate MapClosures::validateClosureWithMatches(
     return closure;
   }
 
-  // RANSAC on combined correspondences
-  auto [pose2d, point_inliers] = ransacAlignment2D(keypoint_pairs);
+  // RANSAC on combined correspondences (threshold in pixels = meters / resolution)
+  const double inlier_threshold_px =
+      RANSAC_INLIER_THRESHOLD_M / static_cast<double>(config_.density_map_resolution);
+  auto [pose2d, point_inliers] = ransacAlignment2D(keypoint_pairs, inlier_threshold_px);
   if (point_inliers < 2) {
     return closure;
   }
 
-  // Count RANSAC inliers per layer (threshold matches AlignRansac2D)
+  // Count RANSAC inliers per layer (same pixel threshold as RANSAC)
   std::size_t sift_inliers = 0;
   std::size_t lbd_inliers = 0;
   for (std::size_t i = 0; i < keypoint_pairs.size(); ++i) {
-    if ((pose2d * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() <
-        RANSAC_INLIER_THRESHOLD) {
+    if ((pose2d * keypoint_pairs[i].ref - keypoint_pairs[i].query).norm() < inlier_threshold_px) {
       if (layer_indices[i] == 0) {
         ++sift_inliers;
       } else {

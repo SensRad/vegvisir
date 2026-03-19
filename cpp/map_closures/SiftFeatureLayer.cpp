@@ -17,10 +17,13 @@ void SiftFeatureLayer::extract(int map_id, const cv::Mat& gray_image,
   cv::Mat descriptors;
   sift_->detectAndCompute(gray_image, cv::noArray(), keypoints, descriptors);
 
-  // Adjust keypoint coordinates to global map frame
+  // Adjust keypoint coordinates from image-local to global map frame.
+  // lower_bound is (row_min, col_min); OpenCV pt is (col, row).
+  const auto col_offset = static_cast<float>(lower_bound.y());
+  const auto row_offset = static_cast<float>(lower_bound.x());
   for (auto& kp : keypoints) {
-    kp.pt.x += static_cast<float>(lower_bound.y());
-    kp.pt.y += static_cast<float>(lower_bound.x());
+    kp.pt.x += col_offset;
+    kp.pt.y += row_offset;
   }
 
   database_.insert_or_assign(map_id, Entry{std::move(keypoints), std::move(descriptors)});
@@ -58,11 +61,13 @@ std::vector<Correspondence> SiftFeatureLayer::matchAgainstAll(int query_id,
       }
     }
 
-    // Convert to Correspondence (PointPair uses row,col = y,x)
+    // Convert OpenCV (col, row) to PointPair world convention (row, col)
     const auto& ref_kps = ref_entry.keypoints;
     for (const auto& [_, m] : best_by_train) {
-      const Eigen::Vector2d query_pt(query_kps[m.queryIdx].pt.y, query_kps[m.queryIdx].pt.x);
-      const Eigen::Vector2d ref_pt(ref_kps[m.trainIdx].pt.y, ref_kps[m.trainIdx].pt.x);
+      const auto& qk = query_kps[m.queryIdx].pt;
+      const auto& rk = ref_kps[m.trainIdx].pt;
+      const Eigen::Vector2d query_pt(qk.y, qk.x);  // (row, col)
+      const Eigen::Vector2d ref_pt(rk.y, rk.x);    // (row, col)
       result.push_back({ref_id, 0, PointPair(ref_pt, query_pt)});
     }
   }

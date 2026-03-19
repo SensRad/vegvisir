@@ -1,5 +1,9 @@
 repositories:
-  third_party/kiss-icp:
+  #third_party/kiss-icp:
+  #  type: git
+  #  url: https://github.com/PRBonn/kiss-icp.git
+  #  version: 3f08908f45e85c02c98c66d7dc0d45184352d319
+  third_party/genz-icp:
     type: git
-    url: https://github.com/PRBonn/kiss-icp.git
-    version: 3f08908f45e85c02c98c66d7dc0d45184352d319
+    url: https://github.com/cocel-postech/genz-icp.git
+    version: v0.2.0

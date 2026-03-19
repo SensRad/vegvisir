@@ -28,6 +28,7 @@ Vegvisir::Vegvisir(const std::string& map_database_path, Mode mode, const Vegvis
             << '\n';
   std::cout << "    Overlap threshold: " << config_.overlap_threshold << '\n';
   std::cout << "    PGO max iterations: " << config_.pgo_max_iterations << '\n';
+  std::cout << "    Inliers threshold: " << config_.inliers_threshold << '\n';
 
   // Initialize Kalman filter with identity pose (uses default covariances)
   const Sophus::SE3d x0;  // identity
@@ -162,7 +163,8 @@ void Vegvisir::processLoopClosures(int query_id,
 
   for (auto& closure : closures) {
     // Check minimum inliers and availability of local map points
-    if (closure.number_of_inliers < INLIERS_THRESHOLD || !hasLocalMapPoints(closure.source_id)) {
+    if (closure.number_of_inliers < config_.inliers_threshold ||
+        !hasLocalMapPoints(closure.source_id)) {
       continue;
     }
 
@@ -170,8 +172,11 @@ void Vegvisir::processLoopClosures(int query_id,
     const auto& reference_points = getLocalMapPoints(closure.source_id);
 
     // Refine closure pose with ICP
-    auto [_, refined_pose] = performICPRefinement(query_points_icp, reference_points, closure.pose);
-
+    auto [converged, refined_pose] =
+        performICPRefinement(query_points_icp, reference_points, closure.pose);
+    if (!converged) {
+      continue;
+    }
     // Validate refined pose using overlap computation
     const bool is_valid = validateClosurePose(query_points_icp, reference_points, refined_pose);
     if (!is_valid) {
@@ -205,7 +210,8 @@ void Vegvisir::processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3
   closure_future_ =
       std::async(std::launch::async, [this, query_id, pts_mc = std::move(query_points_mc),
                                       pts_icp = std::move(query_points_icp), query_odom_base]() {
-        // Deprioritize this thread so it doesn't starve kiss-icp or the main pipeline
+        // Deprioritize this thread so it doesn't starve kiss-icp or the main
+        // pipeline
         const struct sched_param param{};
         pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
 
