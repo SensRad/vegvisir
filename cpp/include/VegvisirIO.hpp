@@ -17,11 +17,6 @@
 
 #include <sys/stat.h>
 
-// Forward declaration
-namespace map_closures {
-class MapClosures;
-}
-
 namespace vegvisir {
 
 // GNSS origin for ENU coordinate system
@@ -41,8 +36,8 @@ struct MapMetadata {
   // File names within the map directory
   struct Files {
     std::string database = "map_closures.db";
-    std::string points = "points.bin";
-    std::string poses = "poses.bin";
+    std::string points = "points.ply";
+    std::string poses = "keyposes.tum";
   } files;
 
   // GNSS anchoring data (for aligning map to global coordinates)
@@ -79,13 +74,16 @@ DatabaseLoadResult loadDatabase(
 bool loadLocalMapPoints(const std::string& points_path,
                         std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 
-// Save poses in binary format
+// Save poses in TUM format (map_id tx ty tz qx qy qz qw).
+// Readable by evo, Open3D, and other standard SLAM tools.
 // Returns true on success, false on failure
-bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_map_graph);
+bool savePosesTum(const std::string& file_path, const LocalMapGraph& local_map_graph);
 
-// Save local map point clouds in binary format
+// Save local map point clouds in PLY format (binary little-endian).
+// Each vertex stores x, y, z (double) and map_id (int32).
+// The resulting file can be opened directly in Open3D, CloudCompare, etc.
 // Returns true on success, false on failure
-bool saveLocalMapPointsBinary(
+bool saveLocalMapPointsPly(
     const std::string& file_path, const LocalMapGraph& local_map_graph,
     const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points);
 

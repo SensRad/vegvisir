@@ -109,7 +109,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
   std::vector<uint32_t> indices(n);
 
   for (int iter = 0; iter < max_iterations; ++iter) {
-    // ---- Data association ----
+    // Data association
     size_t num_corr = 0;
     double mse = 0.0;
     for (size_t i = 0; i < n; ++i) {

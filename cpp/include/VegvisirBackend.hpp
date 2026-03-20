@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -9,10 +12,23 @@
 
 #include "map_closures/MapClosures.hpp"
 
+namespace voxel_map {
+class VoxelMap;
+}
+
 namespace vegvisir {
 
-// Forward declaration
+// Forward declarations
 class Vegvisir;
+class LocalMapGraph;
+}  // namespace vegvisir
+
+namespace kalman_filter {
+class PoseKalmanFilter;
+}
+
+namespace vegvisir {
+struct VegvisirConfig;
 
 // Backend interface (abstract base class for SLAM and Localization modes)
 class VegvisirBackend {
@@ -26,35 +42,39 @@ class VegvisirBackend {
 
   virtual void initialize() = 0;
 
-  // Called at start of update(): sets vegvisir_.current_pose_ and
-  // vegvisir_.tf_map_odom_ policy.
   virtual void preIntegrate(const Eigen::Matrix4d& pose_odom_base,
                             const Sophus::SE3d& delta_pose) = 0;
 
-  // Called after voxel integration: sets local trajectory policy.
   virtual void postIntegrate() = 0;
 
-  // Query cadence
   [[nodiscard]] virtual double queryDistanceM() const = 0;
 
-  // Called when query cadence triggers: backend builds query clouds and/or
-  // performs node/submap actions, then calls
-  // vegvisir_.processLoopClosures(...)
   virtual void runQueryCycle(const Eigen::Matrix4d& pose_odom_base) = 0;
 
-  // Backend must provide candidate retrieval:
-  // SLAM: getTopKClosures (query + add)
-  // Localization: queryTopKClosures (query-only)
   virtual std::vector<map_closures::ClosureCandidate> retrieveCandidates(
       int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) = 0;
 
-  // Backend must apply accepted closure:
-  // SLAM: add factor + optimize keypose graph
-  // Localization: Kalman measurement update (uses query_odom_base)
   virtual void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
                                     const Eigen::Matrix4d& query_odom_base) = 0;
 
  protected:
+  // Accessors for Vegvisir internal state (avoids friend on derived classes)
+  LocalMapGraph& localMapGraph();
+  voxel_map::VoxelMap& voxelGrid();
+  Eigen::Matrix4d& currentPose();
+  Eigen::Matrix4d& tfMapOdom();
+  double& distanceSinceQuery();
+  kalman_filter::PoseKalmanFilter& poseFilter();
+  std::mutex& closureMutex();
+  map_closures::MapClosures *mapCloser();
+  std::unordered_map<int, std::vector<Eigen::Vector3d>>& localMapPoints();
+  const VegvisirConfig& config() const;
+  const std::unordered_map<int, Eigen::Matrix4d>& referencePoses() const;
+  void processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
+                                std::vector<Eigen::Vector3d> query_points_icp,
+                                Eigen::Matrix4d query_odom_base);
+
+ private:
   Vegvisir& vegvisir_;
 };
 

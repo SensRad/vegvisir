@@ -41,7 +41,7 @@ class LocalizationBackend final : public VegvisirBackend {
   void cutLocalizationSubmap();
   void buildLocalizationQueryCloudInBaseFrame(const Eigen::Matrix4d& pose_odom_base,
                                               std::vector<Eigen::Vector3d>& query_points_mc,
-                                              std::vector<Eigen::Vector3d>& query_points_icp) const;
+                                              std::vector<Eigen::Vector3d>& query_points_icp);
 
   // Localization-only state
   Eigen::Matrix4d pose_odom_anchor_ = Eigen::Matrix4d::Identity();  // odom <- anchor

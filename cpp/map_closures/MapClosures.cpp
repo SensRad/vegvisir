@@ -32,6 +32,7 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <sstream>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -285,39 +286,79 @@ bool MapClosures::load(const std::string& file_path) {
 }
 
 bool MapClosures::loadReferencePoses(const std::string& file_path) {
+  // Try TUM (text) first — if the file starts with a digit, it's TUM format.
+  // Legacy binary starts with a size_t (8 bytes) which is unlikely to be valid ASCII digits.
   std::ifstream in(file_path, std::ios::binary);
   if (!in) {
     std::cerr << "loadReferencePoses|ERROR: open " << file_path << "\n";
     return false;
   }
 
-  size_t num_poses = 0;
-  if (!io::readPod(in, num_poses)) {
-    std::cerr << "loadReferencePoses|ERROR: read num_poses\n";
-    return false;
-  }
+  // Peek at first byte to detect format
+  const char first = static_cast<char>(in.peek());
+  const bool is_tum = (first >= '0' && first <= '9') || first == '-' || first == '#';
 
   reference_poses_.clear();
-  reference_poses_.reserve(num_poses);
 
-  for (size_t i = 0; i < num_poses; ++i) {
-    int map_id = 0;
-    if (!io::readPod(in, map_id)) {
-      std::cerr << "loadReferencePoses|ERROR: read map_id\n";
+  if (is_tum) {
+    // TUM format: map_id tx ty tz qx qy qz qw
+    in.close();
+    std::ifstream text_in(file_path);
+    std::string line;
+
+    while (std::getline(text_in, line)) {
+      if (line.empty() || line[0] == '#') {
+        continue;
+      }
+
+      std::istringstream ss(line);
+      int map_id = 0;
+      double tx = 0.0, ty = 0.0, tz = 0.0;
+      double qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0;
+
+      if (!(ss >> map_id >> tx >> ty >> tz >> qx >> qy >> qz >> qw)) {
+        std::cerr << "loadReferencePoses|ERROR: parse TUM line: " << line << "\n";
+        return false;
+      }
+
+      Eigen::Quaterniond q(qw, qx, qy, qz);
+      q.normalize();
+
+      Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+      pose.block<3, 3>(0, 0) = q.toRotationMatrix();
+      pose.block<3, 1>(0, 3) = Eigen::Vector3d(tx, ty, tz);
+
+      reference_poses_[map_id] = pose;
+    }
+  } else {
+    // Legacy binary format
+    size_t num_poses = 0;
+    if (!io::readPod(in, num_poses)) {
+      std::cerr << "loadReferencePoses|ERROR: read num_poses\n";
       return false;
     }
 
-    Eigen::Matrix4d pose;
-    if (!io::Mat4IO{}(in, pose)) {
-      std::cerr << "loadReferencePoses|ERROR: read pose\n";
-      return false;
-    }
+    reference_poses_.reserve(num_poses);
 
-    reference_poses_[map_id] = pose;
+    for (size_t i = 0; i < num_poses; ++i) {
+      int map_id = 0;
+      if (!io::readPod(in, map_id)) {
+        std::cerr << "loadReferencePoses|ERROR: read map_id\n";
+        return false;
+      }
+
+      Eigen::Matrix4d pose;
+      if (!io::Mat4IO{}(in, pose)) {
+        std::cerr << "loadReferencePoses|ERROR: read pose\n";
+        return false;
+      }
+
+      reference_poses_[map_id] = pose;
+    }
   }
 
   std::cout << "Loaded " << reference_poses_.size() << " reference poses from " << file_path
-            << '\n';
+            << (is_tum ? " (TUM)" : " (legacy bin)") << '\n';
   return true;
 }
 
@@ -328,46 +369,112 @@ bool MapClosures::loadLocalMapPoints(const std::string& file_path) {
     return false;
   }
 
-  size_t num_maps = 0;
-  if (!io::readPod(in, num_maps)) {
-    std::cerr << "loadLocalMapPoints|ERROR: read num_maps\n";
+  // Auto-detect format: PLY files start with "ply\n"
+  char magic[4] = {};
+  in.read(magic, 4);
+  if (!in) {
+    std::cerr << "loadLocalMapPoints|ERROR: read file header\n";
     return false;
   }
 
+  const bool is_ply = (magic[0] == 'p' && magic[1] == 'l' && magic[2] == 'y' && magic[3] == '\n');
+
   local_map_points_.clear();
 
-  for (size_t i = 0; i < num_maps; ++i) {
-    int map_id = 0;
-    if (!io::readPod(in, map_id)) {
-      std::cerr << "loadLocalMapPoints|ERROR: read map_id\n";
-      return false;
+  if (is_ply) {
+    // Parse PLY header
+    in.seekg(0);
+    std::string line;
+    uint64_t num_vertices = 0;
+
+    while (std::getline(in, line)) {
+      if (line.rfind("element vertex ", 0) == 0) {
+        num_vertices = std::stoull(line.substr(15));
+      }
+      if (line == "end_header") {
+        break;
+      }
     }
 
-    size_t num_points = 0;
-    if (!io::readPod(in, num_points)) {
-      std::cerr << "loadLocalMapPoints|ERROR: read num_points\n";
-      return false;
-    }
-
-    std::vector<Eigen::Vector3d> points;
-    points.reserve(num_points);
-
-    for (size_t j = 0; j < num_points; ++j) {
+    // Read binary vertex data: 3 doubles + 1 int32 per vertex
+    for (uint64_t i = 0; i < num_vertices; ++i) {
       double x = 0.0;
       double y = 0.0;
       double z = 0.0;
-      if (!io::readPod(in, x) || !io::readPod(in, y) || !io::readPod(in, z)) {
-        std::cerr << "loadLocalMapPoints|ERROR: read point coordinates\n";
+      int32_t map_id = 0;
+      in.read(reinterpret_cast<char *>(&x), sizeof(double));
+      in.read(reinterpret_cast<char *>(&y), sizeof(double));
+      in.read(reinterpret_cast<char *>(&z), sizeof(double));
+      in.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
+
+      if (!in) {
+        std::cerr << "loadLocalMapPoints|ERROR: PLY unexpected end of file\n";
         return false;
       }
-      points.emplace_back(x, y, z);
+      local_map_points_[map_id].emplace_back(x, y, z);
+    }
+  } else {
+    // Legacy binary format
+    in.seekg(0);
+
+    size_t num_maps = 0;
+    if (!io::readPod(in, num_maps)) {
+      std::cerr << "loadLocalMapPoints|ERROR: read num_maps\n";
+      return false;
     }
 
-    local_map_points_[map_id] = std::move(points);
+    for (size_t i = 0; i < num_maps; ++i) {
+      int map_id = 0;
+      if (!io::readPod(in, map_id)) {
+        std::cerr << "loadLocalMapPoints|ERROR: read map_id\n";
+        return false;
+      }
+
+      size_t num_points = 0;
+      if (!io::readPod(in, num_points)) {
+        std::cerr << "loadLocalMapPoints|ERROR: read num_points\n";
+        return false;
+      }
+
+      std::vector<Eigen::Vector3d> points;
+      points.reserve(num_points);
+
+      for (size_t j = 0; j < num_points; ++j) {
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
+        if (!io::readPod(in, x) || !io::readPod(in, y) || !io::readPod(in, z)) {
+          std::cerr << "loadLocalMapPoints|ERROR: read point coordinates\n";
+          return false;
+        }
+        points.emplace_back(x, y, z);
+      }
+
+      local_map_points_[map_id] = std::move(points);
+    }
   }
 
-  std::cout << "Loaded " << local_map_points_.size() << " local map point clouds from " << file_path
-            << '\n';
+  // PLY stores points in map frame; transform back to local keypose frames
+  if (is_ply && !reference_poses_.empty()) {
+    for (auto& [map_id, points] : local_map_points_) {
+      auto pose_it = reference_poses_.find(map_id);
+      if (pose_it == reference_poses_.end()) {
+        continue;
+      }
+      const Eigen::Matrix3d r_inv = pose_it->second.block<3, 3>(0, 0).transpose();
+      const Eigen::Vector3d t = pose_it->second.block<3, 1>(0, 3);
+      for (auto& pt : points) {
+        pt = r_inv * (pt - t);
+      }
+    }
+  }
+
+  size_t total_points = 0;
+  for (const auto& [id, pts] : local_map_points_) {
+    total_points += pts.size();
+  }
+  std::cout << "Loaded " << total_points << " points (" << local_map_points_.size()
+            << " submaps) from " << file_path << (is_ply ? " (PLY)" : " (legacy bin)") << '\n';
   return true;
 }
 
