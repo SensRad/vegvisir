@@ -291,7 +291,12 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
                        &VegvisirConfig::splitting_distance_localization)
         .def_readwrite("overlap_threshold", &VegvisirConfig::overlap_threshold)
         .def_readwrite("pgo_max_iterations", &VegvisirConfig::pgo_max_iterations)
-        .def_readwrite("inliers_threshold", &VegvisirConfig::inliers_threshold);
+        .def_readwrite("inliers_threshold", &VegvisirConfig::inliers_threshold)
+        .def_readwrite("icp_refinement_voxel_size", &VegvisirConfig::icp_refinement_voxel_size)
+        .def_readwrite("icp_max_iterations", &VegvisirConfig::icp_max_iterations)
+        .def_readwrite("icp_convergence_criterion", &VegvisirConfig::icp_convergence_criterion)
+        .def_readwrite("icp_max_correspondence_distance",
+                       &VegvisirConfig::icp_max_correspondence_distance);
   }
 
   // ---- Vegvisir ----

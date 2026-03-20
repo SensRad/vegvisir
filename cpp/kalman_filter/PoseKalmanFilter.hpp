@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 #include <sophus/se3.hpp>
 
-namespace vegvisir {
+namespace kalman_filter {
 
 // Type alias for 6x6 matrix used in SE(3) tangent space
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
@@ -32,7 +32,7 @@ class PoseKalmanFilter {
   Sophus::SE3d state_;   // State
   Matrix6d covariance_;  // Covariance in tangent space
 
-  // Kalman filter parameters (stored internally for self-contained operation)
+  // Kalman filter parameters
   Matrix6d process_noise_;       // Process noise covariance
   Matrix6d measurement_noise_;   // Measurement noise covariance
   Matrix6d initial_covariance_;  // Initial covariance
@@ -57,4 +57,4 @@ class PoseKalmanFilter {
   static constexpr double P0_ANGLE_VARIANCE = 1.5;      // rad^2
 };
 
-}  // namespace vegvisir
+}  // namespace kalman_filter

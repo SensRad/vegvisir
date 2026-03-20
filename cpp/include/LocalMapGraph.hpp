@@ -15,7 +15,7 @@
 
 namespace vegvisir {
 
-// Forward declaration of Mode enum (defined in Localizer.hpp)
+// Forward declaration of Mode enum (defined in Vegvisir.hpp)
 enum class Mode : std::uint8_t;
 
 /**

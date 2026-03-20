@@ -280,58 +280,153 @@ DatabaseLoadResult loadDatabase(
         std::cout << "Warning: Could not load local map points" << '\n';
       }
     }
+
+    // PLY stores points in map frame; transform back to local keypose frames
+    // for internal use (ICP refinement, query building).
+    const auto& ref_poses = map_closer.getReferencePoses();
+    if (!ref_poses.empty()) {
+      for (auto& [map_id, points] : local_map_points) {
+        auto pose_it = ref_poses.find(map_id);
+        if (pose_it == ref_poses.end()) {
+          continue;
+        }
+        const Eigen::Matrix3d r_inv = pose_it->second.block<3, 3>(0, 0).transpose();
+        const Eigen::Vector3d t = pose_it->second.block<3, 1>(0, 3);
+        for (auto& pt : points) {
+          pt = r_inv * (pt - t);
+        }
+      }
+    }
   }
 
   return result;
 }
 
+// Load PLY-format local map points (binary little-endian, x/y/z double + map_id int32)
+static bool loadLocalMapPointsPly(std::ifstream& file,
+                                  std::unordered_map<int, std::vector<Eigen::Vector3d>>& out) {
+  // Parse header (we already consumed the "ply\n" line via magic check — re-read from start)
+  file.seekg(0);
+
+  std::string line;
+  uint64_t num_vertices = 0;
+
+  while (std::getline(file, line)) {
+    if (line.rfind("element vertex ", 0) == 0) {
+      num_vertices = std::stoull(line.substr(15));
+    }
+    if (line == "end_header") {
+      break;
+    }
+  }
+
+  if (num_vertices == 0) {
+    std::cerr << "PLY: no vertices found in header\n";
+    return false;
+  }
+
+  // Read binary vertex data: 3 doubles + 1 int32 per vertex = 28 bytes
+  constexpr size_t VERTEX_SIZE = 3 * sizeof(double) + sizeof(int32_t);
+
+  for (uint64_t i = 0; i < num_vertices; ++i) {
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+    int32_t map_id = 0;
+    file.read(reinterpret_cast<char *>(&x), sizeof(double));
+    file.read(reinterpret_cast<char *>(&y), sizeof(double));
+    file.read(reinterpret_cast<char *>(&z), sizeof(double));
+    file.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
+
+    if (!file) {
+      std::cerr << "PLY: unexpected end of file at vertex " << i << '\n';
+      return false;
+    }
+    out[map_id].emplace_back(x, y, z);
+  }
+
+  // Suppress unused-variable warning for documentation constant
+  (void)VERTEX_SIZE;
+
+  return true;
+}
+
+// Load legacy custom binary format
+static bool loadLocalMapPointsLegacyBin(
+    std::ifstream& file, std::unordered_map<int, std::vector<Eigen::Vector3d>>& out) {
+  file.seekg(0);
+
+  uint64_t num_maps = 0;
+  file.read(reinterpret_cast<char *>(&num_maps), sizeof(uint64_t));
+
+  for (uint64_t i = 0; i < num_maps; ++i) {
+    int32_t map_id = 0;
+    file.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
+
+    uint64_t num_points = 0;
+    file.read(reinterpret_cast<char *>(&num_points), sizeof(uint64_t));
+
+    std::vector<Eigen::Vector3d> points;
+    points.reserve(num_points);
+
+    for (uint64_t j = 0; j < num_points; ++j) {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+      file.read(reinterpret_cast<char *>(&x), sizeof(double));
+      file.read(reinterpret_cast<char *>(&y), sizeof(double));
+      file.read(reinterpret_cast<char *>(&z), sizeof(double));
+      points.emplace_back(x, y, z);
+    }
+
+    if (!file) {
+      std::cerr << "Legacy bin: unexpected end of file\n";
+      return false;
+    }
+    out[map_id] = std::move(points);
+  }
+
+  return true;
+}
+
 bool loadLocalMapPoints(const std::string& points_path,
                         std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   std::ifstream file(points_path, std::ios::binary);
-
   if (!file.is_open()) {
     std::cerr << "Could not open local map points file: " << points_path << '\n';
     return false;
   }
 
   try {
-    // Read number of maps (size_t, 8 bytes)
-    uint64_t num_maps = 0;
-    file.read(reinterpret_cast<char *>(&num_maps), sizeof(uint64_t));
+    // Auto-detect format via magic bytes
+    char magic[4] = {};
+    file.read(magic, 4);
+    if (!file) {
+      std::cerr << "Could not read file header: " << points_path << '\n';
+      return false;
+    }
 
-    std::cout << "Loading " << num_maps << " local map point clouds..." << '\n';
+    const bool is_ply = (magic[0] == 'p' && magic[1] == 'l' && magic[2] == 'y' && magic[3] == '\n');
+    bool ok = false;
 
-    // Read each local map's points
-    for (uint64_t i = 0; i < num_maps; ++i) {
-      // Read map_id (int, 4 bytes)
-      int32_t map_id = 0;
-      file.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
-
-      // Read number of points (size_t, 8 bytes)
-      uint64_t num_points = 0;
-      file.read(reinterpret_cast<char *>(&num_points), sizeof(uint64_t));
-
-      // Read points (each point is 3 doubles = 24 bytes)
-      std::vector<Eigen::Vector3d> points;
-      points.reserve(num_points);
-
-      for (uint64_t j = 0; j < num_points; ++j) {
-        double x = 0.0;
-        double y = 0.0;
-        double z = 0.0;
-        file.read(reinterpret_cast<char *>(&x), sizeof(double));
-        file.read(reinterpret_cast<char *>(&y), sizeof(double));
-        file.read(reinterpret_cast<char *>(&z), sizeof(double));
-        points.emplace_back(x, y, z);
-      }
-
-      local_map_points[map_id] = std::move(points);
+    if (is_ply) {
+      ok = loadLocalMapPointsPly(file, local_map_points);
+    } else {
+      ok = loadLocalMapPointsLegacyBin(file, local_map_points);
     }
 
     file.close();
-    std::cout << "Successfully loaded " << local_map_points.size() << " local map point clouds"
-              << '\n';
-    return true;
+
+    if (ok) {
+      size_t total_points = 0;
+      for (const auto& [id, pts] : local_map_points) {
+        total_points += pts.size();
+      }
+      std::cout << "Loaded " << total_points << " points (" << local_map_points.size()
+                << " submaps) from " << points_path << (is_ply ? " (PLY)" : " (legacy bin)")
+                << '\n';
+    }
+    return ok;
 
   } catch (const std::exception& e) {
     std::cerr << "Error loading local map points: " << e.what() << '\n';
@@ -339,99 +434,97 @@ bool loadLocalMapPoints(const std::string& points_path,
   }
 }
 
-bool savePosesBinary(const std::string& file_path, const LocalMapGraph& local_map_graph) {
-  // Save poses in C++ readable binary format
-  std::ofstream file(file_path, std::ios::binary);
+bool savePosesTum(const std::string& file_path, const LocalMapGraph& local_map_graph) {
+  std::ofstream file(file_path);
   if (!file.is_open()) {
     std::cerr << "Could not open file for writing: " << file_path << '\n';
     return false;
   }
 
-  // Collect poses from local_map_graph
+  file << std::fixed << std::setprecision(12);
+
   auto all_ids = local_map_graph.getAllIds();
-  uint64_t num_poses = all_ids.size();
 
-  // Write number of poses (size_t, 8 bytes)
-  file.write(reinterpret_cast<const char *>(&num_poses), sizeof(uint64_t));
-
-  // Write each pose
   for (const uint64_t map_id : all_ids) {
-    const auto& local_map = local_map_graph[map_id];
+    const Eigen::Matrix4d& pose = local_map_graph[map_id].keypose();
+    const Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
+    const Eigen::Vector3d t = pose.block<3, 1>(0, 3);
 
-    // Write map_id (int, 4 bytes)
-    auto id = static_cast<int32_t>(map_id);
-    file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
-
-    // Write 4x4 matrix in row-major order (16 doubles, 128 bytes)
-    const Eigen::Matrix4d& pose = local_map.keypose();
-    for (int i = 0; i < 4; ++i) {
-      for (int j = 0; j < 4; ++j) {
-        double val = pose(i, j);
-        file.write(reinterpret_cast<const char *>(&val), sizeof(double));
-      }
-    }
+    // TUM format: timestamp tx ty tz qx qy qz qw (using map_id as timestamp)
+    file << map_id << ' ' << t.x() << ' ' << t.y() << ' ' << t.z() << ' ' << q.x() << ' ' << q.y()
+         << ' ' << q.z() << ' ' << q.w() << '\n';
   }
 
   file.close();
-  std::cout << "Saved " << num_poses << " poses to " << file_path << " (binary format)" << '\n';
+  std::cout << "Saved " << all_ids.size() << " poses to " << file_path << " (TUM format)" << '\n';
   return true;
 }
 
-bool saveLocalMapPointsBinary(
+bool saveLocalMapPointsPly(
     const std::string& file_path, const LocalMapGraph& local_map_graph,
     const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
-  // Save local map point clouds in C++ readable binary format
   std::ofstream file(file_path, std::ios::binary);
   if (!file.is_open()) {
     std::cerr << "Could not open file for writing: " << file_path << '\n';
     return false;
   }
 
-  // Get all local map IDs
+  // Collect all points with their map IDs
   auto all_ids = local_map_graph.getAllIds();
-  uint64_t num_maps = all_ids.size();
+  std::vector<std::pair<Eigen::Vector3d, int32_t>> all_points;
 
-  // Write number of local maps (size_t, 8 bytes)
-  file.write(reinterpret_cast<const char *>(&num_maps), sizeof(uint64_t));
-
-  // Write each local map's points
   for (const uint64_t map_id : all_ids) {
-    // Write map_id (int, 4 bytes)
-    auto id = static_cast<int32_t>(map_id);
-    file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
-
-    // Get point cloud - prefer from LocalMapGraph, fallback to
-    // local_map_points
-    std::vector<Eigen::Vector3d> points;
     const auto& local_map = local_map_graph[map_id];
+    const std::vector<Eigen::Vector3d> *points_ptr = nullptr;
+
     if (local_map.hasPointCloud()) {
-      points = local_map.pointCloud();
+      points_ptr = &local_map.pointCloud();
     } else {
       auto it = local_map_points.find(static_cast<int>(map_id));
       if (it != local_map_points.end()) {
-        points = it->second;
+        points_ptr = &it->second;
       }
     }
-    // else: empty point cloud
 
-    // Write number of points (size_t, 8 bytes)
-    uint64_t num_points = points.size();
-    file.write(reinterpret_cast<const char *>(&num_points), sizeof(uint64_t));
+    if (points_ptr != nullptr) {
+      const auto id = static_cast<int32_t>(map_id);
+      const Eigen::Matrix4d& keypose = local_map.keypose();
+      const Eigen::Matrix3d r = keypose.block<3, 3>(0, 0);
+      const Eigen::Vector3d t = keypose.block<3, 1>(0, 3);
 
-    // Write points (each point is 3 doubles = 24 bytes)
-    for (const auto& point : points) {
-      double x = point.x();
-      double y = point.y();
-      double z = point.z();
-      file.write(reinterpret_cast<const char *>(&x), sizeof(double));
-      file.write(reinterpret_cast<const char *>(&y), sizeof(double));
-      file.write(reinterpret_cast<const char *>(&z), sizeof(double));
+      for (const auto& pt : *points_ptr) {
+        all_points.emplace_back(r * pt + t, id);
+      }
     }
   }
 
+  // Write PLY header (ASCII)
+  std::ostringstream header;
+  header << "ply\n";
+  header << "format binary_little_endian 1.0\n";
+  header << "element vertex " << all_points.size() << "\n";
+  header << "property double x\n";
+  header << "property double y\n";
+  header << "property double z\n";
+  header << "property int map_id\n";
+  header << "end_header\n";
+  const std::string header_str = header.str();
+  file.write(header_str.data(), static_cast<std::streamsize>(header_str.size()));
+
+  // Write binary vertex data
+  for (const auto& [pt, id] : all_points) {
+    double x = pt.x();
+    double y = pt.y();
+    double z = pt.z();
+    file.write(reinterpret_cast<const char *>(&x), sizeof(double));
+    file.write(reinterpret_cast<const char *>(&y), sizeof(double));
+    file.write(reinterpret_cast<const char *>(&z), sizeof(double));
+    file.write(reinterpret_cast<const char *>(&id), sizeof(int32_t));
+  }
+
   file.close();
-  std::cout << "Saved " << num_maps << " local map point clouds to " << file_path
-            << " (binary format)" << '\n';
+  std::cout << "Saved " << all_points.size() << " points (" << all_ids.size() << " submaps) to "
+            << file_path << " (PLY format)" << '\n';
   return true;
 }
 
@@ -460,15 +553,15 @@ bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
     }
     std::cout << "Saved map closures database to: " << db_path << '\n';
 
-    // Save poses in binary format
-    if (!savePosesBinary(poses_path.string(), local_map_graph)) {
-      std::cerr << "Failed to save poses binary file" << '\n';
+    // Save poses in TUM format
+    if (!savePosesTum(poses_path.string(), local_map_graph)) {
+      std::cerr << "Failed to save poses TUM file" << '\n';
       return false;
     }
 
-    // Save local map points in binary format
-    if (!saveLocalMapPointsBinary(points_path.string(), local_map_graph, local_map_points)) {
-      std::cerr << "Failed to save local map points binary file" << '\n';
+    // Save local map points in PLY format
+    if (!saveLocalMapPointsPly(points_path.string(), local_map_graph, local_map_points)) {
+      std::cerr << "Failed to save local map points PLY file" << '\n';
       return false;
     }
 

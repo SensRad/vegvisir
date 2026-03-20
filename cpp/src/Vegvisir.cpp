@@ -6,6 +6,7 @@
 
 #include "LocalizationBackend.hpp"
 #include "SlamBackend.hpp"
+#include "VegvisirPGO.hpp"
 
 #include <pthread.h>
 
@@ -230,8 +231,9 @@ std::pair<bool, Eigen::Matrix4d> Vegvisir::performICPRefinement(
 
   // NOLINTNEXTLINE(readability-suspicious-call-argument)
   const icp::Result result = icp::IcpSvd::pointToPointICP(
-      reference_points, query_points, initial_pose, ICP_REFINEMENT_VOXEL_SIZE, ICP_MAX_ITERATIONS,
-      ICP_CONVERGENCE_CRITERION, ICP_MAX_CORRESPONDENCE_DISTANCE);
+      reference_points, query_points, initial_pose, config_.icp_refinement_voxel_size,
+      config_.icp_max_iterations, config_.icp_convergence_criterion,
+      config_.icp_max_correspondence_distance);
 
   return {result.converged, result.transform};
 }
@@ -352,24 +354,6 @@ const std::vector<Eigen::Vector3d>& Vegvisir::getLocalMapPoints(int map_id) cons
   return EMPTY;
 }
 
-void Vegvisir::addGnssMeasurement(int pose_index, const Eigen::Vector3d& position_enu,
-                                  const Eigen::Matrix3d& information_matrix) {
-  gnss_measurements_.push_back({pose_index, position_enu, information_matrix});
-}
-
-void Vegvisir::clearGnssMeasurements() {
-  gnss_measurements_.clear();
-}
-
-void Vegvisir::addGnssPoseMeasurement(int pose_index, const Eigen::Matrix4d& pose_enu,
-                                      const Eigen::Matrix<double, 6, 6>& information_matrix) {
-  gnss_pose_measurements_.push_back({pose_index, pose_enu, information_matrix});
-}
-
-void Vegvisir::clearGnssPoseMeasurements() {
-  gnss_pose_measurements_.clear();
-}
-
 std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
   // First run PGO to get optimized poses
   std::vector<Eigen::Matrix4d> optimized_poses = fineGrainedOptimization();
@@ -412,138 +396,9 @@ std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes(
   return optimized_poses;
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() const {
-  // Conditional parameters based on GNSS availability
-  const bool has_gnss = !gnss_measurements_.empty() || !gnss_pose_measurements_.empty();
-  const int max_iterations =
-      has_gnss ? (config_.pgo_max_iterations * 10) : config_.pgo_max_iterations;
-  const double odom_weight = 0.01;
-  const double closure_weight = 1.0;  // Loop closures are strong constraints
-
-  pgo::PoseGraphOptimizer pgo(max_iterations);
-
-  // Initialize alignment variable if we have GNSS
-  if (has_gnss) {
-    if (has_initial_alignment_) {
-      pgo.initializeAlignmentVariable(initial_pose_enu_map_);
-    } else {
-      pgo.initializeAlignmentVariable(Eigen::Matrix4d::Identity());
-    }
-  }
-
-  int id = 0;
-  bool first = true;
-  Eigen::Matrix4d prev_last_world_pose = Eigen::Matrix4d::Identity();
-
-  // Build information matrix with odometry weight
-  const Eigen::Matrix<double, 6, 6> odom_info =
-      odom_weight * Eigen::Matrix<double, 6, 6>::Identity();
-
-  // Build information matrix for loop closures
-  const Eigen::Matrix<double, 6, 6> closure_info =
-      closure_weight * Eigen::Matrix<double, 6, 6>::Identity();
-
-  // Map from keypose (node) ID to first per-frame pose ID
-  std::unordered_map<int, int> keypose_to_pose_id;
-
-  // Map from sequential odom frame index to PGO vertex ID.
-  // Non-first nodes have traj[0]=Identity (keypose anchor) which is a PGO
-  // vertex but NOT an odom frame, so PGO vertex IDs diverge from odom indices.
-  std::vector<int> odom_to_pgo;
-
-  for (const auto& [node_key, node] : local_map_graph_) {
-    const auto& traj = node.localTrajectory();
-
-    if (first) {
-      const Eigen::Matrix4d first_pose = traj.empty() ? node.keypose() : node.keypose() * traj[0];
-      pgo.addVariable(id, first_pose);
-      pgo.fixVariable(id);
-      odom_to_pgo.push_back(id);  // Node 0: traj[0] IS an odom frame
-      first = false;
-    } else {
-      // Add the first trajectory pose of this node as a new vertex
-      // with an inter-node odometry factor from previous node's last pose.
-      // traj[0]=Identity is a keypose anchor, not an odom frame.
-      const Eigen::Matrix4d first_world = traj.empty() ? node.keypose() : node.keypose() * traj[0];
-      ++id;
-      pgo.addVariable(id, first_world);
-      const Eigen::Matrix4d inter_node_factor = prev_last_world_pose.inverse() * first_world;
-      pgo.addFactor(id, id - 1, inter_node_factor, odom_info);
-      // Don't push to odom_to_pgo — this vertex has no corresponding odom frame
-    }
-
-    // Record mapping from keypose ID to first pose ID (after adding traj[0])
-    keypose_to_pose_id[static_cast<int>(node_key)] = id;
-
-    // Build odometry factors between consecutive trajectory poses
-    for (size_t i = 0; i + 1 < traj.size(); ++i) {
-      const Eigen::Matrix4d factor = traj[i].inverse() * traj[i + 1];
-      pgo.addVariable(id + 1, node.keypose() * traj[i + 1]);
-      pgo.addFactor(id + 1, id, factor, odom_info);
-      ++id;
-      odom_to_pgo.push_back(id);  // traj[i+1] is always a real odom frame
-    }
-
-    // Track last world-frame pose for inter-node factor computation
-    prev_last_world_pose = traj.empty() ? node.keypose() : node.keypose() * traj.back();
-  }
-
-  // Fix the last vertex when there's no GNSS to anchor the graph
-  if (!has_gnss && id > 0) {
-    pgo.fixVariable(id);
-  }
-
-  // Add loop closure constraints
-  for (const auto& closure : closures_) {
-    auto src_it = keypose_to_pose_id.find(closure.source_id);
-    auto tgt_it = keypose_to_pose_id.find(closure.target_id);
-
-    if (src_it != keypose_to_pose_id.end() && tgt_it != keypose_to_pose_id.end()) {
-      // closure.pose transforms source-local points to target-local frame:
-      // T * p_source_local ≈ p_target_local, i.e. closure.pose ≈ keypose_tgt⁻¹
-      // * keypose_src Same convention as the online keypose optimizer in
-      // SlamBackend::applyAcceptedClosure
-      pgo.addFactor(src_it->second, tgt_it->second, closure.pose, closure_info);
-    }
-  }
-
-  // Add GNSS position constraints with alignment estimation.
-  // pose_index is an odom frame index — translate to PGO vertex ID.
-  for (const auto& gnss : gnss_measurements_) {
-    if (gnss.pose_index >= 0 && gnss.pose_index < static_cast<int>(odom_to_pgo.size())) {
-      const int pgo_id = odom_to_pgo[gnss.pose_index];
-      pgo.addGnssConstraintWithAlignment(pgo_id, gnss.position_enu, gnss.information_matrix);
-    }
-  }
-
-  // Add full SE3 GNSS pose constraints with alignment estimation.
-  // pose_index is an odom frame index — translate to PGO vertex ID.
-  for (const auto& gnss_pose : gnss_pose_measurements_) {
-    if (gnss_pose.pose_index >= 0 && gnss_pose.pose_index < static_cast<int>(odom_to_pgo.size())) {
-      const int pgo_id = odom_to_pgo[gnss_pose.pose_index];
-      pgo.addGnssPoseConstraintWithAlignment(pgo_id, gnss_pose.pose_enu,
-                                             gnss_pose.information_matrix);
-    }
-  }
-
-  pgo.optimize();
-
-  // Store optimized alignment transform (mutable cast for const method)
-  if (has_gnss) {
-    const_cast<Vegvisir *>(this)
-        ->optimized_pose_enu_map_ =  // NOLINT(cppcoreguidelines-pro-type-const-cast)
-        pgo.getAlignmentTransform();
-  }
-
-  // Collect optimised poses in insertion order
-  std::vector<Eigen::Matrix4d> result;
-  const auto& estimates = pgo.estimates();
-  result.reserve(estimates.size());
-  for (const auto& [_, pose] : estimates) {
-    result.push_back(pose);
-  }
-  return result;
+std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() {
+  auto pgo_result = runFineGrainedPGO(local_map_graph_, closures_, gnss_state_, config_);
+  return std::move(pgo_result.optimized_poses);
 }
 
 }  // namespace vegvisir

@@ -1,8 +1,8 @@
 // Copyright (c) Sensrad 2025-2026
 
-#include "PoseKalmanFilter.hpp"
+#include "kalman_filter/PoseKalmanFilter.hpp"
 
-namespace vegvisir {
+namespace kalman_filter {
 
 PoseKalmanFilter::PoseKalmanFilter() {
   state_ = Sophus::SE3d();  // identity
@@ -86,7 +86,7 @@ void PoseKalmanFilter::update(const Sophus::SE3d& measurement) {
   // Innovation covariance S = P + R (H = I)
   Matrix6d s = covariance_ + measurement_noise_;
 
-  // Guard against tiny numerical asymmetry
+  // Guard against numerical asymmetry
   s = 0.5 * (s + s.transpose());
 
   // Kalman gain without explicit inverse: K = P * S^{-1}
@@ -111,4 +111,4 @@ void PoseKalmanFilter::update(const Sophus::SE3d& measurement) {
   covariance_ = 0.5 * (covariance_ + covariance_.transpose());
 }
 
-}  // namespace vegvisir
+}  // namespace kalman_filter
