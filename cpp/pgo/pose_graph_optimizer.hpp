@@ -47,9 +47,9 @@ class PoseGraphOptimizer {
   explicit PoseGraphOptimizer(int max_iterations, bool verbose = false);
 
   void fixVariable(int id);
-  void addVariable(int id, const Eigen::Matrix4d& t);
+  void addVariable(int id, const Eigen::Matrix4d& transform);
 
-  void addFactor(int id_source, int id_target, const Eigen::Matrix4d& t,
+  void addFactor(int id_source, int id_target, const Eigen::Matrix4d& transform,
                  const Eigen::Matrix6d& information_matrix);
 
   // Initialize the ENU-to-map alignment transform variable.
