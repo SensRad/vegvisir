@@ -42,6 +42,7 @@ add_library(
   src/LocalizationBackend.cpp)
 target_include_directories(vegvisir PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                                            ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(vegvisir PUBLIC cxx_std_20)
 target_link_libraries(
   vegvisir
   PUBLIC voxel_map
