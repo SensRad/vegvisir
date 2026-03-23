@@ -15,8 +15,8 @@ void LocalizationBackend::initialize() {
   pose_odom_anchor_.setIdentity();
 }
 
-void LocalizationBackend::preIntegrate(const Eigen::Matrix4d& pose_odom_base,
-                                       const Sophus::SE3d& delta_pose) {
+void LocalizationBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
+                                             const Sophus::SE3d& delta_pose) {
   // Localization: ring-buffer submaps
   initLocalizationAnchor(pose_odom_base);
 
@@ -29,7 +29,7 @@ void LocalizationBackend::preIntegrate(const Eigen::Matrix4d& pose_odom_base,
   tfMapOdom() = poseFilter().state().matrix();
 }
 
-void LocalizationBackend::postIntegrate() {
+void LocalizationBackend::updateTrajectory() {
   // Don't grow trajectory unbounded in localization; store only the latest
   localMapGraph().lastLocalMap().localTrajectory().assign(1, currentPose());
 }

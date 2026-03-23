@@ -13,7 +13,6 @@ endif()
 
 # System dependencies
 find_package(Eigen3 REQUIRED)
-find_package(TBB REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Fetched dependencies
@@ -48,6 +47,4 @@ target_link_libraries(
          pgo
          kalman_filter
          Sophus::Sophus
-         TBB::tbb
-         ${OpenCV_LIBS}
          Eigen3::Eigen)

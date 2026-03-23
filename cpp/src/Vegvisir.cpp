@@ -64,8 +64,7 @@ Vegvisir::Vegvisir(const std::string& map_database_path, Mode mode, const Vegvis
       map_metadata_ = loaded_metadata;
     }
 
-    // Rebuild the LocalMapGraph from loaded data (useful for SLAM resume /
-    // visualization)
+    // Rebuild the LocalMapGraph from loaded data
     if (result.success && !map_closer_->getReferencePoses().empty()) {
       rebuildLocalMapGraph(local_map_graph_, map_closer_->getReferencePoses(), local_map_points_);
     }
@@ -75,7 +74,7 @@ Vegvisir::Vegvisir(const std::string& map_database_path, Mode mode, const Vegvis
     loop_closure_enabled_ = false;
   }
 
-  // Select backend
+  // Select backend. SLAM or Localization
   if (mode_ == Mode::SLAM) {
     backend_ = std::make_unique<SlamBackend>(*this);
   } else {
@@ -114,7 +113,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
     std::cerr << "No backend initialized" << '\n';
     return;
   }
-  // Compute delta from consecutive absolute poses
+  // Compute delta from previous absolute poses
   Sophus::SE3d delta_pose;
   if (has_previous_pose_) {
     delta_pose = current_odom_base_.inverse() * absolute_pose;
@@ -125,8 +124,8 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
   const Eigen::Matrix4d pose_odom_base = absolute_pose.matrix();
   current_odom_base_ = absolute_pose;
 
-  // Mode-specific pre-integrate: compute current_pose_ + tf_map_odom_
-  backend_->preIntegrate(pose_odom_base, delta_pose);
+  // Mode-specific pose estimation: compute current_pose_ + tf_map_odom_
+  backend_->updatePoseEstimate(pose_odom_base, delta_pose);
 
   const std::vector<Eigen::Vector3d> downsampled_points =
       voxel_map::voxelDownsample(points, config_.voxel_size);
@@ -136,7 +135,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
   voxel_grid_.pruneFarPoints(current_pose_, LOCAL_MAP_RADIUS_M);
 
   // Mode-specific trajectory policy
-  backend_->postIntegrate();
+  backend_->updateTrajectory();
 
   // Update traveled distance
   distance_since_query_ += delta_pose.translation().norm();
@@ -159,6 +158,7 @@ void Vegvisir::processLoopClosures(int query_id,
     return;
   }
 
+  // Retrieve closure candidates from MapClosures
   std::vector<map_closures::ClosureCandidate> closures =
       backend_->retrieveCandidates(query_id, query_points_mc);
 
@@ -211,7 +211,7 @@ void Vegvisir::processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3
   closure_future_ =
       std::async(std::launch::async, [this, query_id, pts_mc = std::move(query_points_mc),
                                       pts_icp = std::move(query_points_icp), query_odom_base]() {
-        // Deprioritize this thread so it doesn't starve kiss-icp or the main
+        // Deprioritize this thread so it doesn't starve the main
         // pipeline
         const struct sched_param param{};
         pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
