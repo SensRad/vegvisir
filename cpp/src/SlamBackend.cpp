@@ -61,8 +61,8 @@ void SlamBackend::initialize() {
             << '\n';
 }
 
-void SlamBackend::preIntegrate(const Eigen::Matrix4d& pose_odom_base,
-                               const Sophus::SE3d& /*delta_pose*/) {
+void SlamBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
+                                     const Sophus::SE3d& /*delta_pose*/) {
   // Compensate for poses at previous nodes
   Eigen::Matrix4d compensated_pose = pose_odom_base;
   for (const auto& pose : pose_at_nodes_) {
@@ -76,7 +76,7 @@ void SlamBackend::preIntegrate(const Eigen::Matrix4d& pose_odom_base,
   tfMapOdom() = t_map_base * pose_odom_base.inverse();
 }
 
-void SlamBackend::postIntegrate() {
+void SlamBackend::updateTrajectory() {
   // Append compensated pose to the current local map's trajectory
   localMapGraph().lastLocalMap().addToTrajectory(currentPose());
 }
@@ -170,6 +170,7 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base) {
   const uint64_t query_id_u64 = last_local_map.id();
   const int query_id = static_cast<int>(query_id_u64);
 
+  // Extract point for MapClosures and ICP refinement
   auto query_points_mc = voxelGrid().pointcloud();
   auto [query_points_icp, _] = voxelGrid().perVoxelPointAndNormal();
 

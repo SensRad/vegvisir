@@ -81,7 +81,7 @@ vegvisir (core)
 Input is Nx7: `[x, y, z, range, dist_to_ground, motion_status, occluded]`. Filtering is controlled by constants in `cpp/include/Vegvisir.hpp` (MIN_RANGE, MAX_RANGE, GROUND_PLANE_THRESHOLD, MOTIONSTATUS, OCCLUSION_STATUS).
 
 ### Map Database
-Saved to the `map_database_path` directory: `metadata.yaml`, `map_closures.db`, `poses.bin`, `points.bin`.
+Saved to the `map_database_path` directory: `metadata.yaml`, `map_closures.db`, `keyposes.tum`, `points.ply`.
 
 ## C++ Standards
 - Core libraries: C++17 default

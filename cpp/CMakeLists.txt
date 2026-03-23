@@ -7,13 +7,15 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   project(vegvisir_cpp LANGUAGES CXX)
 endif()
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 # System dependencies
 find_package(Eigen3 REQUIRED)
-find_package(TBB REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Fetched dependencies
@@ -40,6 +42,7 @@ add_library(
   src/LocalizationBackend.cpp)
 target_include_directories(vegvisir PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                                            ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(vegvisir PUBLIC cxx_std_20)
 target_link_libraries(
   vegvisir
   PUBLIC voxel_map
@@ -48,6 +51,4 @@ target_link_libraries(
          pgo
          kalman_filter
          Sophus::Sophus
-         TBB::tbb
-         ${OpenCV_LIBS}
          Eigen3::Eigen)

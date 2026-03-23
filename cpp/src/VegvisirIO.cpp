@@ -351,44 +351,6 @@ static bool loadLocalMapPointsPly(std::ifstream& file,
   return true;
 }
 
-// Load legacy custom binary format
-static bool loadLocalMapPointsLegacyBin(
-    std::ifstream& file, std::unordered_map<int, std::vector<Eigen::Vector3d>>& out) {
-  file.seekg(0);
-
-  uint64_t num_maps = 0;
-  file.read(reinterpret_cast<char *>(&num_maps), sizeof(uint64_t));
-
-  for (uint64_t i = 0; i < num_maps; ++i) {
-    int32_t map_id = 0;
-    file.read(reinterpret_cast<char *>(&map_id), sizeof(int32_t));
-
-    uint64_t num_points = 0;
-    file.read(reinterpret_cast<char *>(&num_points), sizeof(uint64_t));
-
-    std::vector<Eigen::Vector3d> points;
-    points.reserve(num_points);
-
-    for (uint64_t j = 0; j < num_points; ++j) {
-      double x = 0.0;
-      double y = 0.0;
-      double z = 0.0;
-      file.read(reinterpret_cast<char *>(&x), sizeof(double));
-      file.read(reinterpret_cast<char *>(&y), sizeof(double));
-      file.read(reinterpret_cast<char *>(&z), sizeof(double));
-      points.emplace_back(x, y, z);
-    }
-
-    if (!file) {
-      std::cerr << "Legacy bin: unexpected end of file\n";
-      return false;
-    }
-    out[map_id] = std::move(points);
-  }
-
-  return true;
-}
-
 bool loadLocalMapPoints(const std::string& points_path,
                         std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   std::ifstream file(points_path, std::ios::binary);
@@ -398,23 +360,7 @@ bool loadLocalMapPoints(const std::string& points_path,
   }
 
   try {
-    // Auto-detect format via magic bytes
-    char magic[4] = {};
-    file.read(magic, 4);
-    if (!file) {
-      std::cerr << "Could not read file header: " << points_path << '\n';
-      return false;
-    }
-
-    const bool is_ply = (magic[0] == 'p' && magic[1] == 'l' && magic[2] == 'y' && magic[3] == '\n');
-    bool ok = false;
-
-    if (is_ply) {
-      ok = loadLocalMapPointsPly(file, local_map_points);
-    } else {
-      ok = loadLocalMapPointsLegacyBin(file, local_map_points);
-    }
-
+    const bool ok = loadLocalMapPointsPly(file, local_map_points);
     file.close();
 
     if (ok) {
@@ -423,8 +369,7 @@ bool loadLocalMapPoints(const std::string& points_path,
         total_points += pts.size();
       }
       std::cout << "Loaded " << total_points << " points (" << local_map_points.size()
-                << " submaps) from " << points_path << (is_ply ? " (PLY)" : " (legacy bin)")
-                << '\n';
+                << " submaps) from " << points_path << '\n';
     }
     return ok;
 

@@ -21,9 +21,10 @@ class SlamBackend final : public VegvisirBackend {
 
   void initialize() override;
 
-  void preIntegrate(const Eigen::Matrix4d& pose_odom_base, const Sophus::SE3d& delta_pose) override;
+  void updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
+                          const Sophus::SE3d& delta_pose) override;
 
-  void postIntegrate() override;
+  void updateTrajectory() override;
 
   [[nodiscard]] double queryDistanceM() const override;
 

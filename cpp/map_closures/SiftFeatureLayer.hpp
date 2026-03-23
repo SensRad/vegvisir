@@ -33,7 +33,7 @@ class SiftFeatureLayer : public FeatureLayer {
   float matchRatio() const override { return match_ratio_; }
 
  private:
-  // SIFT parameters — tuned for opposite direction driving
+  // SIFT parameters
   static constexpr int NFEATURES = 0;  // 0 = unlimited
   static constexpr int NOCTAVE_LAYERS = 6;
   static constexpr double CONTRAST_THRESHOLD = 0.02;
