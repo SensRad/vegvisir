@@ -194,9 +194,9 @@ void PoseGraphOptimizer::fixVariable(const int id) {
   }
 }
 
-void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d& t) {
+void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d& transform) {
   Eigen::Isometry3d pose;
-  pose.matrix() = t;
+  pose.matrix() = transform;
   auto *variable = new g2o::VertexSE3();  // NOLINT(cppcoreguidelines-owning-memory)
   variable->setId(id);
   variable->setEstimate(pose);
@@ -204,10 +204,10 @@ void PoseGraphOptimizer::addVariable(const int id, const Eigen::Matrix4d& t) {
 }
 
 void PoseGraphOptimizer::addFactor(const int id_source, const int id_target,
-                                   const Eigen::Matrix4d& t,
+                                   const Eigen::Matrix4d& transform,
                                    const Eigen::Matrix6d& information_matrix) {
   Eigen::Isometry3d relative_pose;
-  relative_pose.matrix() = t;
+  relative_pose.matrix() = transform;
   auto *factor = new g2o::EdgeSE3();  // NOLINT(cppcoreguidelines-owning-memory)
   factor->setVertex(0, graph_->vertex(id_target));
   factor->setVertex(1, graph_->vertex(id_source));

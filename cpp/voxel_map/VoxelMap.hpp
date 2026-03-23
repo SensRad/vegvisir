@@ -87,7 +87,7 @@ struct VoxelMap {
 
  private:
   double voxel_size_;
-  double map_resolution_;
+  double map_resolution_sq_;
   tsl::robin_map<Voxel, VoxelBlock> map_;
 };
 }  // namespace voxel_map
