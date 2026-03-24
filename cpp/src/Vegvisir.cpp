@@ -175,10 +175,10 @@ void Vegvisir::processLoopClosures(int query_id,
     // Refine closure pose with ICP
     auto [converged, refined_pose] =
         performICPRefinement(query_points_icp, reference_points, closure.pose);
-    if (!converged) {
-      continue;
-    }
-    // Validate refined pose using overlap computation
+    // if (!converged) {
+    //   continue;
+    // }
+    //  Validate refined pose using overlap computation
     const bool is_valid = validateClosurePose(query_points_icp, reference_points, refined_pose);
     if (!is_valid) {
       continue;
