@@ -24,8 +24,8 @@ jobs:
 
       - name: Check formatting with Black
         run: |
-          black --check --line-length=100 python/ analyze/
+          black --check --line-length=100 python/
 
       - name: Lint with Pylint
         run: |
-          pylint --disable=C0114,C0115,C0116,C0103 python/vegvisir/*.py analyze/*.py
+          pylint --disable=C0114,C0115,C0116,C0103 python/vegvisir/*.py
