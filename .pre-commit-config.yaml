@@ -33,6 +33,19 @@ repos:
         args: ["--fix"]
       - id: ruff-format
 
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        args: ["--line-length=100"]
+
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v3.3.6
+    hooks:
+      - id: pylint
+        args: ["--disable=C0114,C0115,C0116,C0103"]
+        additional_dependencies: ["numpy"]
+
   # C++ formatting
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
