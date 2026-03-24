@@ -1,4 +1,4 @@
-name: Pylint & Black
+name: Pylint & Ruff
 
 on:
   push:
@@ -20,11 +20,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install black pylint numpy
+          pip install ruff pylint numpy
 
-      - name: Check formatting with Black
+      - name: Check formatting with Ruff
         run: |
-          black --check --line-length=100 python/
+          ruff format --check python/
+
+      - name: Lint with Ruff
+        run: |
+          ruff check python/
 
       - name: Lint with Pylint
         run: |
