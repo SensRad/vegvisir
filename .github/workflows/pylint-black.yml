@@ -28,4 +28,4 @@ jobs:
 
       - name: Lint with Pylint
         run: |
-          pylint --disable=C0114,C0115,C0116,C0103 python/vegvisir/*.py
+          pylint --rcfile=python/pyproject.toml python/vegvisir/*.py

@@ -43,8 +43,14 @@ repos:
     rev: v3.3.6
     hooks:
       - id: pylint
-        args: ["--disable=C0114,C0115,C0116,C0103"]
+        args: [
+          "--rcfile=python/pyproject.toml",
+          "--max-args=8",
+          "--max-attributes=10",
+          "--max-public-methods=35",
+        ]
         additional_dependencies: ["numpy"]
+        exclude: "^ros2/"
 
   # C++ formatting
   - repo: https://github.com/pre-commit/mirrors-clang-format

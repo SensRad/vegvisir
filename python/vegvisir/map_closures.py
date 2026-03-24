@@ -1,11 +1,12 @@
 # Copyright (c) Sensrad 2026
+# pylint: disable=no-name-in-module
 from dataclasses import dataclass
 
 import numpy as np
 
 from vegvisir.pybind import vegvisir_pybind
 
-type ClosureCandidate = vegvisir_pybind._ClosureCandidate
+type ClosureCandidate = vegvisir_pybind.ClosureCandidate
 
 LOCAL_MAPS_TO_SKIP: int = vegvisir_pybind.LOCAL_MAPS_TO_SKIP
 MIN_NUMBER_OF_MATCHES: int = vegvisir_pybind.MIN_NUMBER_OF_MATCHES
@@ -28,7 +29,7 @@ class MapClosuresConfig:
 class MapClosures:
     def __init__(self, config: MapClosuresConfig | None = None):
         if config is None:
-            self._pipeline = vegvisir_pybind._MapClosures()
+            self._pipeline = vegvisir_pybind.MapClosuresCore()
         else:
             cfg_dict = {
                 "density_map_resolution": config.density_map_resolution,
@@ -41,74 +42,74 @@ class MapClosures:
                 "lbd_scale": config.lbd_scale,
                 "lbd_weight": config.lbd_weight,
             }
-            self._pipeline = vegvisir_pybind._MapClosures(cfg_dict)
+            self._pipeline = vegvisir_pybind.MapClosuresCore(cfg_dict)
 
     def get_top_k_closures(
         self, query_idx: int, local_map: np.ndarray, k: int
     ) -> list[ClosureCandidate]:
-        pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._getTopKClosures(query_idx, pcd, k)
+        pcd = vegvisir_pybind.Vector3dVector(local_map.astype(np.float64))
+        return self._pipeline.get_top_k_closures(query_idx, pcd, k)
 
     def get_closures(self, query_idx: int, local_map: np.ndarray) -> list[ClosureCandidate]:
-        pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._getClosures(query_idx, pcd)
+        pcd = vegvisir_pybind.Vector3dVector(local_map.astype(np.float64))
+        return self._pipeline.get_closures(query_idx, pcd)
 
     def query_top_k_closures(
         self, query_idx: int, local_map: np.ndarray, k: int
     ) -> list[ClosureCandidate]:
         """Query for top-k closures without adding the map to the database."""
-        pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._queryTopKClosures(query_idx, pcd, k)
+        pcd = vegvisir_pybind.Vector3dVector(local_map.astype(np.float64))
+        return self._pipeline.query_top_k_closures(query_idx, pcd, k)
 
     def query_closures(self, query_idx: int, local_map: np.ndarray) -> list[ClosureCandidate]:
         """Query for all closures without adding the map to the database."""
-        pcd = vegvisir_pybind._Vector3dVector(local_map.astype(np.float64))
-        return self._pipeline._queryClosures(query_idx, pcd)
+        pcd = vegvisir_pybind.Vector3dVector(local_map.astype(np.float64))
+        return self._pipeline.query_closures(query_idx, pcd)
 
     def get_density_map_from_id(self, map_id: int) -> np.ndarray:
-        return self._pipeline._getDensityMapFromId(map_id)
+        return self._pipeline.get_density_map_from_id(map_id)
 
     def get_density_map_metadata(self, map_id: int) -> dict:
-        return self._pipeline._getDensityMapMetadata(map_id)
+        return self._pipeline.get_density_map_metadata(map_id)
 
     def get_available_map_ids(self) -> list[int]:
-        return self._pipeline._getAvailableMapIds()
+        return self._pipeline.get_available_map_ids()
 
     def get_ground_alignment(self, map_id: int) -> np.ndarray:
-        return self._pipeline._getGroundAlignment(map_id)
+        return self._pipeline.get_ground_alignment(map_id)
 
     def get_reference_poses(self) -> dict[int, np.ndarray]:
-        return self._pipeline._getReferencePoses()
+        return self._pipeline.get_reference_poses()
 
     def get_reference_pose(self, map_id: int) -> np.ndarray:
-        return self._pipeline._getReferencePose(map_id)
+        return self._pipeline.get_reference_pose(map_id)
 
     def set_reference_pose(self, map_id: int, pose: np.ndarray):
-        self._pipeline._setReferencePose(map_id, pose)
+        self._pipeline.set_reference_pose(map_id, pose)
 
     def get_local_map_points(self, map_id: int) -> np.ndarray:
-        points = self._pipeline._getLocalMapPoints(map_id)
+        points = self._pipeline.get_local_map_points(map_id)
         return np.asarray(points).astype(np.float64)
 
     def has_local_map_points(self, map_id: int) -> bool:
-        return self._pipeline._hasLocalMapPoints(map_id)
+        return self._pipeline.has_local_map_points(map_id)
 
     def save(self, file_path: str) -> bool:
-        return self._pipeline._save(file_path)
+        return self._pipeline.save(file_path)
 
     def load(self, file_path: str) -> bool:
-        return self._pipeline._load(file_path)
+        return self._pipeline.load(file_path)
 
     def load_reference_poses(self, file_path: str) -> bool:
-        return self._pipeline._loadReferencePoses(file_path)
+        return self._pipeline.load_reference_poses(file_path)
 
     def load_local_map_points(self, file_path: str) -> bool:
-        return self._pipeline._loadLocalMapPoints(file_path)
+        return self._pipeline.load_local_map_points(file_path)
 
     def get_feature_info(self, map_id: int) -> dict:
-        return self._pipeline._getSiftKeypointsViz(map_id)
+        return self._pipeline.get_sift_keypoints_viz(map_id)
 
 
 def align_map_to_local_ground(pointcloud: np.ndarray, resolution: float) -> np.ndarray:
-    pcd = vegvisir_pybind._Vector3dVector(pointcloud.astype(np.float64))
-    return vegvisir_pybind._align_map_to_local_ground(pcd, resolution)
+    pcd = vegvisir_pybind.Vector3dVector(pointcloud.astype(np.float64))
+    return vegvisir_pybind.align_map_to_local_ground(pcd, resolution)
