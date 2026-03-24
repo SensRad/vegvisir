@@ -1,14 +1,13 @@
 # Copyright (c) Sensrad 2026
+# pylint: disable=no-name-in-module,import-error
 """Python wrapper around the C++ vegvisir::Vegvisir pybind11 binding."""
-
-from typing import Optional
 
 import numpy as np
 
 from .pybind.vegvisir_pybind import (
     Mode,  # noqa: F401
-    _Vegvisir,
-    _VegvisirConfig,
+    VegvisirConfigCore,
+    VegvisirCore,
 )
 
 
@@ -36,7 +35,7 @@ class VegvisirConfig:
         pgo_max_iterations: int = 10,
         inliers_threshold: int = 10,
     ):
-        self._impl = _VegvisirConfig()
+        self._impl = VegvisirConfigCore()
         self._impl.voxel_size = voxel_size
         self._impl.splitting_distance_slam = splitting_distance_slam
         self._impl.splitting_distance_localization = splitting_distance_localization
@@ -109,10 +108,10 @@ class Vegvisir:
         self,
         map_database_path: str = "",
         mode=Mode.SLAM,
-        config: Optional[VegvisirConfig] = None,
+        config: VegvisirConfig | None = None,
     ):
-        cpp_config = config._impl if config is not None else _VegvisirConfig()
-        self._impl = _Vegvisir(map_database_path, mode, cpp_config)
+        cpp_config = config._impl if config is not None else VegvisirConfigCore()
+        self._impl = VegvisirCore(map_database_path, mode, cpp_config)
 
     def update(
         self,
