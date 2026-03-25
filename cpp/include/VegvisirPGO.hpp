@@ -7,13 +7,12 @@
 
 #include <Eigen/Core>
 
+#include "GnssState.hpp"
+#include "LocalMapGraph.hpp"
+#include "VegvisirConfig.hpp"
 #include "map_closures/MapClosures.hpp"
 
 namespace vegvisir {
-
-class GnssState;
-class LocalMapGraph;
-struct VegvisirConfig;
 
 struct FineGrainedPGOResult {
   std::vector<Eigen::Matrix4d> optimized_poses;
