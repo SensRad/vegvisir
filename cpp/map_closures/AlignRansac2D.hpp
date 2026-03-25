@@ -33,12 +33,10 @@
 
 namespace map_closures {
 
-static constexpr double RANSAC_INLIER_THRESHOLD_M = 1.0;  // meters
 static constexpr double RANSAC_INLIERS_RATIO = 0.3;
 static constexpr double RANSAC_PROBABILITY_SUCCESS = 0.999;
 static constexpr int RANSAC_MIN_POINTS = 2;
-static constexpr int RANSAC_MIN_TRIALS = 200;
-static constexpr int RANSAC_MAX_TRIALS = 200;
+static constexpr int RANSAC_TRIALS = 200;
 
 struct PointPair {
   PointPair() = default;

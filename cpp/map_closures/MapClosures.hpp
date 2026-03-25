@@ -58,6 +58,9 @@ struct Config {
 
   // Inlier weighting: weighted_score = sift_inliers + lbd_weight * lbd_inliers
   float lbd_weight = 3.0F;
+
+  // RANSAC 2D alignment
+  float ransac_inlier_threshold_m = 1.0F;
 };
 
 struct ClosureCandidate {

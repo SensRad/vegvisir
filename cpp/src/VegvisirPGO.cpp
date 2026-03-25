@@ -11,7 +11,7 @@ namespace vegvisir {
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 FineGrainedPGOResult runFineGrainedPGO(const LocalMapGraph& local_map_graph,
                                        const std::vector<map_closures::ClosureCandidate>& closures,
-                                       GnssState& gnss_state, const VegvisirConfig& config) {
+                                       const GnssState& gnss_state, const VegvisirConfig& config) {
   FineGrainedPGOResult result;
 
   // Conditional parameters based on GNSS availability
@@ -129,9 +129,7 @@ FineGrainedPGOResult runFineGrainedPGO(const LocalMapGraph& local_map_graph,
 
   pgo.optimize();
 
-  if (has_gnss) {
-    gnss_state.optimized_pose_enu_map = pgo.getAlignmentTransform();
-  }
+  result.alignment_transform = has_gnss ? pgo.getAlignmentTransform() : Eigen::Matrix4d::Identity();
 
   // Collect optimised poses in insertion order
   const auto& estimates = pgo.estimates();
@@ -139,7 +137,24 @@ FineGrainedPGOResult runFineGrainedPGO(const LocalMapGraph& local_map_graph,
   for (const auto& [_, pose] : estimates) {
     result.optimized_poses.push_back(pose);
   }
-  result.alignment_transform = gnss_state.optimized_pose_enu_map;
+
+  // Recover optimized keyposes from PGO vertices
+  for (const auto& [node_key, node] : local_map_graph) {
+    const int node_id = static_cast<int>(node_key);
+    auto it = keypose_to_pose_id.find(node_id);
+    if (it == keypose_to_pose_id.end()) {
+      continue;
+    }
+    const int pose_id = it->second;
+    const auto& traj = node.localTrajectory();
+    const auto est_it = estimates.find(pose_id);
+    if (est_it == estimates.end()) {
+      continue;
+    }
+    result.optimized_keyposes[node_id] =
+        traj.empty() ? est_it->second : est_it->second * traj[0].inverse();
+  }
+
   return result;
 }
 

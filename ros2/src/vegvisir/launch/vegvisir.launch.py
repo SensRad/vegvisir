@@ -10,7 +10,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    default_map_path = os.path.join("sensrad_maps", "my_map")
+    default_map_path = os.path.join("vegvisir_maps", "my_map")
 
     log_level_arg = DeclareLaunchArgument("log_level", default_value="WARN")
 
@@ -31,7 +31,7 @@ def generate_launch_description():
         description="Input pointcloud topic (required)",
     )
 
-    namespace = LaunchConfiguration("namespace", default="sensrad/radar_1/oden")
+    namespace = LaunchConfiguration("namespace", default="")
 
     vegvisir_node = Node(
         package="vegvisir",

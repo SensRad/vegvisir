@@ -11,7 +11,8 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   // Declare pointcloud_topic as a required parameter (no default)
   auto pointcloud_topic = this->declare_parameter<std::string>("pointcloud_topic");
 
-  // Configure pointcloud QoS — sensors publish best_effort, rosbags may use reliable
+  // Configure pointcloud QoS — sensors publish best_effort, rosbags may use
+  // reliable
   auto pc_reliability =
       this->declare_parameter<std::string>("pointcloud_qos_reliability", "best_effort");
   rmw_qos_profile_t pc_qos =
@@ -23,10 +24,10 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
 
   // Initialize localizer with map database
   std::string map_database_path =
-      this->declare_parameter<std::string>("map_database_path", "/home/jacob/data/slam_map4.db");
+      this->declare_parameter<std::string>("map_database_path", "vegvisir/my_map.db");
 
   // Declare SLAM mode parameter
-  bool slam_mode = this->declare_parameter<bool>("slam_mode", false);
+  bool slam_mode = this->declare_parameter<bool>("slam_mode", true);
   vegvisir::Mode mode = slam_mode ? vegvisir::Mode::SLAM : vegvisir::Mode::LOCALIZATION;
 
   // Declare runtime configuration parameters
@@ -45,8 +46,8 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
 
   vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode, config);
 
-  // Create the synchronizer — ExactTime matches identical timestamps (KISS-ICP
-  // copies the input header stamp to its odometry output)
+  // Create the synchronizer — ExactTime matches identical timestamps on both
+  // topics
   sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
       SyncPolicy(10), pointcloud_sub_, odometry_sub_);
 
