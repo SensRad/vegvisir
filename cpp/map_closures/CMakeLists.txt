@@ -1,5 +1,8 @@
-# Copyright (c) Sensrad 2026 Copyright (c) 2024 Saurabh Gupta, Tiziano
-# Guadagnino, Benedikt Mersch, Ignacio Vizzo, Cyrill Stachniss.
+# Copyright (c) Sensrad 2026
+
+# Copyright (c) 2024 Saurabh Gupta, Tiziano, Guadagnino, Benedikt Mersch,
+# Ignacio Vizzo, Cyrill Stachniss.
+
 # SPDX-License-Identifier: MIT
 
 add_library(map_closures STATIC)
