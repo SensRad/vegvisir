@@ -62,6 +62,9 @@ Config GetConfigFromDict(const py::dict& cfg) {
   if (cfg.contains("lbd_weight")) {
     cpp_config.lbd_weight = cfg["lbd_weight"].cast<float>();
   }
+  if (cfg.contains("ransac_inlier_threshold_m")) {
+    cpp_config.ransac_inlier_threshold_m = cfg["ransac_inlier_threshold_m"].cast<float>();
+  }
   return cpp_config;
 }
 }  // namespace map_closures

@@ -24,6 +24,7 @@ class MapClosuresConfig:
     lbd_num_octaves: int = 2
     lbd_scale: int = 2
     lbd_weight: float = 1.0
+    ransac_inlier_threshold_m: float = 1.0
 
 
 class MapClosures:
@@ -41,6 +42,7 @@ class MapClosures:
                 "lbd_num_octaves": config.lbd_num_octaves,
                 "lbd_scale": config.lbd_scale,
                 "lbd_weight": config.lbd_weight,
+                "ransac_inlier_threshold_m": config.ransac_inlier_threshold_m,
             }
             self._pipeline = vegvisir_pybind.MapClosuresCore(cfg_dict)
 

@@ -113,8 +113,8 @@ ClosureCandidate MapClosures::validateClosureWithMatches(
 
   // RANSAC on combined correspondences (threshold in pixels = meters /
   // resolution)
-  const double inlier_threshold_px =
-      RANSAC_INLIER_THRESHOLD_M / static_cast<double>(config_.density_map_resolution);
+  const double inlier_threshold_px = static_cast<double>(config_.ransac_inlier_threshold_m) /
+                                     static_cast<double>(config_.density_map_resolution);
   auto [pose2d, point_inliers] = ransacAlignment2D(keypoint_pairs, inlier_threshold_px);
   if (point_inliers < 2) {
     return closure;

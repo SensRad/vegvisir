@@ -175,9 +175,7 @@ void Vegvisir::processLoopClosures(int query_id,
     // Refine closure pose with ICP
     auto [converged, refined_pose] =
         performICPRefinement(query_points_icp, reference_points, closure.pose);
-    // if (!converged) {
-    //   continue;
-    // }
+
     //  Validate refined pose using overlap computation
     const bool is_valid = validateClosurePose(query_points_icp, reference_points, refined_pose);
     if (!is_valid) {
@@ -355,50 +353,28 @@ const std::vector<Eigen::Vector3d>& Vegvisir::getLocalMapPoints(int map_id) cons
 }
 
 std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimizationAndUpdateKeyposes() {
-  // First run PGO to get optimized poses
-  std::vector<Eigen::Matrix4d> optimized_poses = fineGrainedOptimization();
+  auto pgo_result = runFineGrainedPGO(local_map_graph_, closures_, gnss_state_, config_);
 
-  if (optimized_poses.empty()) {
-    return optimized_poses;
+  if (pgo_result.optimized_poses.empty()) {
+    return pgo_result.optimized_poses;
   }
 
-  // Update keyposes to match optimized trajectory
-  // PGO vertex layout: for each node, traj.size() poses starting at
-  // keypose * traj[0]. Recover keypose as optimized_poses[first] * traj[0]^-1.
-  int pose_idx = 0;
+  gnss_state_.optimized_pose_enu_map = pgo_result.alignment_transform;
 
-  for (auto it = local_map_graph_.cbegin(); it != local_map_graph_.cend(); ++it) {
-    const int node_id = static_cast<int>(it->first);
-    const auto& node = it->second;
-    const auto& traj = node.localTrajectory();
-
-    if (pose_idx >= static_cast<int>(optimized_poses.size())) {
-      break;
-    }
-
-    const Eigen::Matrix4d new_keypose =
-        traj.empty() ? optimized_poses[pose_idx] : optimized_poses[pose_idx] * traj[0].inverse();
-    pose_idx += static_cast<int>(traj.size());
-
-    // Update LocalMapGraph keypose
+  for (const auto& [node_id, new_keypose] : pgo_result.optimized_keyposes) {
     local_map_graph_.updateKeypose(node_id, new_keypose);
-
-    // Update MapClosures reference pose
     if (map_closer_) {
       map_closer_->setReferencePose(node_id, new_keypose);
     }
-
-    // Point clouds in pcd_ and local_map_points_ are in keypose-local
-    // frame. Do NOT re-transform them: the updated keypose automatically
-    // gives the corrected world position via keypose * p_local.
   }
 
-  return optimized_poses;
+  return pgo_result.optimized_poses;
 }
 
 std::vector<Eigen::Matrix4d> Vegvisir::fineGrainedOptimization() {
   auto pgo_result = runFineGrainedPGO(local_map_graph_, closures_, gnss_state_, config_);
-  return std::move(pgo_result.optimized_poses);
+  gnss_state_.optimized_pose_enu_map = pgo_result.alignment_transform;
+  return pgo_result.optimized_poses;
 }
 
 }  // namespace vegvisir

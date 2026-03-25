@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -15,11 +16,12 @@ namespace vegvisir {
 
 struct FineGrainedPGOResult {
   std::vector<Eigen::Matrix4d> optimized_poses;
+  std::unordered_map<int, Eigen::Matrix4d> optimized_keyposes;
   Eigen::Matrix4d alignment_transform = Eigen::Matrix4d::Identity();
 };
 
 FineGrainedPGOResult runFineGrainedPGO(const LocalMapGraph& local_map_graph,
                                        const std::vector<map_closures::ClosureCandidate>& closures,
-                                       GnssState& gnss_state, const VegvisirConfig& config);
+                                       const GnssState& gnss_state, const VegvisirConfig& config);
 
 }  // namespace vegvisir
