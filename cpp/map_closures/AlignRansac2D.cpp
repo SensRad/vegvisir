@@ -109,7 +109,7 @@ std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
     return kabschUmeyamaAlignment2D(subset);
   };
 
-  int max_iterations = RANSAC_MAX_TRIALS;
+  int max_iterations = RANSAC_TRIALS;
   for (int iter = 0; iter < max_iterations; ++iter) {
     std::sample(keypoint_pairs.begin(), keypoint_pairs.end(), sample_keypoint_pairs.begin(), 2,
                 rng);
@@ -131,7 +131,7 @@ std::pair<Eigen::Isometry2d, std::size_t> ransacAlignment2D(
     }
     max_iterations = std::min(
         max_iterations,
-        std::max(RANSAC_MIN_TRIALS,
+        std::max(RANSAC_TRIALS,
                  static_cast<int>(std::ceil(std::log(1.0 - RANSAC_PROBABILITY_SUCCESS) / denom))));
   }
 
