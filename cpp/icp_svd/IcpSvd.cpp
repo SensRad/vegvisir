@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 //
 // SVD-based point-to-point ICP for loop closure refinement.
 // Uses correspondence trimming, MSE monitoring with early stop, and

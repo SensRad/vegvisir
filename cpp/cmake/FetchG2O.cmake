@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 #
 # This module fetches g2o and its dependency SuiteSparse if not found on the
 # system. After including this file, the following targets are available: -

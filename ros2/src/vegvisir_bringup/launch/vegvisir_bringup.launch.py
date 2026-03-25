@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 """Top-level launch: vegvisir + optional KISS-ICP odometry + optional RViz.
 
 If odometry_topic is not provided, KISS-ICP is launched as the default odometry

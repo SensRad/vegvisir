@@ -17,13 +17,13 @@ import numpy as np
 from vegvisir import Vegvisir, VegvisirConfig, Mode
 
 config = VegvisirConfig(voxel_size=0.8, splitting_distance_slam=50.0)
-v = Vegvisir("path/to/map_database", Mode.SLAM, config)
+vegvisir = Vegvisir("path/to/map_database", Mode.SLAM, config)
 
 # Feed point clouds (Nx3) and SE3 poses
-v.update(points, pose)
+vegvisir.update(points, pose)
 
 # Save the map
-v.save_database()
+vegvisir.save_database()
 ```
 
 ## Modules

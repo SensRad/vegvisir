@@ -1,16 +1,17 @@
-# THIRD_PARTY_NOTICES
+# THIRD PARTY NOTICES
 
-This project uses and/or distributes third-party open source software. This file documents third-party components that are included in the repository (vendored/copied) and notable external dependencies. For components distributed with full license text in the repo, see the files noted under Where included.
-
-## Included / Vendored Components
-### KISS-SLAM
-
-License: MIT License
-
+## KISS-SLAM
+License: MIT
+Copyright (c) 2025 Tiziano Guadagnino, Benedikt Mersch, Saurabh Gupta, Cyrill Stachniss
 Upstream: https://github.com/PRBonn/kiss-slam
+Version: 0.0.2
 
-Version (as vendored here): 0.0.2
+## MAP-CLOSURES
+License: MIT
+Copyright (c) 2024 Saurabh Gupta, Tiziano Guadagnino, Benedikt Mersch, Ignacio Vizzo, Cyrill Stachniss
+Upstream: https://github.com/PRBonn/MapClosures
 
-### MAP-CLOSURES
-
-### KISS-ICP
+## KISS-ICP (ROS2 dependency)
+License: MIT
+Copyright (c) 2022 Ignacio Vizzo, Tiziano Guadagnino, Benedikt Mersch, Cyrill Stachniss
+Upstream: https://github.com/PRBonn/kiss-icp

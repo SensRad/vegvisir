@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "VegvisirPGO.hpp"
 
@@ -8,7 +8,6 @@
 
 namespace vegvisir {
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 FineGrainedPGOResult runFineGrainedPGO(const LocalMapGraph& local_map_graph,
                                        const std::vector<map_closures::ClosureCandidate>& closures,
                                        const GnssState& gnss_state, const VegvisirConfig& config) {

@@ -1,4 +1,5 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
+
 cmake_minimum_required(VERSION 3.16)
 project(vegvisir_pybind LANGUAGES CXX)
 

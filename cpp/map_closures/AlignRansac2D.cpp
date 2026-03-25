@@ -1,4 +1,9 @@
 // Copyright (c) Sensrad 2025-2026
+// Copyright (c) 2024 Saurabh Gupta, Tiziano Guadagnino, Benedikt Mersch,
+// Ignacio Vizzo, Cyrill Stachniss.
+// SPDX-License-Identifier: MIT
+
+// Copyright (c) Sensrad 2025-2026
 //
 // MIT License
 //

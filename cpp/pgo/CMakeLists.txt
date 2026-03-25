@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 
 add_library(pgo STATIC pose_graph_optimizer.cpp)
 target_include_directories(pgo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)

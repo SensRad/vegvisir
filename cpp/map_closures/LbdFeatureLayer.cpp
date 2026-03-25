@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "LbdFeatureLayer.hpp"
 
@@ -98,7 +98,8 @@ std::vector<Correspondence> LbdFeatureLayer::matchAgainstAll(int query_id,
       const auto& q_line = query_lines[m.queryIdx];
       const auto& r_line = ref_lines[m.trainIdx];
 
-      // Convert OpenCV (col, row) midpoints to PointPair world convention (row, col)
+      // Convert OpenCV (col, row) midpoints to PointPair world convention (row,
+      // col)
       const Eigen::Vector2d q_mid((q_line.startPointY + q_line.endPointY) / 2.0,   // row
                                   (q_line.startPointX + q_line.endPointX) / 2.0);  // col
       const Eigen::Vector2d r_mid((r_line.startPointY + r_line.endPointY) / 2.0,   // row

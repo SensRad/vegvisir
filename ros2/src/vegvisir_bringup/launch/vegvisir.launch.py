@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 """Reusable launch fragment: vegvisir node only."""
 
 import os

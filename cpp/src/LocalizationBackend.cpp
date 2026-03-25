@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "LocalizationBackend.hpp"
 
@@ -23,7 +23,8 @@ void LocalizationBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_ba
   // current_pose_ is anchor <- base
   currentPose() = pose_odom_anchor_.inverse() * pose_odom_base;
 
-  // Lock: pose_filter_ and tf_map_odom_ are written by background closure thread
+  // Lock: pose_filter_ and tf_map_odom_ are written by background closure
+  // thread
   const std::lock_guard<std::mutex> lock(closureMutex());
   poseFilter().predict(delta_pose);
   tfMapOdom() = poseFilter().state().matrix();
