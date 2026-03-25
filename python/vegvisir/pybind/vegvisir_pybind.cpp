@@ -452,5 +452,5 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
   // ---- Constants ----
   m.attr("LOCAL_MAPS_TO_SKIP") = map_closures::LOCAL_MAPS_TO_SKIP;
   m.attr("MIN_NUMBER_OF_MATCHES") = map_closures::MIN_NUMBER_OF_MATCHES;
-  m.attr("RANSAC_INLIER_THRESHOLD_M") = map_closures::RANSAC_INLIER_THRESHOLD_M;
+  m.attr("RANSAC_TRIALS") = map_closures::RANSAC_TRIALS;
 }

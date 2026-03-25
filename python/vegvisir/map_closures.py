@@ -10,7 +10,7 @@ type ClosureCandidate = vegvisir_pybind.ClosureCandidate
 
 LOCAL_MAPS_TO_SKIP: int = vegvisir_pybind.LOCAL_MAPS_TO_SKIP
 MIN_NUMBER_OF_MATCHES: int = vegvisir_pybind.MIN_NUMBER_OF_MATCHES
-RANSAC_INLIER_THRESHOLD_M: float = vegvisir_pybind.RANSAC_INLIER_THRESHOLD_M
+RANSAC_TRIALS: int = vegvisir_pybind.RANSAC_TRIALS
 
 
 @dataclass
