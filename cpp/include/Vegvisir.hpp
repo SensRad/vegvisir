@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #pragma once
 
@@ -45,8 +45,8 @@ class Vegvisir {
 
   void update(const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& absolute_pose);
 
-  // Save database (SLAM mode only) - saves keyposes.tum, points.ply, closures, and
-  // metadata
+  // Save database (SLAM mode only) - saves keyposes.tum, points.ply, closures,
+  // and metadata
   bool saveDatabase();
 
   // Get/set map metadata

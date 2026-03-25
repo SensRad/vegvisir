@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "VegvisirIO.hpp"
 
@@ -302,10 +302,12 @@ DatabaseLoadResult loadDatabase(
   return result;
 }
 
-// Load PLY-format local map points (binary little-endian, x/y/z double + map_id int32)
+// Load PLY-format local map points (binary little-endian, x/y/z double + map_id
+// int32)
 static bool loadLocalMapPointsPly(std::ifstream& file,
                                   std::unordered_map<int, std::vector<Eigen::Vector3d>>& out) {
-  // Parse header (we already consumed the "ply\n" line via magic check — re-read from start)
+  // Parse header (we already consumed the "ply\n" line via magic check —
+  // re-read from start)
   file.seekg(0);
 
   std::string line;

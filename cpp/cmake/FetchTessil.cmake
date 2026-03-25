@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 #
 # This module fetches the tessil robin-map header-only library. After including
 # this file, the following target is available: - tsl::robin_map

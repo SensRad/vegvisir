@@ -10,31 +10,33 @@ cmake ..
 make -j$(nproc)
 ```
 
-### System dependencies
+### System Dependencies
 
 - **Eigen3**
 - **OpenCV** (SIFT/LBD features in map_closures)
+- **TBB** (parallelism)
+- **SuiteSparse** (CHOLMOD solver for g2o)
 
-### Fetched automatically (via CMake FetchContent)
+### Fetched Automatically (via CMake FetchContent)
 
-- **g2o** + SuiteSparse/CHOLMOD -- pose graph optimization
+- **g2o** + CHOLMOD -- pose graph optimization
 - **Sophus** -- SE3 Lie group
 - **tsl::robin_map** -- fast hash map for voxel indexing
 
-## Library structure
+## Library Structure
 
-All libraries are compiled as **C++20** (`CMAKE_CXX_STANDARD 20` set at the top level).
+All libraries are compiled as **C++20** (`CMAKE_CXX_STANDARD 20`).
 
 ```
 vegvisir          Core engine, backends, I/O
   voxel_map       Spatial index (voxel grid)
   icp_svd         Point-to-point ICP (SVD)
-  map_closures    Loop closure detection (SIFT, LBD)
+  map_closures    Loop closure detection (SIFT, LBD, RANSAC 2D)
   pgo             Pose graph optimization (g2o)
   kalman_filter   SE3 Kalman filter
 ```
 
-### Dependency graph
+### Dependency Graph
 
 ```
 vegvisir
@@ -45,20 +47,6 @@ vegvisir
 ├── kalman_filter    -> Sophus, Eigen3
 ├── Sophus
 └── Eigen3
-```
-
-## Source layout
-
-```
-cpp/
-├── include/           Public headers (Vegvisir, backends, config, I/O)
-├── src/               Core library implementation
-├── voxel_map/         Voxel grid with tsl::robin_map
-├── icp_svd/           SVD-based point-to-point ICP
-├── map_closures/      Loop closure: density maps, SIFT/LBD features, RANSAC 2D
-├── pgo/               g2o pose graph optimizer wrapper
-├── kalman_filter/     SE3 pose Kalman filter
-└── cmake/             FetchContent scripts for g2o, Sophus, tsl::robin_map
 ```
 
 ## Backends

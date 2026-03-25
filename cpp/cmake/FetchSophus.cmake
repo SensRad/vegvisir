@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 #
 # This module fetches the Sophus library (needed by kiss_icp_core). After
 # including this file, the following target is available: - Sophus::Sophus

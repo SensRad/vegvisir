@@ -1,11 +1,11 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #pragma once
 
 #include <unordered_map>
 #include <vector>
 
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 #include "GnssState.hpp"
 #include "LocalMapGraph.hpp"

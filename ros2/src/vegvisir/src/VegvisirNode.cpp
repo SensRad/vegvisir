@@ -1,5 +1,5 @@
 
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "VegvisirNode.hpp"
 

@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 """Reusable launch fragment: vegvisir node only."""
 
 import os
@@ -13,7 +13,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     bringup_dir = get_package_share_directory("vegvisir_bringup")
     default_params = os.path.join(bringup_dir, "config", "vegvisir_params.yaml")
-    default_map_path = os.path.join("sensrad_maps", "my_map")
+    default_map_path = os.path.join("vegvisir_maps", "my_map")
 
     map_path_arg = DeclareLaunchArgument(
         "map_path",
@@ -22,12 +22,12 @@ def generate_launch_description():
     )
     slam_mode_arg = DeclareLaunchArgument(
         "slam_mode",
-        default_value="false",
+        default_value="true",
         description="Enable SLAM mode (true) or localization mode (false)",
     )
     namespace_arg = DeclareLaunchArgument(
         "namespace",
-        default_value="sensrad/radar_1/oden",
+        default_value="",
         description="ROS2 namespace for vegvisir topics",
     )
     log_level_arg = DeclareLaunchArgument(

@@ -1,10 +1,10 @@
 # Vegvisir ROS2 Wrapper
 
-The Vegvisir ROS2 wrapper provides launch files and nodes for running Vegvisir with ROS2. It supports both LiDAR (with integrated KISS-ICP odometry) and RADAR (with an external odometry source).
+ROS2 nodes and launch files for running Vegvisir with LiDAR (integrated KISS-ICP odometry) or RADAR (external odometry source).
 
-## How to Build
+## Building
 
-```sh
+```bash
 git clone https://github.com/SensRad/vegvisir.git
 cd vegvisir/ros2
 vcs import src < vegvisir.repos
@@ -12,34 +12,72 @@ colcon build
 source install/setup.bash
 ```
 
-> **Note:** The `vcs` command comes from vcstool. Install it with `sudo apt install python3-vcstool` or `pip install vcstool`.
+> **Note:** Install vcstool if needed: `sudo apt install python3-vcstool` or `pip install vcstool`.
 
-## How to Run
+## Running
 
-The ROS2 environment can be configured in a few different ways, depending on your sensor modality and odometry estimate.
+All examples use `vegvisir_bringup`, which handles KISS-ICP, Vegvisir, and RViz in a single launch.
 
-To use KISS-ICP as the odometry estimate, launch via:
-```sh
-ros2 launch vegvisir_bringup vegvisir_kiss_icp.launch.py pointcloud_topic:=<your_PointCloud2_topic>
+**SLAM with KISS-ICP odometry** (no external odometry needed):
+```bash
+ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
+  pointcloud_topic:=<your_topic> slam_mode:=true
 ```
 
-To run Vegvisir with a custom nav_msgs/Odometry message, launch via:
-```sh
-ros2 launch vegvisir_bringup vegvisir_external_odom.launch.py pointcloud_topic:=<your_PointCloud2_topic> odometry_topic:=<your_Odometry_topic>
+**SLAM with external odometry**:
+```bash
+ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
+  pointcloud_topic:=<your_topic> odometry_topic:=<your_odom_topic> slam_mode:=true
 ```
 
-To run Vegvisir in Localization mode, launch via:
-```sh
-ros2 launch vegvisir_bringup vegvisir_kiss_icp.launch.py pointcloud_topic:=<your_PointCloud2_topic> slam_mode:=false map_path:=<path_to_vegvisir_map>
+**Localization** against a prebuilt map:
+```bash
+ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
+  pointcloud_topic:=<your_topic> slam_mode:=false map_path:=<path_to_map>
 ```
 
-> **Note:** Localization mode requires a pre-built map. A map can be obtained by running Vegvisir in SLAM mode in the same location.
+> **Note:** Localization requires a prebuilt map from a prior SLAM run.
 
-## Configurable Arguments
+**Vegvisir node only** (no KISS-ICP or RViz):
+```bash
+ros2 launch vegvisir vegvisir.launch.py \
+  pointcloud_topic:=<your_topic> slam_mode:=true
+```
 
-| Argument | Description |
-|---|---|
-| `pointcloud_topic` | Topic with a sensor_msgs/PointCloud2 ROS2 message for Vegvisir to process |
-| `odometry_topic` | Topic with an nav_msgs/Odometry ROS2 message for Vegvisir to process |
-| `slam_mode` | `true` for SLAM, `false` for Localization (default: `true`) |
-| `map_path` | Path to save map in SLAM, and path to load pre-built map in Localization |
+## Launch Arguments
+
+### vegvisir_bringup
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `pointcloud_topic` | *(required)* | Input `sensor_msgs/PointCloud2` topic |
+| `odometry_topic` | `""` | Input `nav_msgs/Odometry` topic; if empty, KISS-ICP is launched |
+| `slam_mode` | `true` | `true` for SLAM, `false` for localization |
+| `map_path` | `vegvisir_maps/my_map` | Map directory (save in SLAM, load in localization) |
+| `namespace` | `""` | ROS2 namespace for all nodes |
+| `visualize` | `true` | Launch RViz |
+| `rviz_config` | built-in default | Path to custom RViz config |
+| `use_sim_time` | `false` | Use simulation clock |
+| `log_level` | `WARN` | ROS2 logging level |
+
+### vegvisir (node only)
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `pointcloud_topic` | *(required)* | Input `sensor_msgs/PointCloud2` topic |
+| `slam_mode` | `true` | `true` for SLAM, `false` for localization |
+| `map_path` | `vegvisir_maps/my_map` | Map directory |
+| `log_level` | `WARN` | ROS2 logging level |
+
+## Tuning Parameters
+
+Runtime parameters are configured in `src/vegvisir_bringup/config/vegvisir_params.yaml` and loaded automatically by the bringup launch. Key parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `mapping.voxel_size` | `0.8` | Voxel grid resolution (meters) |
+| `mapping.splitting_distance_slam` | `50.0` | Keyframe spacing in SLAM (meters) |
+| `mapping.splitting_distance_localization` | `5.0` | Query spacing in localization (meters) |
+| `closure.overlap_threshold` | `0.20` | Minimum overlap for valid loop closures |
+| `closure.inliers_threshold` | `25` | Minimum inliers for closure acceptance |
+| `optimization.pgo_max_iterations` | `10` | Pose graph optimization iterations |

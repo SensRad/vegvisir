@@ -1,4 +1,4 @@
-# Copyright (c) Sensrad 2025-2026
+# Copyright (c) Sensrad 2026
 """Reusable launch fragment: KISS-ICP odometry + EgoMotion adapter."""
 
 import os
@@ -16,7 +16,7 @@ def generate_launch_description():
 
     namespace_arg = DeclareLaunchArgument(
         "namespace",
-        default_value="sensrad/radar_1/oden",
+        default_value="",
         description="ROS2 namespace for all nodes",
     )
     pointcloud_topic_arg = DeclareLaunchArgument(

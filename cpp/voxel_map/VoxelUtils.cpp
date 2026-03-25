@@ -1,4 +1,7 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
+// Copyright (c) 2024 Ignacio Vizzo, Tiziano Guadagnino, Benedikt Mersch, Cyrill
+// Stachniss.
+// SPDX-License-Identifier: MIT
 
 #include "voxel_map/VoxelUtils.hpp"
 

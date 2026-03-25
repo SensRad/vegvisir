@@ -3,6 +3,7 @@
     ros__parameters:
       map_database_path: "vegvisir_maps/my_map"
       slam_mode: true
+
       pointcloud_qos_reliability: "best_effort"
       mapping:
         voxel_size: 0.8

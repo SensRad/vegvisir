@@ -1,4 +1,4 @@
-// Copyright (c) Sensrad 2025-2026
+// Copyright (c) Sensrad 2026
 
 #include "LocalMapGraph.hpp"
 
@@ -8,9 +8,7 @@
 
 namespace vegvisir {
 
-// ============================================================================
 // LocalMap Implementation
-// ============================================================================
 
 LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose) : id_(id), keypose_(std::move(keypose)) {
   // Initialize with empty trajectory
@@ -55,9 +53,7 @@ bool LocalMap::write(const std::string& filename) const {
   return file.good();
 }
 
-// ============================================================================
 // LocalMapGraph Implementation
-// ============================================================================
 
 LocalMapGraph::LocalMapGraph(int initial_map_id) {
   // Create the initial local map with identity keypose
