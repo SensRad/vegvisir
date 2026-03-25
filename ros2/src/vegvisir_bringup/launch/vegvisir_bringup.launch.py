@@ -84,17 +84,17 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "map_path",
-                default_value=os.path.join("sensrad_maps", "my_map"),
+                default_value=os.path.join("vegvisir_maps", "my_map"),
                 description="Path to the map directory",
             ),
             DeclareLaunchArgument(
                 "slam_mode",
-                default_value="false",
+                default_value="true",
                 description="Enable SLAM mode",
             ),
             DeclareLaunchArgument(
                 "namespace",
-                default_value="sensrad/radar_1/oden",
+                default_value="",
                 description="ROS2 namespace",
             ),
             DeclareLaunchArgument(

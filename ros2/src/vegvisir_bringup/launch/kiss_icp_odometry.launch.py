@@ -16,7 +16,7 @@ def generate_launch_description():
 
     namespace_arg = DeclareLaunchArgument(
         "namespace",
-        default_value="sensrad/radar_1/oden",
+        default_value="",
         description="ROS2 namespace for all nodes",
     )
     pointcloud_topic_arg = DeclareLaunchArgument(
