@@ -22,8 +22,8 @@ Vegvisir is a SLAM and Localization system for 3D LiDARs and 4D Imaging RADARs.
 
 Vegvisir operates in two modes via a pluggable backend architecture:
 
-- **SLAM** -- incremental map building with pose graph optimization and loop closure detection
-- **Localization** -- querying against prebuilt maps with Kalman filter pose refinement
+- **SLAM** - incremental map building with pose graph optimization and loop closure detection
+- **Localization** - querying against prebuilt maps with Kalman filter pose refinement
 
 The C++ core provides [Python bindings](python/README.md) via pybind11 and a [ROS2 node](ros2/README.md) interface.
 
@@ -31,8 +31,8 @@ The C++ core provides [Python bindings](python/README.md) via pybind11 and a [RO
 
 Vegvisir requires an external odometry estimate. The level of integration depends on your sensor modality:
 
-- **LiDAR** -- The [ROS2 wrapper](ros2/README.md) integrates [KISS-ICP](https://github.com/PRBonn/kiss-icp) as a built-in odometry source.
-- **RADAR** -- An external odometry source must be provided. [Sensrad](https://www.sensrad.com) offers the [Oden](https://www.sensrad.com/oden-drive) perception software for the [Hugin D1](https://www.sensrad.com/hugin-radar-d1) 4D Imaging Radar.
+- **LiDAR** - The [ROS2 wrapper](ros2/README.md) integrates [KISS-ICP](https://github.com/PRBonn/kiss-icp) as a built-in odometry source.
+- **RADAR** - An external odometry source must be provided. This can be provided by [Sensrad](https://www.sensrad.com) with the [Oden](https://www.sensrad.com/oden-drive) perception software which estimates odometry using the [Hugin D1](https://www.sensrad.com/hugin-radar-d1) 4D Imaging Radar.
 
 For commercial inquiries, contact [Sensrad](https://www.sensrad.com) at sales@sensrad.com.
 

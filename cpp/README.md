@@ -53,8 +53,8 @@ vegvisir
 
 The `Vegvisir` engine delegates mode-specific logic to a `VegvisirBackend`:
 
-- **SlamBackend** -- Incremental map building with pose graph optimization and loop closure.
-- **LocalizationBackend** -- Queries prebuilt maps with Kalman filter pose refinement and a ring buffer of submaps.
+- **SlamBackend** - Incremental map building with pose graph optimization and loop closure.
+- **LocalizationBackend** - Queries prebuilt maps with Kalman filter pose refinement and a ring buffer of submaps.
 
 ## Integration
 
