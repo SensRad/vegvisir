@@ -12,7 +12,7 @@
 
 Vegvisir is a SLAM and Localization system for 3D LiDARs and 4D Imaging RADARs.
 
-![mygif2](https://github.com/user-attachments/assets/52290a3c-fe76-4518-8dbb-c12577cd9965)
+![vegvisir](https://github.com/user-attachments/assets/0fa437d5-5630-499f-a1e9-db49aed2c9df)
 
 </div>
 
