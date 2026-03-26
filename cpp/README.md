@@ -19,9 +19,9 @@ make -j$(nproc)
 
 ### Fetched Automatically (via CMake FetchContent)
 
-- **g2o** + CHOLMOD -- pose graph optimization
-- **Sophus** -- SE3 Lie group
-- **tsl::robin_map** -- fast hash map for voxel indexing
+- **g2o** + CHOLMOD - pose graph optimization
+- **Sophus** - SE3 Lie group
+- **tsl::robin_map** - fast hash map for voxel indexing
 
 ## Library Structure
 
