@@ -1,6 +1,6 @@
 # Vegvisir ROS2 Wrapper
 
-ROS2 nodes and launch files for running Vegvisir with LiDAR (integrated KISS-ICP odometry) or RADAR (external odometry source).
+ROS2 nodes and launch files for running Vegvisir.
 
 ## Building
 
@@ -18,22 +18,22 @@ source install/setup.bash
 
 All examples use `vegvisir_bringup`, which handles KISS-ICP, Vegvisir, and RViz in a single launch.
 
-**SLAM with KISS-ICP odometry** (no external odometry needed):
+**SLAM with KISS-ICP odometry**:
 ```bash
 ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
-  pointcloud_topic:=<your_topic> slam_mode:=true
+  pointcloud_topic:=<your_pointcloud_topic>
 ```
 
 **SLAM with external odometry**:
 ```bash
 ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
-  pointcloud_topic:=<your_topic> odometry_topic:=<your_odom_topic> slam_mode:=true
+  pointcloud_topic:=<your_pointcloud_topic> odometry_topic:=<your_odom_topic>
 ```
 
 **Localization** against a prebuilt map:
 ```bash
 ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
-  pointcloud_topic:=<your_topic> slam_mode:=false map_path:=<path_to_map>
+  pointcloud_topic:=<your_pointcloud_topic> slam_mode:=false map_path:=<path_to_map>
 ```
 
 > **Note:** Localization requires a prebuilt map from a prior SLAM run.
@@ -41,7 +41,7 @@ ros2 launch vegvisir_bringup vegvisir_bringup.launch.py \
 **Vegvisir node only** (no KISS-ICP or RViz):
 ```bash
 ros2 launch vegvisir vegvisir.launch.py \
-  pointcloud_topic:=<your_topic> slam_mode:=true
+  pointcloud_topic:=<your_pointcloud_topic> odometry_topic:=<your_odom_topic>
 ```
 
 ## Launch Arguments

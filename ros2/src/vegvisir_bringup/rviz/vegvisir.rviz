@@ -3,7 +3,9 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Global Options1
+        - /Status1
       Splitter Ratio: 0.5
     Tree Height: 1067
   - Class: rviz_common/Selection
@@ -85,9 +87,9 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 28.545923233032227
+      Max Intensity: 52.54594039916992
       Min Color: 0; 0; 0
-      Min Intensity: -46.22998046875
+      Min Intensity: -38.99529266357422
       Name: Map Cloud
       Position Transformer: XYZ
       Selectable: true
@@ -99,7 +101,7 @@ Visualization Manager:
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /sensrad/radar_1/oden/map_cloud
+        Value: /map_cloud
       Use Fixed Frame: true
       Use rainbow: false
       Value: true
@@ -114,7 +116,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /sensrad/radar_1/oden/uncertainty_volume
+        Value: /uncertainty_volume
       Value: false
     - Alpha: 1
       Buffer Length: 1
@@ -142,7 +144,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /sensrad/radar_1/oden/slam_keyposes
+        Value: /slam_keyposes
       Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz_default_plugins/Odometry
@@ -181,7 +183,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /sensrad/radar_1/oden/kiss/odometry
+        Value: /kiss/odometry
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
@@ -190,17 +192,17 @@ Visualization Manager:
         Min Value: -10
         Value: true
       Axis: Z
-      Channel Name: intensity
+      Channel Name: z
       Class: rviz_default_plugins/PointCloud2
       Color: 102; 102; 102
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
+      Enabled: true
+      Invert Rainbow: true
       Max Color: 255; 255; 255
-      Max Intensity: 4096
+      Max Intensity: 13.92825984954834
       Min Color: 0; 0; 0
-      Min Intensity: 0
+      Min Intensity: -23.49286651611328
       Name: KISS-ICP Local Map
       Position Transformer: XYZ
       Selectable: true
@@ -212,10 +214,10 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /sensrad/radar_1/oden/kiss/local_map
+        Value: /kiss/frame
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -262,25 +264,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 390.9689636230469
+      Distance: 485.53070068359375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -38.42628860473633
+        Y: 23.283437728881836
+        Z: -0.5358545780181885
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.550397515296936
+      Pitch: 1.5697963237762451
       Target Frame: map
       Value: Orbit (rviz_default_plugins)
-      Yaw: 1.6503974199295044
+      Yaw: 1.6103929281234741
     Saved: ~
 Window Geometry:
   Displays:
