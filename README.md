@@ -22,8 +22,8 @@ Vegvisir is a SLAM and Localization system for 3D LiDARs and 4D Imaging RADARs.
 
 Vegvisir operates in two modes via a pluggable backend architecture:
 
-- **SLAM** - incremental map building with pose graph optimization and loop closure detection
-- **Localization** - querying against prebuilt maps with Kalman filter pose refinement
+- **SLAM** - incremental map building with pose graph optimization and loop closure detection.
+- **Localization** - querying against prebuilt maps with Kalman filter pose refinement.
 
 The C++ core provides [Python bindings](python/README.md) via pybind11 and a [ROS2 node](ros2/README.md) interface.
 
