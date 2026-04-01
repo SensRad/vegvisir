@@ -8,7 +8,6 @@ include(FetchContent)
 # lint_cmake: -readability/wonkycase
 FetchContent_Declare(
   tessil
-  GIT_REPOSITORY https://github.com/Tessil/robin-map.git
-  GIT_TAG v1.4.1)
+  URL https://github.com/Tessil/robin-map/archive/refs/tags/v1.4.1.tar.gz)
 # lint_cmake: -readability/wonkycase
 FetchContent_MakeAvailable(tessil)

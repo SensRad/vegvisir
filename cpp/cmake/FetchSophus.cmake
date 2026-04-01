@@ -18,7 +18,6 @@ set(BUILD_SOPHUS_EXAMPLES
 # lint_cmake: -readability/wonkycase
 FetchContent_Declare(
   sophus
-  GIT_REPOSITORY https://github.com/strasdat/Sophus.git
-  GIT_TAG 1.24.6)
+  URL https://github.com/strasdat/Sophus/archive/refs/tags/1.24.6.tar.gz)
 # lint_cmake: -readability/wonkycase
 FetchContent_MakeAvailable(sophus)
