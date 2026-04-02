@@ -1,0 +1,29 @@
+name: C++ API
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  cpp_api:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, ubuntu-22.04, ubuntu-24.04-arm, ubuntu-22.04-arm]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup CMake
+        run: python3 -m pip install "cmake>=3.25,<3.26"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeigen3-dev libtbb-dev libopencv-dev libsuitesparse-dev
+      - name: Configure CMake
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ${{github.workspace}}/cpp
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}

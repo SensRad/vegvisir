@@ -1,0 +1,106 @@
+// Copyright (c) Sensrad 2026
+// Copyright (c) 2024 Saurabh Gupta, Tiziano Guadagnino, Benedikt Mersch,
+// Ignacio Vizzo, Cyrill Stachniss.
+// SPDX-License-Identifier: MIT
+
+#include "DensityMap.hpp"
+
+#include <cmath>
+
+#include <algorithm>
+#include <limits>
+#include <utility>
+#include <vector>
+
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
+
+namespace {
+struct ComparePixels {
+  bool operator()(const Eigen::Array2i& lhs, const Eigen::Array2i& rhs) const {
+    return lhs.x() < rhs.x() || (lhs.x() == rhs.x() && lhs.y() < rhs.y());
+  }
+};
+constexpr int MAX_INT = std::numeric_limits<int>::max();
+constexpr int MIN_INT = std::numeric_limits<int>::min();
+}  // namespace
+
+namespace map_closures {
+
+DensityMap::DensityMap(const int num_rows, const int num_cols, const double resolution,
+                       Eigen::Vector2i lower_bound)
+    : lower_bound(std::move(lower_bound)),
+      resolution(resolution),
+      grid(num_rows, num_cols, CV_8UC1, 0.0) {}
+
+DensityMap generateDensityMap(const std::vector<Eigen::Vector3d>& pcd,
+                              const Eigen::Matrix4d& ground_transform,
+                              const float density_map_resolution, const float density_threshold) {
+  double max_points = std::numeric_limits<double>::min();
+  double min_points = std::numeric_limits<double>::max();
+  Eigen::Array2i lower_bound_coordinates = Eigen::Array2i::Constant(MAX_INT);
+  Eigen::Array2i upper_bound_coordinates = Eigen::Array2i::Constant(MIN_INT);
+
+  auto discretize_2d = [&](const Eigen::Vector3d& p) -> Eigen::Array2i {
+    return ((ground_transform.block<3, 3>(0, 0) * p + ground_transform.block<3, 1>(0, 3))
+                .head<2>() /
+            density_map_resolution)
+        .array()
+        .floor()
+        .cast<int>();
+  };
+  std::vector<Eigen::Array2i> pixels(pcd.size());
+  std::transform(pcd.cbegin(), pcd.cend(), pixels.begin(), [&](const Eigen::Vector3d& point) {
+    const auto& pixel = discretize_2d(point);
+    lower_bound_coordinates = lower_bound_coordinates.min(pixel);
+    upper_bound_coordinates = upper_bound_coordinates.max(pixel);
+    return pixel;
+  });
+  const auto rows_and_columns = upper_bound_coordinates - lower_bound_coordinates;
+  const auto n_rows = rows_and_columns.x() + 1;
+  const auto n_cols = rows_and_columns.y() + 1;
+
+  cv::Mat counting_grid(n_rows, n_cols, CV_64FC1, 0.0);
+  std::for_each(pixels.cbegin(), pixels.cend(), [&](const auto& pixel) {
+    const auto px = pixel - lower_bound_coordinates;
+    counting_grid.at<double>(px.x(), px.y()) += 1;
+    max_points = std::max(max_points, counting_grid.at<double>(px.x(), px.y()));
+    min_points = std::min(min_points, counting_grid.at<double>(px.x(), px.y()));
+  });
+
+  DensityMap density_map(n_rows, n_cols, density_map_resolution, lower_bound_coordinates);
+  counting_grid.forEach<double>(
+      [&](const double count,
+          const int pos[]) {  // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+        auto density = (count - min_points) / (max_points - min_points);
+        density = density > density_threshold ? density : 0.0;
+        density_map(pos[0], pos[1]) = static_cast<uint8_t>(255 * density);
+      });
+
+  return density_map;
+}
+
+void applyGammaCorrection(DensityMap& density_map, const float gamma) {
+  if (density_map.grid.empty() || gamma <= 0.0F || std::abs(gamma - 1.0F) < 1e-6F) {
+    return;
+  }
+
+  // Create lookup table for efficiency (uint8 has only 256 values)
+  std::array<uint8_t, 256> lut{};
+
+  for (int i = 0; i < 256; ++i) {
+    // Normalize to [0, 1]
+    const float normalized = static_cast<float>(i) / 255.0F;
+    // Apply gamma correction
+    const float corrected = std::pow(normalized, gamma);
+    // Scale back to [0, 255]
+    lut[i] = static_cast<uint8_t>(std::round(
+        corrected * 255.0F));  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+  }
+
+  // Apply LUT to every pixel
+  density_map.grid.forEach<uint8_t>([&](uint8_t& pixel, const int * /*pos*/) {
+    pixel = lut[pixel];
+  });  // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+}
+}  // namespace map_closures

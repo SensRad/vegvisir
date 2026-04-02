@@ -1,0 +1,5 @@
+repositories:
+  third_party/kiss-icp:
+    type: git
+    url: https://github.com/PRBonn/kiss-icp.git
+    version: main

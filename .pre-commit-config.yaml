@@ -1,0 +1,67 @@
+# Copyright (c) Sensrad 2026
+
+exclude: |
+  (?x)^(
+    ros2/build/|
+    ros2/install/|
+    ros2/log/|
+    ros2/src/third_party/
+  )
+
+repos:
+  # Standard file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-xml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: check-case-conflict
+      - id: check-symlinks
+
+  # Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.2
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v3.3.6
+    hooks:
+      - id: pylint
+        args: [
+          "--rcfile=python/pyproject.toml",
+          "--max-args=8",
+          "--max-attributes=10",
+          "--max-public-methods=35",
+        ]
+        additional_dependencies: ["numpy"]
+        exclude: "^ros2/"
+
+  # C++ formatting
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v19.1.7
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+
+  # Spelling
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        additional_dependencies: ["tomli"]
+
+  # CMake formatting
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format

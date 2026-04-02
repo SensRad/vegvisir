@@ -1,0 +1,138 @@
+// Copyright (c) Sensrad 2026
+// Copyright (c) 2024 Saurabh Gupta, Tiziano Guadagnino, Benedikt Mersch,
+// Ignacio Vizzo, Cyrill Stachniss.
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include <algorithm>
+#include <iterator>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include <Eigen/Core>
+
+#include "DensityMap.hpp"
+#include "FeatureLayer.hpp"
+
+namespace map_closures {
+
+static constexpr int MIN_NUMBER_OF_MATCHES = 10;
+static constexpr int LOCAL_MAPS_TO_SKIP = 3;
+static constexpr double GROUND_ALIGNMENT_RESOLUTION = 0.5;
+
+struct Config {
+  float density_map_resolution = 0.5F;
+  float density_threshold = 0.05F;
+  float sift_match_ratio = 0.85F;
+
+  // LBD (Line Band Descriptor) parameters
+  float lbd_min_line_length = 15.0F;
+  float lbd_match_ratio = 0.80F;
+  int lbd_num_octaves = 2;
+  int lbd_scale = 2;
+
+  // Gamma correction for density map
+  float density_map_gamma = 0.3F;
+
+  // Inlier weighting: weighted_score = sift_inliers + lbd_weight * lbd_inliers
+  float lbd_weight = 3.0F;
+
+  // RANSAC 2D alignment
+  float ransac_inlier_threshold_m = 1.0F;
+};
+
+struct ClosureCandidate {
+  int source_id = -1;
+  int target_id = -1;
+  Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+  std::size_t number_of_inliers = 0;
+  double weighted_score = 0.0;
+  std::size_t sift_inliers = 0;
+  std::size_t lbd_inliers = 0;
+};
+
+class MapClosures {
+ public:
+  MapClosures() : MapClosures(Config{}) {}
+  explicit MapClosures(const Config& config);
+  ~MapClosures() = default;
+  MapClosures(const MapClosures&) = delete;
+  MapClosures& operator=(const MapClosures&) = delete;
+  MapClosures(MapClosures&&) = default;
+  MapClosures& operator=(MapClosures&&) = default;
+
+  std::vector<ClosureCandidate> getTopKClosures(int query_id,
+                                                const std::vector<Eigen::Vector3d>& local_map,
+                                                int k);
+  std::vector<ClosureCandidate> getClosures(int query_id,
+                                            const std::vector<Eigen::Vector3d>& local_map) {
+    return getTopKClosures(query_id, local_map, -1);
+  }
+
+  // Query-only methods (match against database without adding to it)
+  std::vector<ClosureCandidate> queryTopKClosures(int query_id,
+                                                  const std::vector<Eigen::Vector3d>& local_map,
+                                                  int k);
+  std::vector<ClosureCandidate> queryClosures(int query_id,
+                                              const std::vector<Eigen::Vector3d>& local_map) {
+    return queryTopKClosures(query_id, local_map, -1);
+  }
+
+  const DensityMap& getDensityMapFromId(int map_id) const { return density_maps_.at(map_id); }
+
+  std::vector<int> getAvailableMapIds() const {
+    std::vector<int> ids;
+    ids.reserve(density_maps_.size());
+    std::transform(density_maps_.begin(), density_maps_.end(), std::back_inserter(ids),
+                   [](const auto& pair) { return pair.first; });
+    std::sort(ids.begin(), ids.end());
+    return ids;
+  }
+
+  const Eigen::Matrix4d& getGroundAlignment(int map_id) const {
+    return ground_alignments_.at(map_id);
+  }
+
+  const std::unordered_map<int, Eigen::Matrix4d>& getReferencePoses() const {
+    return reference_poses_;
+  }
+
+  const Eigen::Matrix4d& getReferencePose(int map_id) const { return reference_poses_.at(map_id); }
+
+  void setReferencePose(int map_id, const Eigen::Matrix4d& pose) {
+    reference_poses_[map_id] = pose;
+  }
+
+  const std::vector<Eigen::Vector3d>& getLocalMapPoints(int map_id) const {
+    return local_map_points_.at(map_id);
+  }
+
+  bool hasLocalMapPoints(int map_id) const { return local_map_points_.contains(map_id); }
+
+  // Persistence methods
+  bool save(const std::string& file_path) const;
+  bool load(const std::string& file_path);
+
+  bool loadReferencePoses(const std::string& file_path);
+  bool loadLocalMapPoints(const std::string& file_path);
+
+ protected:
+  static bool compareByWeightedScore(const ClosureCandidate& a, const ClosureCandidate& b);
+  static bool isFarEnough(int ref_id, int query_id);
+
+  void match(int id, const std::vector<Eigen::Vector3d>& local_map,
+             std::vector<Correspondence>& out_correspondences);
+
+  ClosureCandidate validateClosureWithMatches(int reference_id, int query_id,
+                                              const std::vector<Correspondence>& matches) const;
+
+  Config config_;
+  std::vector<std::unique_ptr<FeatureLayer>> feature_layers_;
+  std::unordered_map<int, DensityMap> density_maps_;
+  std::unordered_map<int, Eigen::Matrix4d> ground_alignments_;
+  std::unordered_map<int, Eigen::Matrix4d> reference_poses_;
+  std::unordered_map<int, std::vector<Eigen::Vector3d>> local_map_points_;
+};
+}  // namespace map_closures

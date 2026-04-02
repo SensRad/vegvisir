@@ -1,0 +1,3 @@
+[codespell]
+skip = ros2/build,ros2/install,ros2/log,ros2/src/third_party,*.bin,*.db,*.png,*.jpg,.git
+ignore-words-list = nd,te,ot

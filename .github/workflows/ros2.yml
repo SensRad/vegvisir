@@ -1,0 +1,28 @@
+name: ROS2 nodes
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  ros2_node:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        release: [humble, jazzy]
+    container: osrf/ros:${{ matrix.release }}-desktop
+    steps:
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2.2
+        with:
+          cmake-version: "3.25.x"
+      - uses: actions/checkout@v6
+      - name: Import dependencies
+        working-directory: ros2
+        run: vcs import src < vegvisir.repos
+      - name: Run colcon
+        working-directory: ros2
+        run: source /opt/ros/${{ matrix.release }}/setup.bash && colcon build --event-handlers console_direct+
+        shell: bash

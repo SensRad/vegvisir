@@ -1,0 +1,16 @@
+/**:
+  vegvisir_node:
+    ros__parameters:
+      map_database_path: "vegvisir_maps/my_map"
+      slam_mode: true
+
+      pointcloud_qos_reliability: "best_effort"
+      mapping:
+        voxel_size: 0.8
+        splitting_distance_slam: 50.0
+        splitting_distance_localization: 5.0
+      closure:
+        overlap_threshold: 0.20
+        inliers_threshold: 25
+      optimization:
+        pgo_max_iterations: 10

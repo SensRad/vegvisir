@@ -1,0 +1,23 @@
+/**:
+  kiss_icp_node:
+    ros__parameters:
+      # TF configuration — vegvisir handles map->odom, so disable KISS-ICP TF
+      publish_odom_tf: true
+      lidar_odom_frame: "odom"
+      base_frame: ""
+
+      # Pipeline defaults
+      data:
+        max_range: 120.0
+        min_range: 0.0
+        deskew: false
+      mapping:
+        max_points_per_voxel: 20
+        voxel_size: 0.8
+      adaptive_threshold:
+        initial_threshold: 2.0
+        min_motion_th: 0.1
+      registration:
+        max_num_iterations: 70
+        convergence_criterion: 0.0001
+        max_num_threads: 0
