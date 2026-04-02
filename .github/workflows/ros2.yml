@@ -15,10 +15,10 @@ jobs:
     container: osrf/ros:${{ matrix.release }}-desktop
     steps:
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@v2.2
         with:
           cmake-version: "3.25.x"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Import dependencies
         working-directory: ros2
         run: vcs import src < vegvisir.repos
