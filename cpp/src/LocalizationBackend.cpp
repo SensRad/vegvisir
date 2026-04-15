@@ -138,8 +138,8 @@ void LocalizationBackend::initLocalizationAnchor(const Eigen::Matrix4d& pose_odo
 }
 
 void LocalizationBackend::pruneLocalizationSubmapBuffer() {
-  // Keep only the most recent MAX_LOCALIZATION_SUBMAPS nodes
-  while (static_cast<int>(localMapGraph().size()) > Vegvisir::MAX_LOCALIZATION_SUBMAPS) {
+  // Keep only the most recent submaps (derived from splitting distances)
+  while (static_cast<int>(localMapGraph().size()) > maxLocalizationSubmaps()) {
     const uint64_t oldest_id = localMapGraph().begin()->first;
     const uint64_t newest_id = localMapGraph().lastId();
 

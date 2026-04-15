@@ -30,6 +30,8 @@ Vegvisir::Vegvisir(const std::string& map_database_path, Mode mode, const Vegvis
   std::cout << "    Overlap threshold: " << config_.overlap_threshold << '\n';
   std::cout << "    PGO max iterations: " << config_.pgo_max_iterations << '\n';
   std::cout << "    Inliers threshold: " << config_.inliers_threshold << '\n';
+  std::cout << "    Local map radius: " << localMapRadiusM() << " m (derived)" << '\n';
+  std::cout << "    Max localization submaps: " << maxLocalizationSubmaps() << " (derived)" << '\n';
 
   // Initialize Kalman filter with identity pose (uses default covariances)
   const Sophus::SE3d x0;  // identity
@@ -132,7 +134,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
 
   // Integrate into voxel grid, and prune points too far away
   voxel_grid_.integrateFrame(downsampled_points, current_pose_);
-  voxel_grid_.pruneFarPoints(current_pose_, LOCAL_MAP_RADIUS_M);
+  voxel_grid_.pruneFarPoints(current_pose_, localMapRadiusM());
 
   // Mode-specific trajectory policy
   backend_->updateTrajectory();

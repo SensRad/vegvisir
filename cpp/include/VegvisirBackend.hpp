@@ -69,6 +69,7 @@ class VegvisirBackend {
   map_closures::MapClosures *mapCloser();
   std::unordered_map<int, std::vector<Eigen::Vector3d>>& localMapPoints();
   const VegvisirConfig& config() const;
+  int maxLocalizationSubmaps() const;
   const std::unordered_map<int, Eigen::Matrix4d>& referencePoses() const;
   void processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
                                 std::vector<Eigen::Vector3d> query_points_icp,
