@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 #include <future>
@@ -141,13 +142,16 @@ class Vegvisir {
   // Runtime configuration
   VegvisirConfig config_;
 
-  // Constants accessible by backends
-  static constexpr double LOCAL_MAP_RADIUS_M = 60.0;  // keep this much context
+  // Radius of local voxel map to keep around current pose. Derived from config
+  double localMapRadiusM() const { return 1.2 * config_.splitting_distance_slam; }
 
-  // Ring buffer size (includes the active submap node).
-  // Rough heuristic: ceil(LOCAL_MAP_RADIUS_M /
-  // QUERY_DISTANCE_LOCALIZATION_M) + 2
-  static constexpr int MAX_LOCALIZATION_SUBMAPS = 8;
+  // Maximum number of submaps in the localization ring buffer. Derived from
+  // config
+  int maxLocalizationSubmaps() const {
+    return static_cast<int>(
+               std::ceil(localMapRadiusM() / config_.splitting_distance_localization)) +
+           2;
+  }
 
   static constexpr int QUERY_ID_LOCALIZATION = 100000;  // reuse constant ID in localization
 

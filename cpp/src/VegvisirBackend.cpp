@@ -46,6 +46,10 @@ const VegvisirConfig& VegvisirBackend::config() const {
   return vegvisir_.config_;
 }
 
+int VegvisirBackend::maxLocalizationSubmaps() const {
+  return vegvisir_.maxLocalizationSubmaps();
+}
+
 const std::unordered_map<int, Eigen::Matrix4d>& VegvisirBackend::referencePoses() const {
   return vegvisir_.getReferencePoses();
 }
