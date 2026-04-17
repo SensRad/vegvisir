@@ -62,7 +62,8 @@ void SlamBackend::initialize() {
 }
 
 void SlamBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
-                                     const Sophus::SE3d& /*delta_pose*/) {
+                                     const Sophus::SE3d& /*delta_pose*/,
+                                     uint64_t /*timestamp_ns*/) {
   // Compensate for poses at previous nodes
   Eigen::Matrix4d compensated_pose = pose_odom_base;
   for (const auto& pose : pose_at_nodes_) {
@@ -85,9 +86,9 @@ double SlamBackend::queryDistanceM() const {
   return config().splitting_distance_slam;
 }
 
-void SlamBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base) {
+void SlamBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) {
   // In SLAM mode, generate a new node after each query (and handle closures)
-  generateNewNode(pose_odom_base);
+  generateNewNode(pose_odom_base, timestamp_ns);
 }
 
 std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
@@ -139,7 +140,7 @@ void SlamBackend::optimizeKeyposeGraph() {
   }
 }
 
-void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base) {
+void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) {
   // Generate a new SLAM node and check for loop closures
 
   LocalMap& last_local_map = localMapGraph().lastLocalMap();
@@ -182,8 +183,8 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base) {
     // Store local map points for ICP refinement
     localMapPoints()[query_id] = query_points_icp;
 
-    // Finalize the local map and create a new one
-    const uint64_t new_id = localMapGraph().finalizeLocalMap(voxelGrid(), Mode::SLAM);
+    // Finalize the local map and create a new one.
+    const uint64_t new_id = localMapGraph().finalizeLocalMap(voxelGrid(), Mode::SLAM, timestamp_ns);
 
     // Add variable to optimizer for the new keypose + odometry factor
     if (keypose_optimizer_) {

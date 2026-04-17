@@ -43,13 +43,13 @@ class VegvisirBackend {
   virtual void initialize() = 0;
 
   virtual void updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
-                                  const Sophus::SE3d& delta_pose) = 0;
+                                  const Sophus::SE3d& delta_pose, uint64_t timestamp_ns) = 0;
 
   virtual void updateTrajectory() = 0;
 
   [[nodiscard]] virtual double queryDistanceM() const = 0;
 
-  virtual void runQueryCycle(const Eigen::Matrix4d& pose_odom_base) = 0;
+  virtual void runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) = 0;
 
   virtual std::vector<map_closures::ClosureCandidate> retrieveCandidates(
       int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) = 0;

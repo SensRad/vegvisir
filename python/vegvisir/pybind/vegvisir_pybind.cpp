@@ -312,12 +312,13 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def(
             "update",
             [](Vegvisir& self, const std::vector<Eigen::Vector3d>& points,
-               const Eigen::Matrix4d& absolute_pose) {
+               const Eigen::Matrix4d& absolute_pose, uint64_t timestamp_ns) {
               auto abs_se3 = matrix4d_to_se3(absolute_pose);
-              self.update(points, abs_se3);
+              self.update(points, abs_se3, timestamp_ns);
             },
-            "points"_a, "absolute_pose"_a,
-            "Update the localizer with 3D points and absolute pose (4x4)")
+            "points"_a, "absolute_pose"_a, "timestamp_ns"_a = 0,
+            "Update the localizer with 3D points, absolute pose (4x4), and sensor "
+            "acquisition time in ns since epoch (0 if unknown)")
         .def("save_database", &Vegvisir::saveDatabase)
         .def("fine_grained_optimization", &Vegvisir::fineGrainedOptimization)
         .def("fine_grained_optimization_and_update_keyposes",

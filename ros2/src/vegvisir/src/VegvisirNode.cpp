@@ -124,7 +124,9 @@ void VegvisirNode::process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& 
   auto points = pointcloudToEigen(pointcloud_msg);
   auto absolute_pose = odometryToSophus(odometry_msg);
 
-  vegvisir_->update(points, absolute_pose);
+  const auto sensor_time_ns =
+      static_cast<uint64_t>(rclcpp::Time(pointcloud_msg->header.stamp).nanoseconds());
+  vegvisir_->update(points, absolute_pose, sensor_time_ns);
 
   const auto& stamp = pointcloud_msg->header.stamp;
   broadcastMapToOdom(stamp);
@@ -290,7 +292,8 @@ void VegvisirNode::publishKeyposes(const rclcpp::Time& timestamp) {
 
   for (const auto& [id, local_map] : local_map_graph) {
     geometry_msgs::msg::PoseStamped ps;
-    ps.header = path.header;
+    ps.header.frame_id = path.header.frame_id;
+    ps.header.stamp = rclcpp::Time(static_cast<int64_t>(local_map.keyposeTimestampNs()));
     ps.pose = ros_conversions::toPose(Sophus::SE3d(local_map.keypose()));
     path.poses.push_back(ps);
   }

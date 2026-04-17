@@ -44,7 +44,8 @@ class Vegvisir {
   Vegvisir(Vegvisir&&) = delete;
   Vegvisir& operator=(Vegvisir&&) = delete;
 
-  void update(const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& absolute_pose);
+  void update(const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& absolute_pose,
+              uint64_t timestamp_ns);
 
   // Save database (SLAM mode only) - saves keyposes.tum, points.ply, closures,
   // and metadata

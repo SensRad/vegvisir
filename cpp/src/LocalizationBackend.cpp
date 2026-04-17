@@ -16,9 +16,10 @@ void LocalizationBackend::initialize() {
 }
 
 void LocalizationBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
-                                             const Sophus::SE3d& delta_pose) {
+                                             const Sophus::SE3d& delta_pose,
+                                             uint64_t timestamp_ns) {
   // Localization: ring-buffer submaps
-  initLocalizationAnchor(pose_odom_base);
+  initLocalizationAnchor(pose_odom_base, timestamp_ns);
 
   // current_pose_ is anchor <- base
   currentPose() = pose_odom_anchor_.inverse() * pose_odom_base;
@@ -39,7 +40,8 @@ double LocalizationBackend::queryDistanceM() const {
   return config().splitting_distance_localization;
 }
 
-void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base) {
+void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base,
+                                        uint64_t timestamp_ns) {
   // Localization: build query cloud from ring buffer, then query closures
   std::vector<Eigen::Vector3d> query_points_mc;
   std::vector<Eigen::Vector3d> query_points_icp;
@@ -47,7 +49,7 @@ void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base) {
   buildLocalizationQueryCloudInBaseFrame(pose_odom_base, query_points_mc, query_points_icp);
 
   // Cut submap before async closure call (independent, must stay synchronous)
-  cutLocalizationSubmap();
+  cutLocalizationSubmap(timestamp_ns);
 
   // Shared closure processing (async — runs on background thread)
   processLoopClosuresAsync(Vegvisir::QUERY_ID_LOCALIZATION, std::move(query_points_mc),
@@ -115,7 +117,8 @@ void LocalizationBackend::handleClosureMeasurementUpdate(const int source_id,
   tfMapOdom() = filtered_pose.matrix();
 }
 
-void LocalizationBackend::initLocalizationAnchor(const Eigen::Matrix4d& pose_odom_base) {
+void LocalizationBackend::initLocalizationAnchor(const Eigen::Matrix4d& pose_odom_base,
+                                                 uint64_t timestamp_ns) {
   if (localization_anchor_initialized_) {
     return;
   }
@@ -126,7 +129,7 @@ void LocalizationBackend::initLocalizationAnchor(const Eigen::Matrix4d& pose_odo
 
   // Reset/initialize the local_map_graph_ to represent the localization ring
   // buffer. One node (id 0) whose keypose is T_odom_anchor.
-  localMapGraph().clear(0);
+  localMapGraph().clear(0, timestamp_ns);
   localMapGraph().updateKeypose(localMapGraph().lastId(), pose_odom_anchor_);
   localMapGraph().lastLocalMap().clearTrajectory();
 
@@ -151,7 +154,7 @@ void LocalizationBackend::pruneLocalizationSubmapBuffer() {
   }
 }
 
-void LocalizationBackend::cutLocalizationSubmap() {
+void LocalizationBackend::cutLocalizationSubmap(uint64_t timestamp_ns) {
   // Finalize the current active submap and create a new one whose keypose
   // equals endpose()
 
@@ -168,7 +171,8 @@ void LocalizationBackend::cutLocalizationSubmap() {
 
   // Store voxel_grid points into old map and create new map with keypose =
   // endpose()
-  const uint64_t new_id = localMapGraph().finalizeLocalMap(voxelGrid(), Mode::LOCALIZATION);
+  const uint64_t new_id =
+      localMapGraph().finalizeLocalMap(voxelGrid(), Mode::LOCALIZATION, timestamp_ns);
 
   // Clear trajectories to save memory (ring buffer)
   localMapGraph()[old_id].clearTrajectory();

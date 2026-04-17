@@ -19,14 +19,14 @@ class LocalizationBackend final : public VegvisirBackend {
 
   void initialize() override;
 
-  void updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
-                          const Sophus::SE3d& delta_pose) override;
+  void updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base, const Sophus::SE3d& delta_pose,
+                          uint64_t timestamp_ns) override;
 
   void updateTrajectory() override;
 
   [[nodiscard]] double queryDistanceM() const override;
 
-  void runQueryCycle(const Eigen::Matrix4d& pose_odom_base) override;
+  void runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) override;
 
   std::vector<map_closures::ClosureCandidate> retrieveCandidates(
       int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) override;
@@ -37,9 +37,9 @@ class LocalizationBackend final : public VegvisirBackend {
  private:
   void handleClosureMeasurementUpdate(int source_id, const Eigen::Matrix4d& pose,
                                       const Eigen::Matrix4d& query_odom_base);
-  void initLocalizationAnchor(const Eigen::Matrix4d& pose_odom_base);
+  void initLocalizationAnchor(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns);
   void pruneLocalizationSubmapBuffer();
-  void cutLocalizationSubmap();
+  void cutLocalizationSubmap(uint64_t timestamp_ns);
   void buildLocalizationQueryCloudInBaseFrame(const Eigen::Matrix4d& pose_odom_base,
                                               std::vector<Eigen::Vector3d>& query_points_mc,
                                               std::vector<Eigen::Vector3d>& query_points_icp);

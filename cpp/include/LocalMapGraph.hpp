@@ -27,12 +27,13 @@ enum class Mode : std::uint8_t;
  */
 class LocalMap {
  public:
-  LocalMap(uint64_t id, Eigen::Matrix4d keypose);
+  LocalMap(uint64_t id, Eigen::Matrix4d keypose, uint64_t keypose_timestamp_ns);
 
   // Getters
   [[nodiscard]] uint64_t id() const { return id_; }
   [[nodiscard]] const Eigen::Matrix4d& keypose() const { return keypose_; }
   Eigen::Matrix4d& keypose() { return keypose_; }
+  [[nodiscard]] uint64_t keyposeTimestampNs() const { return keypose_timestamp_ns_; }
 
   [[nodiscard]] const std::vector<Eigen::Matrix4d>& localTrajectory() const {
     return local_trajectory_;
@@ -52,13 +53,14 @@ class LocalMap {
  private:
   uint64_t id_;
   Eigen::Matrix4d keypose_;
+  uint64_t keypose_timestamp_ns_;
   std::vector<Eigen::Matrix4d> local_trajectory_;
   std::vector<Eigen::Vector3d> pcd_;
 };
 
 class LocalMapGraph {
  public:
-  explicit LocalMapGraph(int initial_map_id = 0);
+  explicit LocalMapGraph(int initial_map_id = 0, uint64_t initial_keypose_timestamp_ns = 0);
 
   // Iterator types for range-based for loops
   using MapIterator = std::map<uint64_t, LocalMap>::iterator;
@@ -90,8 +92,9 @@ class LocalMapGraph {
   void eraseLocalMap(uint64_t key);
   void eraseLastLocalMap();
 
-  uint64_t finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode);
-  uint64_t finalizeLocalMap();
+  uint64_t finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode,
+                            uint64_t next_keypose_timestamp_ns);
+  uint64_t finalizeLocalMap(uint64_t next_keypose_timestamp_ns);
 
   void setPointCloud(uint64_t key, const std::vector<Eigen::Vector3d>& points);
 
@@ -99,8 +102,8 @@ class LocalMapGraph {
   [[nodiscard]] std::vector<uint64_t> getAllIds() const;
 
   void updateKeypose(uint64_t key, const Eigen::Matrix4d& new_keypose);
-  void addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose);
-  void clear(int initial_map_id = 0);
+  void addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose, uint64_t keypose_timestamp_ns = 0);
+  void clear(int initial_map_id = 0, uint64_t initial_keypose_timestamp_ns = 0);
 
  private:
   std::map<uint64_t, LocalMap> graph_;
