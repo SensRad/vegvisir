@@ -132,7 +132,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
 
   // Integrate into voxel grid, and prune points too far away
   voxel_grid_.integrateFrame(downsampled_points, current_pose_);
-  voxel_grid_.pruneFarPoints(current_pose_, LOCAL_MAP_RADIUS_M);
+  voxel_grid_.pruneFarPoints(current_pose_, localMapRadiusM());
 
   // Mode-specific trajectory policy
   backend_->updateTrajectory();
