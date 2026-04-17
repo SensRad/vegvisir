@@ -4,6 +4,7 @@
 
 #include <Eigen/Dense>
 #include <sophus/se3.hpp>
+#include <unordered_map>
 
 #include "RosConversions.hpp"
 #include "Vegvisir.hpp"
@@ -74,6 +75,9 @@ class VegvisirNode : public rclcpp::Node {
   // Publish reference map point cloud from loaded database (called once at
   // startup)
   bool reference_map_published_ = false;
+
+  // A map between local map ID and timestamp
+  std::unordered_map<uint64_t, rclcpp::Time> id_ts_map_;
 };
 
 }  // namespace vegvisir

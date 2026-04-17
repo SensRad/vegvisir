@@ -289,8 +289,12 @@ void VegvisirNode::publishKeyposes(const rclcpp::Time& timestamp) {
   path.header.frame_id = map_frame_;
 
   for (const auto& [id, local_map] : local_map_graph) {
+    if (id_ts_map_.find(id) == id_ts_map_.end()) {
+      id_ts_map_[id] = timestamp;
+    }
     geometry_msgs::msg::PoseStamped ps;
     ps.header = path.header;
+    ps.header.stamp = id_ts_map_.at(id);
     ps.pose = ros_conversions::toPose(Sophus::SE3d(local_map.keypose()));
     path.poses.push_back(ps);
   }
