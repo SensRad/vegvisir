@@ -10,7 +10,8 @@ namespace vegvisir {
 
 // LocalMap Implementation
 
-LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose) : id_(id), keypose_(std::move(keypose)) {
+LocalMap::LocalMap(uint64_t id, Eigen::Matrix4d keypose, uint64_t keypose_timestamp_ns)
+    : id_(id), keypose_(std::move(keypose)), keypose_timestamp_ns_(keypose_timestamp_ns) {
   // Initialize with empty trajectory
   // The trajectory will be populated as poses are added
 }
@@ -55,9 +56,10 @@ bool LocalMap::write(const std::string& filename) const {
 
 // LocalMapGraph Implementation
 
-LocalMapGraph::LocalMapGraph(int initial_map_id) {
+LocalMapGraph::LocalMapGraph(int initial_map_id, uint64_t initial_keypose_timestamp_ns) {
   // Create the initial local map with identity keypose
-  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity());
+  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity(),
+                       initial_keypose_timestamp_ns);
   // Don't add Identity to trajectory - start with empty trajectory
   graph_.emplace(static_cast<uint64_t>(initial_map_id), std::move(initial_map));
 }
@@ -115,7 +117,8 @@ void LocalMapGraph::eraseLastLocalMap() {
   }
 }
 
-uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode) {
+uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode mode,
+                                         uint64_t next_keypose_timestamp_ns) {
   LocalMap& current_map = lastLocalMap();
 
   if (mode == Mode::LOCALIZATION) {
@@ -132,7 +135,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode m
   const Eigen::Matrix4d new_keypose = current_map.endpose();
 
   // Create the new local map
-  LocalMap new_map(new_id, new_keypose);
+  LocalMap new_map(new_id, new_keypose, next_keypose_timestamp_ns);
 
   // Start with Identity in trajectory
   // This is important for fine-grained optimization which iterates over
@@ -144,7 +147,7 @@ uint64_t LocalMapGraph::finalizeLocalMap(voxel_map::VoxelMap& voxel_grid, Mode m
   return new_id;
 }
 
-uint64_t LocalMapGraph::finalizeLocalMap() {
+uint64_t LocalMapGraph::finalizeLocalMap(uint64_t next_keypose_timestamp_ns) {
   const LocalMap& current_map = lastLocalMap();
 
   // Compute the new keypose (endpose of current map)
@@ -152,7 +155,7 @@ uint64_t LocalMapGraph::finalizeLocalMap() {
   const Eigen::Matrix4d new_keypose = current_map.endpose();
 
   // Create the new local map
-  LocalMap new_map(new_id, new_keypose);
+  LocalMap new_map(new_id, new_keypose, next_keypose_timestamp_ns);
 
   // Start with Identity in trajectory
   new_map.addToTrajectory(Eigen::Matrix4d::Identity());
@@ -188,14 +191,16 @@ void LocalMapGraph::updateKeypose(uint64_t key, const Eigen::Matrix4d& new_keypo
   (*this)[key].keypose() = new_keypose;
 }
 
-void LocalMapGraph::addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose) {
-  LocalMap new_map(id, keypose);
+void LocalMapGraph::addLocalMap(uint64_t id, const Eigen::Matrix4d& keypose,
+                                uint64_t keypose_timestamp_ns) {
+  LocalMap new_map(id, keypose, keypose_timestamp_ns);
   graph_.emplace(id, std::move(new_map));
 }
 
-void LocalMapGraph::clear(int initial_map_id) {
+void LocalMapGraph::clear(int initial_map_id, uint64_t initial_keypose_timestamp_ns) {
   graph_.clear();
-  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity());
+  LocalMap initial_map(static_cast<uint64_t>(initial_map_id), Eigen::Matrix4d::Identity(),
+                       initial_keypose_timestamp_ns);
   graph_.emplace(static_cast<uint64_t>(initial_map_id), std::move(initial_map));
 }
 

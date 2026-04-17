@@ -103,8 +103,8 @@ Vegvisir::~Vegvisir() {
   }
 }
 
-void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
-                      const Sophus::SE3d& absolute_pose) {
+void Vegvisir::update(const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& absolute_pose,
+                      uint64_t timestamp_ns) {
   if (!loop_closure_enabled_) {
     std::cout << "Loop closure disabled" << '\n';
     return;
@@ -125,7 +125,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
   current_odom_base_ = absolute_pose;
 
   // Mode-specific pose estimation: compute current_pose_ + tf_map_odom_
-  backend_->updatePoseEstimate(pose_odom_base, delta_pose);
+  backend_->updatePoseEstimate(pose_odom_base, delta_pose, timestamp_ns);
 
   const std::vector<Eigen::Vector3d> downsampled_points =
       voxel_map::voxelDownsample(points, config_.voxel_size);
@@ -147,7 +147,7 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points,
   distance_since_query_ = 0.0;
 
   // Mode-specific query cycle
-  backend_->runQueryCycle(pose_odom_base);
+  backend_->runQueryCycle(pose_odom_base, timestamp_ns);
 }
 
 void Vegvisir::processLoopClosures(int query_id,

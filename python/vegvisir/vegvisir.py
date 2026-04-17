@@ -117,16 +117,20 @@ class Vegvisir:
         self,
         points: np.ndarray,
         absolute_pose: np.ndarray,
+        timestamp_ns: int = 0,
     ):
         """Feed one scan into the localizer.
 
         Args:
             points: Nx3 array of 3D points [x, y, z].
             absolute_pose: 4x4 odometry pose (T_odom_base).
+            timestamp_ns: Sensor acquisition time in nanoseconds since Unix epoch.
+                Stored on any keypose created during this update. Pass 0 if unknown.
         """
         self._impl.update(
             np.ascontiguousarray(points, dtype=np.float64),
             np.ascontiguousarray(absolute_pose, dtype=np.float64),
+            timestamp_ns,
         )
 
     def save_database(self) -> bool:

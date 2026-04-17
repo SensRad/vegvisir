@@ -19,8 +19,8 @@ from vegvisir import Vegvisir, VegvisirConfig, Mode
 config = VegvisirConfig(voxel_size=0.8, splitting_distance_slam=50.0)
 vegvisir = Vegvisir("path/to/map_database", Mode.SLAM, config)
 
-# Feed point clouds (Nx3) and 4x4 SE3 poses
-vegvisir.update(points, pose)
+# Feed point clouds (Nx3), 4x4 SE3 poses, and sensor time (ns since epoch)
+vegvisir.update(points, pose, timestamp_ns)
 
 # Save the map
 vegvisir.save_database()
