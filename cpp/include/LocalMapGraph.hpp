@@ -34,6 +34,7 @@ class LocalMap {
   [[nodiscard]] const Eigen::Matrix4d& keypose() const { return keypose_; }
   Eigen::Matrix4d& keypose() { return keypose_; }
   [[nodiscard]] uint64_t keyposeTimestampNs() const { return keypose_timestamp_ns_; }
+  void setKeyposeTimestampNs(uint64_t ns) { keypose_timestamp_ns_ = ns; }
 
   [[nodiscard]] const std::vector<Eigen::Matrix4d>& localTrajectory() const {
     return local_trajectory_;

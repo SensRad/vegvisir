@@ -266,7 +266,8 @@ bool MapClosures::load(const std::string& file_path) {
   return true;
 }
 
-bool MapClosures::loadReferencePoses(const std::string& file_path) {
+bool MapClosures::loadReferencePoses(const std::string& file_path,
+                                     const std::vector<int>& keypose_ids) {
   std::ifstream in(file_path);
   if (!in) {
     std::cerr << "loadReferencePoses|ERROR: open " << file_path << "\n";
@@ -274,21 +275,30 @@ bool MapClosures::loadReferencePoses(const std::string& file_path) {
   }
 
   reference_poses_.clear();
+  reference_timestamps_ns_.clear();
 
-  // TUM format: map_id tx ty tz qx qy qz qw
+  // Standard TUM format: timestamp tx ty tz qx qy qz qw. Row k binds to
+  // map_id keypose_ids[k] (carried in metadata.yaml).
   std::string line;
+  size_t row = 0;
   while (std::getline(in, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
 
     std::istringstream ss(line);
-    int map_id = 0;
+    double ts = 0.0;
     double tx = 0.0, ty = 0.0, tz = 0.0;
     double qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0;
 
-    if (!(ss >> map_id >> tx >> ty >> tz >> qx >> qy >> qz >> qw)) {
+    if (!(ss >> ts >> tx >> ty >> tz >> qx >> qy >> qz >> qw)) {
       std::cerr << "loadReferencePoses|ERROR: parse TUM line: " << line << "\n";
+      return false;
+    }
+
+    if (row >= keypose_ids.size()) {
+      std::cerr << "loadReferencePoses|ERROR: more TUM rows than keypose_ids entries ("
+                << keypose_ids.size() << ") in metadata\n";
       return false;
     }
 
@@ -299,7 +309,18 @@ bool MapClosures::loadReferencePoses(const std::string& file_path) {
     pose.block<3, 3>(0, 0) = q.toRotationMatrix();
     pose.block<3, 1>(0, 3) = Eigen::Vector3d(tx, ty, tz);
 
+    const int map_id = keypose_ids[row];
     reference_poses_[map_id] = pose;
+    reference_timestamps_ns_[map_id] = static_cast<uint64_t>(std::llround(ts * 1e9));
+    ++row;
+  }
+
+  if (row != keypose_ids.size()) {
+    std::cerr << "loadReferencePoses|ERROR: keypose_ids length (" << keypose_ids.size()
+              << ") does not match TUM row count (" << row << ")\n";
+    reference_poses_.clear();
+    reference_timestamps_ns_.clear();
+    return false;
   }
 
   std::cout << "Loaded " << reference_poses_.size() << " reference poses from " << file_path

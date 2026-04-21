@@ -6,6 +6,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <unordered_map>
@@ -105,6 +106,10 @@ class MapClosures {
     reference_poses_[map_id] = pose;
   }
 
+  const std::unordered_map<int, uint64_t>& getReferenceTimestampsNs() const {
+    return reference_timestamps_ns_;
+  }
+
   const std::vector<Eigen::Vector3d>& getLocalMapPoints(int map_id) const {
     return local_map_points_.at(map_id);
   }
@@ -115,7 +120,7 @@ class MapClosures {
   bool save(const std::string& file_path) const;
   bool load(const std::string& file_path);
 
-  bool loadReferencePoses(const std::string& file_path);
+  bool loadReferencePoses(const std::string& file_path, const std::vector<int>& keypose_ids);
   bool loadLocalMapPoints(const std::string& file_path);
 
  protected:
@@ -133,6 +138,7 @@ class MapClosures {
   std::unordered_map<int, DensityMap> density_maps_;
   std::unordered_map<int, Eigen::Matrix4d> ground_alignments_;
   std::unordered_map<int, Eigen::Matrix4d> reference_poses_;
+  std::unordered_map<int, uint64_t> reference_timestamps_ns_;
   std::unordered_map<int, std::vector<Eigen::Vector3d>> local_map_points_;
 };
 }  // namespace map_closures

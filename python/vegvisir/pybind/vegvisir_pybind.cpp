@@ -189,7 +189,13 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
              [](MapClosures& self, const int& map_id) { return self.hasLocalMapPoints(map_id); })
         .def("save", &MapClosures::save, "file_path"_a)
         .def("load", &MapClosures::load, "file_path"_a)
-        .def("load_reference_poses", &MapClosures::loadReferencePoses, "file_path"_a)
+        .def(
+            "load_reference_poses",
+            [](MapClosures& self, const std::string& file_path,
+               const std::vector<int>& keypose_ids) {
+              return self.loadReferencePoses(file_path, keypose_ids);
+            },
+            "file_path"_a, "keypose_ids"_a)
         .def("load_local_map_points", &MapClosures::loadLocalMapPoints, "file_path"_a)
         .def("get_sift_keypoints_viz", [](MapClosures& self, int map_id) {
           const auto& dm = self.getDensityMapFromId(map_id);
