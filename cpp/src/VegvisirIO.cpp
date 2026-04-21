@@ -50,6 +50,16 @@ bool saveMetadata(const std::string& map_dir, const MapMetadata& metadata) {
   file << "  points: \"" << metadata.files.points << "\"\n";
   file << "  poses: \"" << metadata.files.poses << "\"\n";
 
+  // Row k of keyposes.tum -> map_id keypose_ids[k]
+  file << "keypose_ids: [";
+  for (size_t i = 0; i < metadata.keypose_ids.size(); ++i) {
+    if (i > 0) {
+      file << ", ";
+    }
+    file << metadata.keypose_ids[i];
+  }
+  file << "]\n";
+
   // Write GNSS anchor transform if available
   if (metadata.has_gnss_anchor) {
     file << "gnss_anchor_transform:\n";
@@ -163,6 +173,25 @@ bool loadMetadata(const std::string& map_dir, MapMetadata& metadata) {
         current_section = Section::NONE;
       } else if (key == "files") {
         current_section = Section::FILES;
+      } else if (key == "keypose_ids") {
+        // Flow-style list: keypose_ids: [0, 1, 3]
+        metadata.keypose_ids.clear();
+        const auto open = value.find('[');
+        const auto close = value.rfind(']');
+        if (open != std::string::npos && close != std::string::npos && close > open) {
+          const std::string inner = value.substr(open + 1, close - open - 1);
+          std::stringstream ss(inner);
+          std::string token;
+          while (std::getline(ss, token, ',')) {
+            const auto begin = token.find_first_not_of(" \t");
+            const auto end = token.find_last_not_of(" \t");
+            if (begin == std::string::npos) {
+              continue;
+            }
+            metadata.keypose_ids.push_back(std::stoi(token.substr(begin, end - begin + 1)));
+          }
+        }
+        current_section = Section::NONE;
       } else if (key == "gnss_anchor_transform") {
         current_section = Section::GNSS_TRANSFORM;
         transform_row = 0;
@@ -260,7 +289,7 @@ DatabaseLoadResult loadDatabase(
 
   // Try to load reference poses (only if database was loaded)
   if (database_exists) {
-    if (!map_closer.loadReferencePoses(poses_path.string())) {
+    if (!map_closer.loadReferencePoses(poses_path.string(), metadata.keypose_ids)) {
       if (require_exists) {
         std::cerr << "Warning: Could not load reference poses from " << poses_path << '\n';
         std::cerr << "Localization will work but without global pose correction" << '\n';
@@ -381,7 +410,8 @@ bool loadLocalMapPoints(const std::string& points_path,
   }
 }
 
-bool savePosesTum(const std::string& file_path, const LocalMapGraph& local_map_graph) {
+bool savePosesTum(const std::string& file_path, const LocalMapGraph& local_map_graph,
+                  std::vector<int>& keypose_ids_out) {
   std::ofstream file(file_path);
   if (!file.is_open()) {
     std::cerr << "Could not open file for writing: " << file_path << '\n';
@@ -390,15 +420,21 @@ bool savePosesTum(const std::string& file_path, const LocalMapGraph& local_map_g
 
   file << std::fixed << std::setprecision(12);
 
+  keypose_ids_out.clear();
   auto all_ids = local_map_graph.getAllIds();
+  keypose_ids_out.reserve(all_ids.size());
 
   for (const uint64_t map_id : all_ids) {
-    const Eigen::Matrix4d& pose = local_map_graph[map_id].keypose();
+    const auto& local_map = local_map_graph[map_id];
+    const Eigen::Matrix4d& pose = local_map.keypose();
     const Eigen::Quaterniond q(pose.block<3, 3>(0, 0));
     const Eigen::Vector3d t = pose.block<3, 1>(0, 3);
+    const double ts_sec = static_cast<double>(local_map.keyposeTimestampNs()) * 1e-9;
 
-    // TUM format: timestamp tx ty tz qx qy qz qw (using map_id as timestamp)
-    file << map_id << ' ' << t.x() << ' ' << t.y() << ' ' << t.z() << ' ' << q.x() << ' ' << q.y()
+    keypose_ids_out.push_back(static_cast<int>(map_id));
+
+    // TUM format: timestamp tx ty tz qx qy qz qw
+    file << ts_sec << ' ' << t.x() << ' ' << t.y() << ' ' << t.z() << ' ' << q.x() << ' ' << q.y()
          << ' ' << q.z() << ' ' << q.w() << '\n';
   }
 
@@ -500,8 +536,12 @@ bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
     }
     std::cout << "Saved map closures database to: " << db_path << '\n';
 
+    // Local mutable copy so savePosesTum can populate keypose_ids. Keeps the
+    // public saveDatabase signature (const MapMetadata&) stable for callers.
+    MapMetadata meta_out = metadata;
+
     // Save poses in TUM format
-    if (!savePosesTum(poses_path.string(), local_map_graph)) {
+    if (!savePosesTum(poses_path.string(), local_map_graph, meta_out.keypose_ids)) {
       std::cerr << "Failed to save poses TUM file" << '\n';
       return false;
     }
@@ -513,7 +553,7 @@ bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
     }
 
     // Save metadata
-    if (!saveMetadata(map_dir, metadata)) {
+    if (!saveMetadata(map_dir, meta_out)) {
       std::cerr << "Failed to save metadata file" << '\n';
       return false;
     }
@@ -528,11 +568,17 @@ bool saveDatabase(const std::string& map_dir, const MapMetadata& metadata,
 
 void rebuildLocalMapGraph(
     LocalMapGraph& local_map_graph, const std::unordered_map<int, Eigen::Matrix4d>& reference_poses,
+    const std::unordered_map<int, uint64_t>& reference_timestamps_ns,
     const std::unordered_map<int, std::vector<Eigen::Vector3d>>& local_map_points) {
   if (reference_poses.empty()) {
     std::cout << "No reference poses to rebuild LocalMapGraph from" << '\n';
     return;
   }
+
+  const auto lookup_ts = [&](int map_id) -> uint64_t {
+    auto it = reference_timestamps_ns.find(map_id);
+    return it != reference_timestamps_ns.end() ? it->second : 0;
+  };
 
   // Collect and sort map IDs to ensure ordered insertion
   std::vector<int> sorted_ids;
@@ -544,7 +590,7 @@ void rebuildLocalMapGraph(
 
   // Clear and reinitialize with the first map ID
   const int first_id = sorted_ids.front();
-  local_map_graph.clear(first_id);
+  local_map_graph.clear(first_id, lookup_ts(first_id));
 
   // Set the keypose for the first node
   auto first_pose_it = reference_poses.find(first_id);
@@ -569,8 +615,8 @@ void rebuildLocalMapGraph(
       continue;
     }
 
-    // Add the local map with its keypose
-    local_map_graph.addLocalMap(id, pose_it->second);
+    // Add the local map with its keypose and timestamp
+    local_map_graph.addLocalMap(id, pose_it->second, lookup_ts(map_id));
 
     // Set point cloud if available
     auto points_it = local_map_points.find(map_id);

@@ -101,8 +101,8 @@ class MapClosures:
     def load(self, file_path: str) -> bool:
         return self._pipeline.load(file_path)
 
-    def load_reference_poses(self, file_path: str) -> bool:
-        return self._pipeline.load_reference_poses(file_path)
+    def load_reference_poses(self, file_path: str, keypose_ids: list[int]) -> bool:
+        return self._pipeline.load_reference_poses(file_path, keypose_ids)
 
     def load_local_map_points(self, file_path: str) -> bool:
         return self._pipeline.load_local_map_points(file_path)

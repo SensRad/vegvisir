@@ -181,6 +181,7 @@ class Vegvisir {
   Sophus::SE3d current_odom_base_;  // Current base_link pose in odom frame
 
   bool has_previous_pose_ = false;
+  bool initial_timestamp_set_ = false;
 
   // Mode selection & persistence
   Mode mode_;
