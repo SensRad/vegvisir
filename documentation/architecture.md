@@ -4,7 +4,7 @@ A high-level overview of how Vegvisir is put together.
 
 ## What it is
 
-Vegvisir is a SLAM and localization layer for 3D LiDAR or 4D imaging RADAR.
+Vegvisir is a SLAM and localization algorithm for 3D LiDAR or 4D imaging RADAR.
 It expects an **external odometry estimate** with every frame — the engine
 itself does mapping, loop closure and global localization on top of whatever
 odometry the integrator provides.
@@ -18,8 +18,7 @@ It runs in one of two modes, selected at construction:
 
 ## Inputs and outputs
 
-Per frame, the integrator pushes a point cloud, an external odometry pose,
-and a timestamp. Vegvisir returns a `map → odom` transform with a covariance.
+Per frame, the integrator inputs a point cloud, an external odometry pose, and a timestamp. Vegvisir returns a `map → odom` transform with a covariance matrix.
 A SLAM run additionally writes a saved map directory on shutdown; a
 Localization run reads that directory at startup.
 
@@ -36,21 +35,19 @@ flowchart LR
 ```
 
 Every frame goes through the same scaffold. The backend differs only in what
-it does with closures: SLAM adds a factor and re-optimizes; Localization
-folds it into a Kalman update. The expensive part — closure detection — runs
+it does with closures: SLAM adds a factor and re-optimizes a pose graph; Localization folds it into a Kalman update. The expensive part — closure detection — runs
 on a background thread, so pose output is never blocked by it.
 
 ## Per-frame pipeline
 
 The map is a chain of **keyposes**, each anchoring a **segment** — a local
-point cloud around that keypose. New frames extend the current segment;
-travelled distance triggers the next keypose.
+point cloud around that keypose. New frames extend the current segment and new segments are triggered on travelled distance.
 
 ### Map aggregation
 
 Before the backend sees a frame, the scaffold folds it into the current
 segment. A segment closes once the platform has travelled a configured
-splitting distance, at which point a new keypose is anchored.
+splitting distance, at which point a new keypose is anchored. Each frame within a segment is treated as follows:
 
 1. Voxel-downsample the incoming point cloud.
 2. Integrate the downsampled points into the rolling voxel map.
@@ -92,7 +89,7 @@ The main pipeline is single-threaded; closure detection runs on a background
 thread. New closure queries are dropped if the previous one is still running,
 so an expensive closure never delays a pose output.
 
-## Map lifecycle
+## Map structure
 
 A SLAM run produces a saved map directory; a Localization run consumes it.
 The directory contains:
