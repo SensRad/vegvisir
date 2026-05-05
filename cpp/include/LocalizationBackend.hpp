@@ -47,6 +47,7 @@ class LocalizationBackend final : public VegvisirBackend {
   // Localization-only state
   Eigen::Matrix4d pose_odom_anchor_ = Eigen::Matrix4d::Identity();  // odom <- anchor
   bool localization_anchor_initialized_ = false;
+  uint64_t last_predict_timestamp_ns_ = 0;
 
   static constexpr double DETERMINANT_TOLERANCE = 1e-2;
 };

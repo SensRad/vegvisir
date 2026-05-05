@@ -74,9 +74,19 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   keyposes_qos.reliable();
   keyposes_pub_ = this->create_publisher<nav_msgs::msg::Path>("slam_keyposes", keyposes_qos);
 
+  // Initialize per-segment ground plane publisher
+  ground_plane_size_m_ =
+      this->declare_parameter<double>("visualization.ground_plane_size_m", ground_plane_size_m_);
+  auto ground_planes_qos = rclcpp::QoS(1);
+  ground_planes_qos.transient_local();
+  ground_planes_qos.reliable();
+  ground_planes_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "ground_planes", ground_planes_qos);
+
   // Publish the loaded map point cloud at startup
   publishMapPointCloud(this->now());
   publishKeyposes(this->now());
+  publishGroundPlanes(this->now());
 
   RCLCPP_INFO(get_logger(), "Vegvisir node initialized with synchronized subscribers");
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
@@ -133,6 +143,7 @@ void VegvisirNode::process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& 
   publishUncertaintyMarker(stamp);
   publishMapPointCloud(stamp);
   publishKeyposes(stamp);
+  publishGroundPlanes(stamp);
 }
 
 void VegvisirNode::broadcastMapToOdom(const rclcpp::Time& timestamp) {
@@ -299,6 +310,93 @@ void VegvisirNode::publishKeyposes(const rclcpp::Time& timestamp) {
   }
 
   keyposes_pub_->publish(path);
+}
+
+void VegvisirNode::publishGroundPlanes(const rclcpp::Time& timestamp) {
+  const auto ids = vegvisir_->getAvailableMapIds();
+  const size_t current_closure_count = vegvisir_->getNumClosures();
+
+  if (ids.size() == published_ground_plane_count_ &&
+      current_closure_count == last_ground_closure_count_) {
+    return;
+  }
+
+  // Golden-angle hue cycle so adjacent map_ids get visibly distinct colors.
+  auto color_for_id = [](int map_id) -> std_msgs::msg::ColorRGBA {
+    constexpr float golden_angle_deg = 137.508F;
+    constexpr float saturation = 0.8F;
+    constexpr float value = 0.9F;
+    const float hue = std::fmod(static_cast<float>(map_id) * golden_angle_deg, 360.0F);
+    const float chroma = value * saturation;
+    const float h_prime = hue / 60.0F;
+    const float x = chroma * (1.0F - std::fabs(std::fmod(h_prime, 2.0F) - 1.0F));
+    float r = 0;
+    float g = 0;
+    float b = 0;
+    if (h_prime < 1.0F) {
+      r = chroma;
+      g = x;
+    } else if (h_prime < 2.0F) {
+      r = x;
+      g = chroma;
+    } else if (h_prime < 3.0F) {
+      g = chroma;
+      b = x;
+    } else if (h_prime < 4.0F) {
+      g = x;
+      b = chroma;
+    } else if (h_prime < 5.0F) {
+      r = x;
+      b = chroma;
+    } else {
+      r = chroma;
+      b = x;
+    }
+    const float m = value - chroma;
+    std_msgs::msg::ColorRGBA c;
+    c.r = r + m;
+    c.g = g + m;
+    c.b = b + m;
+    c.a = 0.35F;
+    return c;
+  };
+
+  // local_map_graph_ holds the up-to-date keypose for every segment, including
+  // ones that exist in MapClosures' density_maps_ but haven't yet been mirrored
+  // into reference_poses_ (which only updates after PGO).
+  const auto& local_map_graph = vegvisir_->getLocalMapGraph();
+
+  visualization_msgs::msg::MarkerArray array;
+  array.markers.reserve(ids.size());
+  for (int map_id : ids) {
+    const auto key = static_cast<uint64_t>(map_id);
+    if (!local_map_graph.hasLocalMap(key)) {
+      continue;
+    }
+    const Eigen::Matrix4d& keypose = local_map_graph[key].keypose();
+    const Eigen::Matrix4d& ground_alignment = vegvisir_->getGroundAlignment(map_id);
+    const Eigen::Matrix4d ground_in_world = keypose * ground_alignment.inverse();
+
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = timestamp;
+    marker.header.frame_id = map_frame_;
+    marker.ns = "ground_planes";
+    marker.id = map_id;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose = ros_conversions::toPose(Sophus::SE3d(ground_in_world));
+    marker.scale.x = ground_plane_size_m_;
+    marker.scale.y = ground_plane_size_m_;
+    marker.scale.z = 0.05;
+    marker.color = color_for_id(map_id);
+    marker.lifetime = rclcpp::Duration(0, 0);
+    array.markers.push_back(std::move(marker));
+  }
+
+  ground_planes_pub_->publish(array);
+
+  published_ground_plane_count_ = ids.size();
+  last_ground_closure_count_ = current_closure_count;
 }
 
 }  // namespace vegvisir

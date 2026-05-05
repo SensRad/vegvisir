@@ -19,6 +19,7 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 namespace vegvisir {
 
@@ -39,6 +40,7 @@ class VegvisirNode : public rclcpp::Node {
   void publishUncertaintyMarker(const rclcpp::Time& timestamp);
   void publishMapPointCloud(const rclcpp::Time& timestamp);
   void publishKeyposes(const rclcpp::Time& timestamp);
+  void publishGroundPlanes(const rclcpp::Time& timestamp);
 
   // Message filter subscribers
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pointcloud_sub_;
@@ -59,6 +61,7 @@ class VegvisirNode : public rclcpp::Node {
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr uncertainty_marker_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_cloud_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr keyposes_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ground_planes_pub_;
 
   // Frame IDs
   std::string map_frame_ = "map";
@@ -67,6 +70,11 @@ class VegvisirNode : public rclcpp::Node {
   // Track last published sizes for change detection
   size_t published_segment_count_ = 0;
   size_t last_closure_count_ = 0;
+  size_t published_ground_plane_count_ = 0;
+  size_t last_ground_closure_count_ = 0;
+
+  // Square edge length of the ground-plane slab marker (meters)
+  double ground_plane_size_m_ = 20.0;
 
   // Cached map points pre-transformed into map frame
   std::vector<Eigen::Vector3d> cached_map_points_;
