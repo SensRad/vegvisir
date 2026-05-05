@@ -41,6 +41,18 @@ class VegvisirNode : public rclcpp::Node {
   void publishMapPointCloud(const rclcpp::Time& timestamp);
   void publishKeyposes(const rclcpp::Time& timestamp);
   void publishGroundPlanes(const rclcpp::Time& timestamp);
+  void publishQueryCloud(const rclcpp::Time& timestamp);
+
+  // Active local map's accumulated points in the active keypose's local frame,
+  // plus (in localization mode) every ring-buffer submap re-expressed in that
+  // same frame. This is the cloud the localization closure pipeline queries
+  // against; using it for the live ground plane fit gives a temporally stable
+  // estimate that doesn't reset on each cutLocalizationSubmap.
+  std::vector<Eigen::Vector3d> buildQueryCloudInActiveAnchor() const;
+
+  // Active keypose lifted into the map frame. SLAM keyposes are already in map;
+  // the localization anchor is set in odom and needs tf_map_odom applied.
+  Eigen::Matrix4d activeKeyposeInMap() const;
 
   // Message filter subscribers
   message_filters::Subscriber<sensor_msgs::msg::PointCloud2> pointcloud_sub_;
@@ -62,6 +74,7 @@ class VegvisirNode : public rclcpp::Node {
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_cloud_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr keyposes_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ground_planes_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr query_cloud_pub_;
 
   // Frame IDs
   std::string map_frame_ = "map";
@@ -70,8 +83,6 @@ class VegvisirNode : public rclcpp::Node {
   // Track last published sizes for change detection
   size_t published_segment_count_ = 0;
   size_t last_closure_count_ = 0;
-  size_t published_ground_plane_count_ = 0;
-  size_t last_ground_closure_count_ = 0;
 
   // Square edge length of the ground-plane slab marker (meters)
   double ground_plane_size_m_ = 20.0;
