@@ -103,6 +103,10 @@ class Vegvisir {
   const std::vector<Eigen::Vector3d>& getLocalMapPoints(int map_id) const;
   bool hasLocalMapPoints(int map_id) const;
 
+  // Active local map's accumulated points, in the active keypose's local frame.
+  // Empty until the first integrateFrame.
+  std::vector<Eigen::Vector3d> getCurrentLocalMapPoints() const;
+
   // Fine-grained per-frame pose graph optimization over the full trajectory.
   // Returns the optimised per-frame poses.
   std::vector<Eigen::Matrix4d> fineGrainedOptimization();

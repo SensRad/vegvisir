@@ -10,6 +10,16 @@ namespace kalman_filter {
 // Type alias for 6x6 matrix used in SE(3) tangent space
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
 
+// Process noise *rates* — variance accumulated per unit motion
+struct ProcessNoiseRates {
+  double sigma2_xy_per_m;     // (m²) of xy variance per meter traveled
+  double sigma2_z_per_m;      // (m²) of z variance per meter traveled
+  double sigma2_rot_per_rad;  // (rad²) of rotation variance per radian rotated
+  double sigma2_xy_per_rad;   // cross-coupling: rotation induces xy drift
+  double sigma2_time_xy;      // (m²/s) — small idle drift even when stationary
+  double sigma2_time_rot;     // (rad²/s)
+};
+
 // Kalman filter for poses on SE(3).
 class PoseKalmanFilter {
  public:
@@ -18,8 +28,8 @@ class PoseKalmanFilter {
   // Initialize with an SE3 pose (uses default covariances)
   void init(const Sophus::SE3d& initial_state);
 
-  // Predict using odometry delta
-  void predict(const Sophus::SE3d& delta);
+  // Predict using odometry delta over elapsed time dt (seconds)
+  void predict(const Sophus::SE3d& delta, double dt);
 
   // Update using a measured absolute pose
   void update(const Sophus::SE3d& measurement);
@@ -33,7 +43,7 @@ class PoseKalmanFilter {
   Matrix6d covariance_;  // Covariance in tangent space
 
   // Kalman filter parameters
-  Matrix6d process_noise_;       // Process noise covariance
+  ProcessNoiseRates rates_;      // Process noise rates (motion- and time-scaled)
   Matrix6d measurement_noise_;   // Measurement noise covariance
   Matrix6d initial_covariance_;  // Initial covariance
 
@@ -46,11 +56,9 @@ class PoseKalmanFilter {
   // Exponential map from 6-vector to SE3
   static Sophus::SE3d se3Exp(const Eigen::Matrix<double, 6, 1>& xi);
 
-  static constexpr double Q_ANGLE_VARIANCE_DEFAULT = 1e-2;  // rad^2
-  static constexpr double Q_POS_VARIANCE_XY = 0.1;          // m^2
-  static constexpr double Q_POS_VARIANCE_Z = 0.3;           // m^2
-
-  static constexpr double NOISE_SCALE_FACTOR = 15.0;
+  static constexpr double R_ANGLE_VARIANCE = 0.15;  // rad^2
+  static constexpr double R_POS_VARIANCE_XY = 1.5;  // m^2
+  static constexpr double R_POS_VARIANCE_Z = 4.5;   // m^2
 
   static constexpr double P0_POS_VARIANCE_XY = 1000.0;  // m^2
   static constexpr double P0_POS_VARIANCE_Z = 1000.0;   // m^2

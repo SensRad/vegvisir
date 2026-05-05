@@ -4,6 +4,7 @@
 #include "VegvisirNode.hpp"
 
 #include "VegvisirConfig.hpp"
+#include "map_closures/GroundAlign.hpp"
 
 namespace vegvisir {
 
@@ -74,9 +75,24 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   keyposes_qos.reliable();
   keyposes_pub_ = this->create_publisher<nav_msgs::msg::Path>("slam_keyposes", keyposes_qos);
 
+  // Initialize per-segment ground plane publisher
+  ground_plane_size_m_ =
+      this->declare_parameter<double>("visualization.ground_plane_size_m", ground_plane_size_m_);
+  auto ground_planes_qos = rclcpp::QoS(1);
+  ground_planes_qos.transient_local();
+  ground_planes_qos.reliable();
+  ground_planes_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "ground_planes", ground_planes_qos);
+
+  // Initialize live query point cloud publisher (best-effort, no latching —
+  // it's a live snapshot republished every tick).
+  query_cloud_pub_ =
+      this->create_publisher<sensor_msgs::msg::PointCloud2>("query_cloud", rclcpp::SensorDataQoS());
+
   // Publish the loaded map point cloud at startup
   publishMapPointCloud(this->now());
   publishKeyposes(this->now());
+  publishGroundPlanes(this->now());
 
   RCLCPP_INFO(get_logger(), "Vegvisir node initialized with synchronized subscribers");
   RCLCPP_INFO(get_logger(), "Using map database: %s", map_database_path.c_str());
@@ -133,6 +149,8 @@ void VegvisirNode::process(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& 
   publishUncertaintyMarker(stamp);
   publishMapPointCloud(stamp);
   publishKeyposes(stamp);
+  publishGroundPlanes(stamp);
+  publishQueryCloud(stamp);
 }
 
 void VegvisirNode::broadcastMapToOdom(const rclcpp::Time& timestamp) {
@@ -299,6 +317,183 @@ void VegvisirNode::publishKeyposes(const rclcpp::Time& timestamp) {
   }
 
   keyposes_pub_->publish(path);
+}
+
+void VegvisirNode::publishGroundPlanes(const rclcpp::Time& timestamp) {
+  // Golden-angle hue cycle so adjacent map_ids get visibly distinct colors.
+  auto color_for_id = [](int map_id) -> std_msgs::msg::ColorRGBA {
+    constexpr float golden_angle_deg = 137.508F;
+    constexpr float saturation = 0.8F;
+    constexpr float value = 0.9F;
+    const float hue = std::fmod(static_cast<float>(map_id) * golden_angle_deg, 360.0F);
+    const float chroma = value * saturation;
+    const float h_prime = hue / 60.0F;
+    const float x = chroma * (1.0F - std::fabs(std::fmod(h_prime, 2.0F) - 1.0F));
+    float r = 0;
+    float g = 0;
+    float b = 0;
+    if (h_prime < 1.0F) {
+      r = chroma;
+      g = x;
+    } else if (h_prime < 2.0F) {
+      r = x;
+      g = chroma;
+    } else if (h_prime < 3.0F) {
+      g = chroma;
+      b = x;
+    } else if (h_prime < 4.0F) {
+      g = x;
+      b = chroma;
+    } else if (h_prime < 5.0F) {
+      r = x;
+      b = chroma;
+    } else {
+      r = chroma;
+      b = x;
+    }
+    const float m = value - chroma;
+    std_msgs::msg::ColorRGBA c;
+    c.r = r + m;
+    c.g = g + m;
+    c.b = b + m;
+    c.a = 0.35F;
+    return c;
+  };
+
+  // Keypose lookup: prefer local_map_graph (always up-to-date in SLAM, tracks
+  // PGO), fall back to reference_poses (the only place loaded keyposes survive
+  // after LocalizationBackend::initLocalizationAnchor clears the graph).
+  const auto& local_map_graph = vegvisir_->getLocalMapGraph();
+  const auto& ref_poses = vegvisir_->getReferencePoses();
+  const auto ids = vegvisir_->getAvailableMapIds();
+
+  visualization_msgs::msg::MarkerArray array;
+  array.markers.reserve(ids.size() + 1);
+  for (int map_id : ids) {
+    const auto key = static_cast<uint64_t>(map_id);
+    Eigen::Matrix4d keypose;
+    if (local_map_graph.hasLocalMap(key)) {
+      keypose = local_map_graph[key].keypose();
+    } else if (auto it = ref_poses.find(map_id); it != ref_poses.end()) {
+      keypose = it->second;
+    } else {
+      continue;
+    }
+    const Eigen::Matrix4d& ground_alignment = vegvisir_->getGroundAlignment(map_id);
+    const Eigen::Matrix4d ground_in_world = keypose * ground_alignment.inverse();
+
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = timestamp;
+    marker.header.frame_id = map_frame_;
+    marker.ns = "ground_planes";
+    marker.id = map_id;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose = ros_conversions::toPose(Sophus::SE3d(ground_in_world));
+    marker.scale.x = ground_plane_size_m_;
+    marker.scale.y = ground_plane_size_m_;
+    marker.scale.z = 0.05;
+    marker.color = color_for_id(map_id);
+    marker.lifetime = rclcpp::Duration(0, 0);
+    array.markers.push_back(std::move(marker));
+  }
+
+  // Live ground plane: fit on the same cloud the closure pipeline queries
+  // against (active voxel grid + ring-buffer submaps in localization). Without
+  // the ring buffer the estimate jumps each time cutLocalizationSubmap clears
+  // voxel_grid_; including it gives a temporally stable fit.
+  constexpr size_t kMinLivePoints = 50;
+  const auto live_points = buildQueryCloudInActiveAnchor();
+  if (live_points.size() >= kMinLivePoints) {
+    constexpr double kGroundAlignmentResolutionM = 0.5;
+    const Eigen::Matrix4d ground_alignment =
+        map_closures::alignToLocalGround(live_points, kGroundAlignmentResolutionM);
+
+    const Eigen::Matrix4d active_keypose_in_map = activeKeyposeInMap();
+    const Eigen::Matrix4d t_world_ground = active_keypose_in_map * ground_alignment.inverse();
+
+    // Project the robot's world position onto the fitted plane along its
+    // normal — slab sits flush on the ground beneath the lidar.
+    const Eigen::Vector3d plane_normal = t_world_ground.block<3, 1>(0, 2);
+    const Eigen::Vector3d plane_origin = t_world_ground.block<3, 1>(0, 3);
+    const Eigen::Vector3d robot_in_world = vegvisir_->getBaseInMapFrame().block<3, 1>(0, 3);
+    const double dist_above_plane = plane_normal.dot(robot_in_world - plane_origin);
+    const Eigen::Vector3d slab_origin = robot_in_world - plane_normal * dist_above_plane;
+
+    Eigen::Matrix4d slab_pose = t_world_ground;
+    slab_pose.block<3, 1>(0, 3) = slab_origin;
+
+    visualization_msgs::msg::Marker live;
+    live.header.stamp = timestamp;
+    live.header.frame_id = map_frame_;
+    live.ns = "ground_plane_live";
+    live.id = 0;
+    live.type = visualization_msgs::msg::Marker::CUBE;
+    live.action = visualization_msgs::msg::Marker::ADD;
+    live.pose = ros_conversions::toPose(Sophus::SE3d(slab_pose));
+    live.scale.x = ground_plane_size_m_;
+    live.scale.y = ground_plane_size_m_;
+    live.scale.z = 0.05;
+    live.color.r = 1.0F;
+    live.color.g = 0.1F;
+    live.color.b = 0.1F;
+    live.color.a = 0.5F;
+    live.lifetime = rclcpp::Duration(0, 0);
+    array.markers.push_back(std::move(live));
+  }
+
+  ground_planes_pub_->publish(array);
+}
+
+void VegvisirNode::publishQueryCloud(const rclcpp::Time& timestamp) {
+  const auto anchor_points = buildQueryCloudInActiveAnchor();
+  if (anchor_points.empty()) {
+    return;
+  }
+
+  std::vector<Eigen::Vector3d> world_points;
+  Vegvisir::transformAndAppendPoints(anchor_points, activeKeyposeInMap(), world_points);
+
+  std_msgs::msg::Header header;
+  header.stamp = timestamp;
+  header.frame_id = map_frame_;
+  query_cloud_pub_->publish(ros_conversions::toPointCloud2(world_points, header));
+}
+
+Eigen::Matrix4d VegvisirNode::activeKeyposeInMap() const {
+  const auto& local_map_graph = vegvisir_->getLocalMapGraph();
+  if (vegvisir_->getMode() == Mode::LOCALIZATION) {
+    return vegvisir_->getMapToOdomTransform() * local_map_graph.lastKeypose();
+  }
+  return local_map_graph.lastKeypose();
+}
+
+std::vector<Eigen::Vector3d> VegvisirNode::buildQueryCloudInActiveAnchor() const {
+  const auto& local_map_graph = vegvisir_->getLocalMapGraph();
+  if (local_map_graph.empty()) {
+    return {};
+  }
+
+  std::vector<Eigen::Vector3d> anchor_points = vegvisir_->getCurrentLocalMapPoints();
+
+  // Localization ring buffer: re-express each finalized submap's points in the
+  // active anchor frame so a single fit / single PointCloud2 covers the whole
+  // closure-query window. In SLAM there's no ring buffer (local_map_graph
+  // holds historical finalized segments); skipping keeps SLAM behavior intact.
+  if (vegvisir_->getMode() == Mode::LOCALIZATION) {
+    const Eigen::Matrix4d active_keypose_inv = local_map_graph.lastKeypose().inverse();
+    const uint64_t active_id = local_map_graph.lastId();
+    for (const auto& [id, submap] : local_map_graph) {
+      if (id == active_id || !submap.hasPointCloud()) {
+        continue;
+      }
+      const Eigen::Matrix4d submap_in_active_anchor = active_keypose_inv * submap.keypose();
+      Vegvisir::transformAndAppendPoints(submap.pointCloud(), submap_in_active_anchor,
+                                         anchor_points);
+    }
+  }
+
+  return anchor_points;
 }
 
 }  // namespace vegvisir
