@@ -9,12 +9,12 @@ PoseKalmanFilter::PoseKalmanFilter() {
   covariance_.setZero();
 
   rates_ = ProcessNoiseRates{
-      .sigma2_xy_per_m = 0.1,
+      .sigma2_xy_per_m = 0.01,
       .sigma2_z_per_m = 0.01,
       .sigma2_rot_per_rad = 1e-2,
       .sigma2_xy_per_rad = 0.05,
-      .sigma2_time_xy = 1e-3,
-      .sigma2_time_rot = 1e-4,
+      .sigma2_time_xy = 1e-4,
+      .sigma2_time_rot = 1e-5,
   };
 
   measurement_noise_ = Matrix6d::Zero();

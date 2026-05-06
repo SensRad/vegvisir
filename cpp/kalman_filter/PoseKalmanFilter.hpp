@@ -56,9 +56,9 @@ class PoseKalmanFilter {
   // Exponential map from 6-vector to SE3
   static Sophus::SE3d se3Exp(const Eigen::Matrix<double, 6, 1>& xi);
 
-  static constexpr double R_ANGLE_VARIANCE = 0.15;  // rad^2
-  static constexpr double R_POS_VARIANCE_XY = 1.5;  // m^2
-  static constexpr double R_POS_VARIANCE_Z = 4.5;   // m^2
+  static constexpr double R_ANGLE_VARIANCE = 0.7;   // rad^2
+  static constexpr double R_POS_VARIANCE_XY = 8.0;  // m^2
+  static constexpr double R_POS_VARIANCE_Z = 20.0;  // m^2
 
   static constexpr double P0_POS_VARIANCE_XY = 1000.0;  // m^2
   static constexpr double P0_POS_VARIANCE_Z = 1000.0;   // m^2
