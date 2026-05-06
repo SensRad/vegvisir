@@ -17,15 +17,18 @@ PoseKalmanFilter::PoseKalmanFilter() {
       .sigma2_time_rot = 1e-5,
   };
 
+  // Sophus SE(3) tangent ordering is [upsilon, omega] — block(0..2) is the
+  // translation tangent, block(3..5) is the rotation tangent. log() and exp()
+  // both use this ordering, so the covariance / noise matrices have to match.
   measurement_noise_ = Matrix6d::Zero();
-  measurement_noise_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * R_ANGLE_VARIANCE;
-  measurement_noise_.block<3, 3>(3, 3) =
+  measurement_noise_.block<3, 3>(0, 0) =
       Eigen::Vector3d(R_POS_VARIANCE_XY, R_POS_VARIANCE_XY, R_POS_VARIANCE_Z).asDiagonal();
+  measurement_noise_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * R_ANGLE_VARIANCE;
 
   initial_covariance_ = Matrix6d::Zero();
-  initial_covariance_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * P0_ANGLE_VARIANCE;
-  initial_covariance_.block<3, 3>(3, 3) =
+  initial_covariance_.block<3, 3>(0, 0) =
       Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z).asDiagonal();
+  initial_covariance_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * P0_ANGLE_VARIANCE;
 }
 
 void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
@@ -35,7 +38,7 @@ void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
 
 Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
   const Eigen::Matrix3d r = transform.rotationMatrix();
-  Eigen::Vector3d t = transform.translation();
+  const Eigen::Vector3d t = transform.translation();
 
   Matrix6d ad;
   ad.setZero();
@@ -46,7 +49,9 @@ Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
   Eigen::Matrix3d t_skew;
   t_skew << 0.0, -t.z(), t.y(), t.z(), 0.0, -t.x(), -t.y(), t.x(), 0.0;
 
-  ad.block<3, 3>(3, 0) = t_skew * r;
+  // Sophus [upsilon, omega] convention: cross-coupling lives in the upper-right.
+  // Matches Sophus::SE3d::Adj() so any future caller composes correctly.
+  ad.block<3, 3>(0, 3) = t_skew * r;
   return ad;
 }
 
@@ -66,15 +71,17 @@ void PoseKalmanFilter::predict(const Sophus::SE3d& delta, double dt) {
   const double trans_dist = delta.translation().norm();
   const double rot_angle = delta.so3().log().norm();
 
+  // [upsilon (translation), omega (rotation)] block layout — see constructor.
   Matrix6d q = Matrix6d::Zero();
-  q.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() *
-                        (rates_.sigma2_rot_per_rad * rot_angle + rates_.sigma2_time_rot * dt);
 
   const Eigen::Vector3d t_var(rates_.sigma2_xy_per_m, rates_.sigma2_xy_per_m,
                               rates_.sigma2_z_per_m);
-  q.block<3, 3>(3, 3) = Eigen::Matrix3d((t_var * trans_dist).asDiagonal()) +
+  q.block<3, 3>(0, 0) = Eigen::Matrix3d((t_var * trans_dist).asDiagonal()) +
                         Eigen::Matrix3d::Identity() *
                             (rates_.sigma2_xy_per_rad * rot_angle + rates_.sigma2_time_xy * dt);
+
+  q.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() *
+                        (rates_.sigma2_rot_per_rad * rot_angle + rates_.sigma2_time_rot * dt);
 
   covariance_ += q;
 
