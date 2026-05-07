@@ -351,10 +351,6 @@ bool Vegvisir::hasLocalMapPoints(int map_id) const {
   return local_map_points_.find(map_id) != local_map_points_.end();
 }
 
-std::vector<Eigen::Vector3d> Vegvisir::getCurrentLocalMapPoints() const {
-  return voxel_grid_.pointcloud();
-}
-
 const std::vector<Eigen::Vector3d>& Vegvisir::getLocalMapPoints(int map_id) const {
   static const std::vector<Eigen::Vector3d> EMPTY;
   const auto it = local_map_points_.find(map_id);

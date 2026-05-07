@@ -9,12 +9,16 @@ PoseKalmanFilter::PoseKalmanFilter() {
   covariance_.setZero();
 
   rates_ = ProcessNoiseRates{
-      .sigma2_xy_per_m = 0.01,
-      .sigma2_z_per_m = 0.01,
-      .sigma2_rot_per_rad = 1e-2,
-      .sigma2_xy_per_rad = 0.05,
-      .sigma2_time_xy = 1e-4,
-      .sigma2_time_rot = 1e-5,
+      .sigma2_xy_per_m = 1e-3,  // ~5 cm σ per meter (≈0.5 % drift)
+      .sigma2_z_per_m = 1e-3,
+      .sigma2_roll_per_rad = 1e-3,
+      .sigma2_pitch_per_rad = 1e-3,
+      .sigma2_yaw_per_rad = 1e-4,  // yaw odometry is tighter than roll/pitch
+      .sigma2_xy_per_rad = 1e-3,
+      .sigma2_time_xy = 1e-5,
+      .sigma2_time_roll = 1e-7,
+      .sigma2_time_pitch = 1e-7,
+      .sigma2_time_yaw = 1e-7,  // tracks the yaw / roll-pitch ratio
   };
 
   // Sophus SE(3) tangent ordering is [upsilon, omega] — block(0..2) is the
@@ -23,12 +27,16 @@ PoseKalmanFilter::PoseKalmanFilter() {
   measurement_noise_ = Matrix6d::Zero();
   measurement_noise_.block<3, 3>(0, 0) =
       Eigen::Vector3d(R_POS_VARIANCE_XY, R_POS_VARIANCE_XY, R_POS_VARIANCE_Z).asDiagonal();
-  measurement_noise_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * R_ANGLE_VARIANCE;
+  measurement_noise_.block<3, 3>(3, 3) =
+      Eigen::Vector3d(R_ANGLE_VARIANCE_ROLL, R_ANGLE_VARIANCE_PITCH, R_ANGLE_VARIANCE_YAW)
+          .asDiagonal();
 
   initial_covariance_ = Matrix6d::Zero();
   initial_covariance_.block<3, 3>(0, 0) =
       Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z).asDiagonal();
-  initial_covariance_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * P0_ANGLE_VARIANCE;
+  initial_covariance_.block<3, 3>(3, 3) =
+      Eigen::Vector3d(P0_ANGLE_VARIANCE_ROLL, P0_ANGLE_VARIANCE_PITCH, P0_ANGLE_VARIANCE_YAW)
+          .asDiagonal();
 }
 
 void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
@@ -49,8 +57,9 @@ Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
   Eigen::Matrix3d t_skew;
   t_skew << 0.0, -t.z(), t.y(), t.z(), 0.0, -t.x(), -t.y(), t.x(), 0.0;
 
-  // Sophus [upsilon, omega] convention: cross-coupling lives in the upper-right.
-  // Matches Sophus::SE3d::Adj() so any future caller composes correctly.
+  // Sophus [upsilon, omega] convention: cross-coupling lives in the
+  // upper-right. Matches Sophus::SE3d::Adj() so any future caller composes
+  // correctly.
   ad.block<3, 3>(0, 3) = t_skew * r;
   return ad;
 }
@@ -80,8 +89,11 @@ void PoseKalmanFilter::predict(const Sophus::SE3d& delta, double dt) {
                         Eigen::Matrix3d::Identity() *
                             (rates_.sigma2_xy_per_rad * rot_angle + rates_.sigma2_time_xy * dt);
 
-  q.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() *
-                        (rates_.sigma2_rot_per_rad * rot_angle + rates_.sigma2_time_rot * dt);
+  const Eigen::Vector3d rot_var(
+      rates_.sigma2_roll_per_rad * rot_angle + rates_.sigma2_time_roll * dt,
+      rates_.sigma2_pitch_per_rad * rot_angle + rates_.sigma2_time_pitch * dt,
+      rates_.sigma2_yaw_per_rad * rot_angle + rates_.sigma2_time_yaw * dt);
+  q.block<3, 3>(3, 3) = rot_var.asDiagonal();
 
   covariance_ += q;
 
