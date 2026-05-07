@@ -28,8 +28,32 @@ void transformPoints(const Sophus::SE3d& t, std::vector<Eigen::Vector3d>& pointc
 }
 
 using LinearSystem = std::pair<Eigen::Matrix3d, Eigen::Vector3d>;
-LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d>& points,
-                               const double resolution) {
+
+double computeAbsMedianZ(const std::vector<Eigen::Vector3d>& points) {
+  if (points.empty()) {
+    return 0.0;
+  }
+  std::vector<double> abs_z;
+  abs_z.reserve(points.size());
+  for (const auto& p : points) {
+    abs_z.push_back(std::abs(p.z()));
+  }
+  const size_t mid = abs_z.size() / 2;
+  std::nth_element(abs_z.begin(), abs_z.begin() + mid, abs_z.end());
+  return abs_z[mid];
+}
+
+LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d>& points) {
+  // Adaptive Tukey scale: c = K * 1.4826 * MAD(z), floored so we don't
+  // over-tighten once the fit has converged on noise-level residuals.
+  constexpr double MAD_TO_SIGMA = 1.4826;
+  const double mad = computeAbsMedianZ(points);
+  const double c =
+      std::max(map_closures::TUKEY_K * MAD_TO_SIGMA * mad, map_closures::GROUND_INLIER_FLOOR_M);
+
+  constexpr double inv_2sigma2_radial =
+      1.0 / (2.0 * map_closures::GROUND_RADIAL_SIGMA_M * map_closures::GROUND_RADIAL_SIGMA_M);
+
   auto compute_jacobian_and_residual = [](const auto& point) {
     const double residual = point.z();
     Eigen::Matrix<double, 1, 3> j;
@@ -45,15 +69,29 @@ LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d>& points,
     return a;
   };
 
-  const auto& [H, b] =
-      std::transform_reduce(points.cbegin(), points.cend(),
-                            LinearSystem(Eigen::Matrix3d::Zero(), Eigen::Vector3d::Zero()),
-                            sum_linear_systems, [&](const auto& point) {
-                              const auto& [j, residual] = compute_jacobian_and_residual(point);
-                              const double w = std::abs(residual) <= resolution ? 1.0 : 0.0;
-                              return LinearSystem(j.transpose() * w * j,          // JTJ
-                                                  j.transpose() * w * residual);  // JTr
-                            });
+  const auto& [H, b] = std::transform_reduce(
+      points.cbegin(), points.cend(),
+      LinearSystem(Eigen::Matrix3d::Zero(), Eigen::Vector3d::Zero()), sum_linear_systems,
+      [&](const auto& point) {
+        const auto& [j, residual] = compute_jacobian_and_residual(point);
+
+        // Tukey biweight on the z residual: smooth descending estimator
+        // tightens the inlier set as the fit converges instead of leaning
+        // on the loose `resolution`-sized window.
+        const double r_over_c = residual / c;
+        const double inlier = (1.0 - r_over_c * r_over_c);
+        const double w_robust = (std::abs(r_over_c) < 1.0) ? inlier * inlier : 0.0;
+
+        // Radial decay around the vehicle. Road returns under the lidar
+        // dominate; lateral curb/wall/vegetation returns at the shoulder
+        // cannot lever an asymmetric tilt onto the plane.
+        const double r2 = point.x() * point.x() + point.y() * point.y();
+        const double w_radial = std::exp(-r2 * inv_2sigma2_radial);
+
+        const double w = w_robust * w_radial;
+        return LinearSystem(j.transpose() * w * j,          // JTJ
+                            j.transpose() * w * residual);  // JTr
+      });
   return {H, b};
 }
 
@@ -88,7 +126,7 @@ Eigen::Matrix4d alignToLocalGround(const std::vector<Eigen::Vector3d>& pointclou
   auto low_lying_points = computeLowestPoints(pointcloud, resolution);
 
   for (int iters = 0; iters < MAX_ITERATIONS; iters++) {
-    const auto& [H, b] = buildLinearSystem(low_lying_points, resolution);
+    const auto& [H, b] = buildLinearSystem(low_lying_points);
     const Eigen::Vector3d& dx = H.ldlt().solve(-b);
     Eigen::Matrix<double, 6, 1> se3 = Eigen::Matrix<double, 6, 1>::Zero();
     se3.block<3, 1>(2, 0) = dx;

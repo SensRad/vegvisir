@@ -5,8 +5,9 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
+
+#include <algorithm>
 #include <iterator>
 #include <memory>
 #include <unordered_map>
@@ -21,7 +22,7 @@ namespace map_closures {
 
 static constexpr int MIN_NUMBER_OF_MATCHES = 10;
 static constexpr int LOCAL_MAPS_TO_SKIP = 3;
-static constexpr double GROUND_ALIGNMENT_RESOLUTION = 0.5;
+static constexpr double GROUND_ALIGNMENT_RESOLUTION = 1.0;
 
 struct Config {
   float density_map_resolution = 0.5F;

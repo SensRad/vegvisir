@@ -149,12 +149,22 @@ void VegvisirNode::publishUncertaintyMarker(const rclcpp::Time& timestamp) {
   Sophus::SE3d current_odom_base = vegvisir_->getCurrentOdomBase();
   Sophus::SE3d base_in_map(vegvisir_->getBaseInMapFrame());
 
-  // Transform covariance to base_link position via adjoint
-  Eigen::Matrix<double, 6, 6> Ad_odom_base = current_odom_base.Adj();
-  Eigen::Matrix<double, 6, 6> P_map_base = Ad_odom_base * P_map_odom * Ad_odom_base.transpose();
+  // Project body-frame perturbation of T_map_odom onto
+  // base_link's position in the map frame
+  const Eigen::Vector3d t_ob = current_odom_base.translation();
+  Eigen::Matrix3d t_skew;
+  t_skew << 0.0, -t_ob.z(), t_ob.y(), t_ob.z(), 0.0, -t_ob.x(), -t_ob.y(), t_ob.x(), 0.0;
+
+  Eigen::Matrix<double, 3, 6> j_pos;
+  j_pos.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+  j_pos.block<3, 3>(0, 3) = -t_skew;
+
+  const Eigen::Matrix3d r_map_odom = vegvisir_->getMapToOdomTransform().block<3, 3>(0, 0);
+  const Eigen::Matrix3d p_pos_in_map =
+      r_map_odom * j_pos * P_map_odom * j_pos.transpose() * r_map_odom.transpose();
 
   // Eigenvalues of position covariance → principal axes of uncertainty
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(P_map_base.block<3, 3>(3, 3));
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(p_pos_in_map);
   Eigen::Vector3d eigenvalues = solver.eigenvalues();
 
   // 2-sigma (95% confidence) scale per axis

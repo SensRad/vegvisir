@@ -13,6 +13,7 @@ LocalizationBackend::LocalizationBackend(Vegvisir& vegvisir) : VegvisirBackend(v
 void LocalizationBackend::initialize() {
   localization_anchor_initialized_ = false;
   pose_odom_anchor_.setIdentity();
+  last_predict_timestamp_ns_ = 0;
 }
 
 void LocalizationBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_base,
@@ -27,7 +28,10 @@ void LocalizationBackend::updatePoseEstimate(const Eigen::Matrix4d& pose_odom_ba
   // Lock: pose_filter_ and tf_map_odom_ are written by background closure
   // thread
   const std::lock_guard<std::mutex> lock(closureMutex());
-  poseFilter().predict(delta_pose);
+  const double dt =
+      (last_predict_timestamp_ns_ == 0) ? 0.0 : (timestamp_ns - last_predict_timestamp_ns_) * 1e-9;
+  last_predict_timestamp_ns_ = timestamp_ns;
+  poseFilter().predict(delta_pose, dt);
   tfMapOdom() = poseFilter().state().matrix();
 }
 

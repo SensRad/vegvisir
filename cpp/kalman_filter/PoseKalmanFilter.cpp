@@ -8,45 +8,26 @@ PoseKalmanFilter::PoseKalmanFilter() {
   state_ = Sophus::SE3d();  // identity
   covariance_.setZero();
 
-  // Default process noise
-  const Eigen::Vector3d position_variance(Q_POS_VARIANCE_XY, Q_POS_VARIANCE_XY, Q_POS_VARIANCE_Z);
-
-  process_noise_ = Matrix6d::Zero();
-  process_noise_.block<3, 3>(0, 0) =
-      Eigen::Matrix3d::Identity() * Q_ANGLE_VARIANCE_DEFAULT;         // rotation
-  process_noise_.block<3, 3>(3, 3) = position_variance.asDiagonal();  // translation
-
   // Measurement noise
-  measurement_noise_ = process_noise_ * NOISE_SCALE_FACTOR;
+  measurement_noise_ = Matrix6d::Zero();
+  measurement_noise_.block<3, 3>(0, 0) =
+      Eigen::Vector3d(R_POS_VARIANCE_XY, R_POS_VARIANCE_XY, R_POS_VARIANCE_Z).asDiagonal();
+  measurement_noise_.block<3, 3>(3, 3) =
+      Eigen::Vector3d(R_ANGLE_VARIANCE_ROLL, R_ANGLE_VARIANCE_PITCH, R_ANGLE_VARIANCE_YAW)
+          .asDiagonal();
 
+  // Initial covariance
   initial_covariance_ = Matrix6d::Zero();
-  initial_covariance_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * P0_ANGLE_VARIANCE;
+  initial_covariance_.block<3, 3>(0, 0) =
+      Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z).asDiagonal();
   initial_covariance_.block<3, 3>(3, 3) =
-      (Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z))
-          .matrix()
+      Eigen::Vector3d(P0_ANGLE_VARIANCE_ROLL, P0_ANGLE_VARIANCE_PITCH, P0_ANGLE_VARIANCE_YAW)
           .asDiagonal();
 }
 
 void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
   state_ = initial_state;
   covariance_ = initial_covariance_;  // Use default initial covariance
-}
-
-Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
-  const Eigen::Matrix3d r = transform.rotationMatrix();
-  Eigen::Vector3d t = transform.translation();
-
-  Matrix6d ad;
-  ad.setZero();
-  ad.block<3, 3>(0, 0) = r;
-  ad.block<3, 3>(3, 3) = r;
-
-  // skew-symmetric of t
-  Eigen::Matrix3d t_skew;
-  t_skew << 0.0, -t.z(), t.y(), t.z(), 0.0, -t.x(), -t.y(), t.x(), 0.0;
-
-  ad.block<3, 3>(3, 0) = t_skew * r;
-  return ad;
 }
 
 Eigen::Matrix<double, 6, 1> PoseKalmanFilter::se3Log(const Sophus::SE3d& transform) {
@@ -59,21 +40,25 @@ Sophus::SE3d PoseKalmanFilter::se3Exp(const Eigen::Matrix<double, 6, 1>& xi) {
   return Sophus::SE3d::exp(xi);
 }
 
-void PoseKalmanFilter::predict(const Sophus::SE3d& delta) {
-  // For map->odom tracking: the transform is static between measurements
-  // Robot motion in odom frame doesn't change the map->odom relationship
-  // However, uncertainty grows proportionally to motion (odometry drift)
+void PoseKalmanFilter::predict(const Sophus::SE3d& delta, double dt) {
+  // For map->odom tracking: the transform is static between measurements,
+  // but uncertainty grows with motion (odometry drift) and a small idle term.
+  const double trans_dist = delta.translation().norm();
+  const double rot_angle = delta.so3().log().norm();
 
-  // Compute motion magnitude
-  const double translation_dist = delta.translation().norm();  // meters
-  const double rotation_angle = delta.so3().log().norm();      // radians
+  // [upsilon (translation), omega (rotation)] block layout — see constructor.
+  Matrix6d q = Matrix6d::Zero();
 
-  // Scale process noise by motion magnitude
-  const double motion_scale = std::max(translation_dist, rotation_angle);
+  const Eigen::Vector3d t_var(Q_XY_PER_M, Q_XY_PER_M, Q_Z_PER_M);
+  q.block<3, 3>(0, 0) = Eigen::Matrix3d((t_var * trans_dist).asDiagonal()) +
+                        Eigen::Matrix3d::Identity() * (Q_XY_PER_RAD * rot_angle + Q_TIME_XY * dt);
 
-  // Add scaled process noise
-  const double scale = std::max(motion_scale, 0.01);
-  covariance_ = covariance_ + process_noise_ * scale;
+  const Eigen::Vector3d rot_var(Q_ROLL_PER_RAD * rot_angle + Q_TIME_ROLL * dt,
+                                Q_PITCH_PER_RAD * rot_angle + Q_TIME_PITCH * dt,
+                                Q_YAW_PER_RAD * rot_angle + Q_TIME_YAW * dt);
+  q.block<3, 3>(3, 3) = rot_var.asDiagonal();
+
+  covariance_ += q;
 
   // state_ remains unchanged - map->odom is constant until next measurement
 }
