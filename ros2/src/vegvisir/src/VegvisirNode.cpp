@@ -149,12 +149,8 @@ void VegvisirNode::publishUncertaintyMarker(const rclcpp::Time& timestamp) {
   Sophus::SE3d current_odom_base = vegvisir_->getCurrentOdomBase();
   Sophus::SE3d base_in_map(vegvisir_->getBaseInMapFrame());
 
-  // Project body-frame perturbation of T_map_odom (η = [upsilon, omega]) onto
-  // base_link's position in the map frame:
-  //   δ(t_map_base) = R_map_odom · (upsilon − [t_odom_base]_× · omega) = R · J
-  //   · η
-  // The lever-arm term grows with how far the robot has driven from the
-  // odometry origin, so rotation uncertainty leaks into position uncertainty.
+  // Project body-frame perturbation of T_map_odom onto
+  // base_link's position in the map frame
   const Eigen::Vector3d t_ob = current_odom_base.translation();
   Eigen::Matrix3d t_skew;
   t_skew << 0.0, -t_ob.z(), t_ob.y(), t_ob.z(), 0.0, -t_ob.x(), -t_ob.y(), t_ob.x(), 0.0;
