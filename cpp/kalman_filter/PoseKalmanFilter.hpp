@@ -10,29 +10,6 @@ namespace kalman_filter {
 // Type alias for 6x6 matrix used in SE(3) tangent space
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
 
-// Process noise *rates* — variance accumulated per unit motion. Rotation axes
-// are body-frame (x = roll, y = pitch, z = yaw). Yaw drift is typically
-// tighter than roll/pitch for LiDAR odometry, mirroring the measurement R.
-struct ProcessNoiseRates {
-  // Translation drift per meter traveled (m²/m).
-  double sigma2_xy_per_m;
-  double sigma2_z_per_m;
-
-  // Rotation drift per radian rotated (rad²/rad), per body axis.
-  double sigma2_roll_per_rad;
-  double sigma2_pitch_per_rad;
-  double sigma2_yaw_per_rad;
-
-  // Cross-coupling: rotation induces lateral translation drift (m²/rad).
-  double sigma2_xy_per_rad;
-
-  // Idle drift per second (m²/s, rad²/s) — accumulates even when stationary.
-  double sigma2_time_xy;
-  double sigma2_time_roll;
-  double sigma2_time_pitch;
-  double sigma2_time_yaw;
-};
-
 // Kalman filter for poses on SE(3).
 class PoseKalmanFilter {
  public:
@@ -56,12 +33,8 @@ class PoseKalmanFilter {
   Matrix6d covariance_;  // Covariance in tangent space
 
   // Kalman filter parameters
-  ProcessNoiseRates rates_;      // Process noise rates (motion- and time-scaled)
   Matrix6d measurement_noise_;   // Measurement noise covariance
   Matrix6d initial_covariance_;  // Initial covariance
-
-  // Adjoint map of SE(3) for the 6-vector ordering
-  static Matrix6d adjoint(const Sophus::SE3d& transform);
 
   // convert Sophus::SE3 log to 6-vector
   static Eigen::Matrix<double, 6, 1> se3Log(const Sophus::SE3d& transform);

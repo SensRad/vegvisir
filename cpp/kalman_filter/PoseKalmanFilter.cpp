@@ -8,22 +8,7 @@ PoseKalmanFilter::PoseKalmanFilter() {
   state_ = Sophus::SE3d();  // identity
   covariance_.setZero();
 
-  rates_ = ProcessNoiseRates{
-      .sigma2_xy_per_m = 1e-3,  // ~5 cm σ per meter (≈0.5 % drift)
-      .sigma2_z_per_m = 1e-3,
-      .sigma2_roll_per_rad = 1e-3,
-      .sigma2_pitch_per_rad = 1e-3,
-      .sigma2_yaw_per_rad = 1e-4,  // yaw odometry is tighter than roll/pitch
-      .sigma2_xy_per_rad = 1e-3,
-      .sigma2_time_xy = 1e-5,
-      .sigma2_time_roll = 1e-7,
-      .sigma2_time_pitch = 1e-7,
-      .sigma2_time_yaw = 1e-7,  // tracks the yaw / roll-pitch ratio
-  };
-
-  // Sophus SE(3) tangent ordering is [upsilon, omega] — block(0..2) is the
-  // translation tangent, block(3..5) is the rotation tangent. log() and exp()
-  // both use this ordering, so the covariance / noise matrices have to match.
+  // Measurement noise
   measurement_noise_ = Matrix6d::Zero();
   measurement_noise_.block<3, 3>(0, 0) =
       Eigen::Vector3d(R_POS_VARIANCE_XY, R_POS_VARIANCE_XY, R_POS_VARIANCE_Z).asDiagonal();
@@ -31,6 +16,7 @@ PoseKalmanFilter::PoseKalmanFilter() {
       Eigen::Vector3d(R_ANGLE_VARIANCE_ROLL, R_ANGLE_VARIANCE_PITCH, R_ANGLE_VARIANCE_YAW)
           .asDiagonal();
 
+  // Initial covariance
   initial_covariance_ = Matrix6d::Zero();
   initial_covariance_.block<3, 3>(0, 0) =
       Eigen::Vector3d(P0_POS_VARIANCE_XY, P0_POS_VARIANCE_XY, P0_POS_VARIANCE_Z).asDiagonal();
@@ -42,26 +28,6 @@ PoseKalmanFilter::PoseKalmanFilter() {
 void PoseKalmanFilter::init(const Sophus::SE3d& initial_state) {
   state_ = initial_state;
   covariance_ = initial_covariance_;  // Use default initial covariance
-}
-
-Matrix6d PoseKalmanFilter::adjoint(const Sophus::SE3d& transform) {
-  const Eigen::Matrix3d r = transform.rotationMatrix();
-  const Eigen::Vector3d t = transform.translation();
-
-  Matrix6d ad;
-  ad.setZero();
-  ad.block<3, 3>(0, 0) = r;
-  ad.block<3, 3>(3, 3) = r;
-
-  // skew-symmetric of t
-  Eigen::Matrix3d t_skew;
-  t_skew << 0.0, -t.z(), t.y(), t.z(), 0.0, -t.x(), -t.y(), t.x(), 0.0;
-
-  // Sophus [upsilon, omega] convention: cross-coupling lives in the
-  // upper-right. Matches Sophus::SE3d::Adj() so any future caller composes
-  // correctly.
-  ad.block<3, 3>(0, 3) = t_skew * r;
-  return ad;
 }
 
 Eigen::Matrix<double, 6, 1> PoseKalmanFilter::se3Log(const Sophus::SE3d& transform) {
@@ -83,16 +49,13 @@ void PoseKalmanFilter::predict(const Sophus::SE3d& delta, double dt) {
   // [upsilon (translation), omega (rotation)] block layout — see constructor.
   Matrix6d q = Matrix6d::Zero();
 
-  const Eigen::Vector3d t_var(rates_.sigma2_xy_per_m, rates_.sigma2_xy_per_m,
-                              rates_.sigma2_z_per_m);
+  const Eigen::Vector3d t_var(Q_XY_PER_M, Q_XY_PER_M, Q_Z_PER_M);
   q.block<3, 3>(0, 0) = Eigen::Matrix3d((t_var * trans_dist).asDiagonal()) +
-                        Eigen::Matrix3d::Identity() *
-                            (rates_.sigma2_xy_per_rad * rot_angle + rates_.sigma2_time_xy * dt);
+                        Eigen::Matrix3d::Identity() * (Q_XY_PER_RAD * rot_angle + Q_TIME_XY * dt);
 
-  const Eigen::Vector3d rot_var(
-      rates_.sigma2_roll_per_rad * rot_angle + rates_.sigma2_time_roll * dt,
-      rates_.sigma2_pitch_per_rad * rot_angle + rates_.sigma2_time_pitch * dt,
-      rates_.sigma2_yaw_per_rad * rot_angle + rates_.sigma2_time_yaw * dt);
+  const Eigen::Vector3d rot_var(Q_ROLL_PER_RAD * rot_angle + Q_TIME_ROLL * dt,
+                                Q_PITCH_PER_RAD * rot_angle + Q_TIME_PITCH * dt,
+                                Q_YAW_PER_RAD * rot_angle + Q_TIME_YAW * dt);
   q.block<3, 3>(3, 3) = rot_var.asDiagonal();
 
   covariance_ += q;
