@@ -97,24 +97,37 @@ LinearSystem buildLinearSystem(const std::vector<Eigen::Vector3d>& points) {
 
 std::vector<Eigen::Vector3d> computeLowestPoints(const std::vector<Eigen::Vector3d>& pointcloud,
                                                  const double resolution) {
-  std::unordered_map<Eigen::Vector2i, Eigen::Vector3d, PixelHash> lowest_point_hash_map;
+  // Per cell, keep the K lowest returns and report their median. The median of
+  // the bottom-K rejects the single spurious below-ground outlier (multipath,
+  // mis-synced scan line) that a strict argmin would latch onto.
+  constexpr std::size_t K_PER_CELL = 3;
+
   auto point_to_pixel = [&resolution](const Eigen::Vector3d& pt) -> Eigen::Vector2i {
     return {static_cast<int>(std::floor(pt.x() / resolution)),
             static_cast<int>(std::floor(pt.y() / resolution))};
   };
 
-  std::for_each(pointcloud.cbegin(), pointcloud.cend(), [&](const Eigen::Vector3d& point) {
-    const auto& pixel = point_to_pixel(point);
-    if (lowest_point_hash_map.find(pixel) == lowest_point_hash_map.cend()) {
-      lowest_point_hash_map.emplace(pixel, point);
-    } else if (point.z() < lowest_point_hash_map[pixel].z()) {
-      lowest_point_hash_map[pixel] = point;
-    }
-  });
+  auto z_less = [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) { return a.z() < b.z(); };
 
-  std::vector<Eigen::Vector3d> low_lying_points(lowest_point_hash_map.size());
-  std::transform(lowest_point_hash_map.cbegin(), lowest_point_hash_map.cend(),
-                 low_lying_points.begin(), [](const auto& entry) { return entry.second; });
+  std::unordered_map<Eigen::Vector2i, std::vector<Eigen::Vector3d>, PixelHash> bottom_k;
+  for (const auto& point : pointcloud) {
+    auto& cell = bottom_k[point_to_pixel(point)];
+    if (cell.size() < K_PER_CELL) {
+      cell.push_back(point);
+      std::push_heap(cell.begin(), cell.end(), z_less);  // max-heap by z
+    } else if (point.z() < cell.front().z()) {
+      std::pop_heap(cell.begin(), cell.end(), z_less);
+      cell.back() = point;
+      std::push_heap(cell.begin(), cell.end(), z_less);
+    }
+  }
+
+  std::vector<Eigen::Vector3d> low_lying_points;
+  low_lying_points.reserve(bottom_k.size());
+  for (auto& [pixel, pts] : bottom_k) {
+    std::sort(pts.begin(), pts.end(), z_less);
+    low_lying_points.push_back(pts[pts.size() / 2]);
+  }
   return low_lying_points;
 }
 }  // namespace
