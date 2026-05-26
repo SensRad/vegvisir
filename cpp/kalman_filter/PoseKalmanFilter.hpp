@@ -56,16 +56,16 @@ class PoseKalmanFilter {
   static constexpr double P0_ANGLE_VARIANCE_YAW = 0.05;   // rad^2
 
   // Process noise parameters
-  static constexpr double Q_XY_PER_M = 1e-2;       // m^2 per meter
-  static constexpr double Q_Z_PER_M = 1e-2;        // m^2 per meter
-  static constexpr double Q_ROLL_PER_RAD = 1e-3;   // rad^2 per radian
-  static constexpr double Q_PITCH_PER_RAD = 1e-3;  // rad^2 per radian
-  static constexpr double Q_YAW_PER_RAD = 1e-4;    // rad^2 per radian
-  static constexpr double Q_XY_PER_RAD = 1e-3;     // m^2 per radian
-  static constexpr double Q_TIME_XY = 1e-5;        // m^2 per second
-  static constexpr double Q_TIME_ROLL = 1e-7;      // rad^2 per second
-  static constexpr double Q_TIME_PITCH = 1e-7;     // rad^2 per second
-  static constexpr double Q_TIME_YAW = 1e-7;       // rad^2 per second
+  static constexpr double Q_XY_PER_M = 1e-1;       // m^2 per meter
+  static constexpr double Q_Z_PER_M = 1e-1;        // m^2 per meter
+  static constexpr double Q_ROLL_PER_RAD = 1e-2;   // rad^2 per radian
+  static constexpr double Q_PITCH_PER_RAD = 1e-2;  // rad^2 per radian
+  static constexpr double Q_YAW_PER_RAD = 1e-3;    // rad^2 per radian
+  static constexpr double Q_XY_PER_RAD = 1e-2;     // m^2 per radian
+  static constexpr double Q_TIME_XY = 1e-4;        // m^2 per second
+  static constexpr double Q_TIME_ROLL = 1e-6;      // rad^2 per second
+  static constexpr double Q_TIME_PITCH = 1e-6;     // rad^2 per second
+  static constexpr double Q_TIME_YAW = 1e-6;       // rad^2 per second
 };
 
 }  // namespace kalman_filter
