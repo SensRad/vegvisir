@@ -46,8 +46,8 @@ class PoseKalmanFilter {
   static constexpr double R_ANGLE_VARIANCE_ROLL = 0.01;   // rad^2
   static constexpr double R_ANGLE_VARIANCE_PITCH = 0.01;  // rad^2
   static constexpr double R_ANGLE_VARIANCE_YAW = 0.001;   // rad^2
-  static constexpr double R_POS_VARIANCE_XY = 6.0;        // m^2
-  static constexpr double R_POS_VARIANCE_Z = 15.0;        // m^2
+  static constexpr double R_POS_VARIANCE_XY = 1.0;        // m^2
+  static constexpr double R_POS_VARIANCE_Z = 1.0;         // m^2
 
   static constexpr double P0_POS_VARIANCE_XY = 1000.0;    // m^2
   static constexpr double P0_POS_VARIANCE_Z = 1000.0;     // m^2
@@ -56,8 +56,8 @@ class PoseKalmanFilter {
   static constexpr double P0_ANGLE_VARIANCE_YAW = 0.05;   // rad^2
 
   // Process noise parameters
-  static constexpr double Q_XY_PER_M = 1e-3;       // m^2 per meter
-  static constexpr double Q_Z_PER_M = 1e-3;        // m^2 per meter
+  static constexpr double Q_XY_PER_M = 1e-2;       // m^2 per meter
+  static constexpr double Q_Z_PER_M = 1e-2;        // m^2 per meter
   static constexpr double Q_ROLL_PER_RAD = 1e-3;   // rad^2 per radian
   static constexpr double Q_PITCH_PER_RAD = 1e-3;  // rad^2 per radian
   static constexpr double Q_YAW_PER_RAD = 1e-4;    // rad^2 per radian

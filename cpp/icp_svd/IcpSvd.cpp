@@ -91,7 +91,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
   target_map.addPoints(target);
 
   const double max_dist_sq = max_correspondence_distance * max_correspondence_distance;
-  const double cauchy_c_sq = 0.25 * max_dist_sq;
+  const double cauchy_c_sq = 4.0 * max_dist_sq;
 
   // Track rotation, translation separately; only build 4x4 at return
   Eigen::Matrix3d rotation_matrix = initial_guess.block<3, 3>(0, 0);
@@ -135,7 +135,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
       best_rotation = rotation_matrix;
       best_translation = translation;
     }
-    if (iter > 0 && mse > prev_mse) {
+    if (iter > 0 && mse > 1.2 * prev_mse) {
       return {makeSE3(best_rotation, best_translation), true, iter};
     }
     prev_mse = mse;

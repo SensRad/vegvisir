@@ -15,10 +15,10 @@ struct VegvisirConfig {
   std::size_t inliers_threshold = 25;
 
   // ICP refinement parameters
-  double icp_refinement_voxel_size = 0.5;
-  int icp_max_iterations = 200;
+  double icp_refinement_voxel_size = 0.1;
+  int icp_max_iterations = 500;
   double icp_convergence_criterion = 5e-5;
-  double icp_max_correspondence_distance = 2.0;
+  double icp_max_correspondence_distance = 3.0;
 };
 
 }  // namespace vegvisir
