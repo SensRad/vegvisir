@@ -1,5 +1,5 @@
 // Copyright (c) Sensrad 2026
-//
+
 // SVD-based point-to-point ICP for loop closure refinement.
 // Uses MSE monitoring with early stop and separate convergence thresholds.
 
