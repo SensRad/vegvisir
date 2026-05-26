@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <numeric>
 #include <optional>
 #include <vector>
 
@@ -39,9 +38,10 @@ class IcpSvd {
                                 double max_correspondence_distance);
 
  private:
-  static constexpr double TRIM_RATIO = 0.75;
   static constexpr double ROT_CONVERGENCE_SCALE = 2.0;
   static constexpr size_t MIN_CORRESPONDENCES = 6;
+  static constexpr double MSE_HYSTERESIS = 1.2;
+  static constexpr double CAUCHY_SCALE = 4.0;
 
   // Build a 4x4 SE3 matrix from a 3x3 rotation and 3x1 translation.
   static Eigen::Matrix4d makeSE3(const Eigen::Matrix3d& rotation_matrix,
@@ -51,17 +51,13 @@ class IcpSvd {
   // using the trace formula: angle = acos((trace(R) - 1) / 2).
   static double rotationAngle(const Eigen::Matrix3d& rotation_matrix);
 
-  // Trim correspondences to the closest TRIM_RATIO fraction.
-  // Reorders indices[0..num_corr-1] so that the closest `keep` entries come
-  // first. Returns the number of surviving correspondences.
-  static size_t trimCorrespondences(uint32_t *indices, const double *dist_sq, size_t num_corr);
-
   // Compute Cauchy-weighted centroids and cross-covariance from
   // correspondences, then solve the rigid alignment via SVD.
-  // Returns {delta_rotation, delta_translation} or nullopt if the SVD is degenerate.
+  // Returns {delta_rotation, delta_translation} or nullopt if the SVD is
+  // degenerate.
   static std::optional<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> computeAlignment(
-      const Eigen::Vector3d *src, const Eigen::Vector3d *tgt, const double *dist_sq,
-      const uint32_t *indices, size_t count, double cauchy_c_sq);
+      const Eigen::Vector3d *src, const Eigen::Vector3d *tgt, const double *dist_sq, size_t count,
+      double cauchy_c_sq);
 };
 
 }  // namespace icp
