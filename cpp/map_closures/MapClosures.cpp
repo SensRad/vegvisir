@@ -74,6 +74,52 @@ void MapClosures::match(int id, const std::vector<Eigen::Vector3d>& local_map,
   ground_alignments_.emplace(id, ground_transform);
 }
 
+void MapClosures::mergeMaps(int target_id, int source_id, const Eigen::Matrix4d& relative_pose) {
+  const auto target_ga = ground_alignments_.find(target_id);
+  const auto source_ga = ground_alignments_.find(source_id);
+  if (target_ga == ground_alignments_.end() || source_ga == ground_alignments_.end()) {
+    std::cerr << "mergeMaps|ERROR: missing ground alignment for target " << target_id
+              << " or source " << source_id << "\n";
+    return;
+  }
+
+  // Transform from the source ground frame to the target ground frame:
+  //   ground_target = GA_target * relative_pose * inv(GA_source) * ground_source
+  const Eigen::Matrix4d ground_transform =
+      target_ga->second * relative_pose * source_ga->second.inverse();
+
+  for (auto& layer : feature_layers_) {
+    layer->mergeInto(target_id, source_id, ground_transform, config_.density_map_resolution);
+  }
+
+  // Keep the target's density map and ground alignment; drop the source entirely.
+  density_maps_.erase(source_id);
+  ground_alignments_.erase(source_id);
+  local_map_points_.erase(source_id);
+  reference_poses_.erase(source_id);
+  reference_timestamps_ns_.erase(source_id);
+}
+
+void MapClosures::importSegments(const MapClosures& other, int id_offset) {
+  // Ground alignments (verbatim — each segment keeps its own local frame).
+  for (const auto& [map_id, ground_alignment] : other.ground_alignments_) {
+    ground_alignments_.emplace(map_id + id_offset, ground_alignment);
+  }
+
+  // Density maps (DensityMap is move-only, so clone the grid into a fresh one).
+  for (const auto& [map_id, density_map] : other.density_maps_) {
+    DensityMap copy(density_map.grid.rows, density_map.grid.cols, density_map.resolution,
+                    density_map.lower_bound);
+    density_map.grid.copyTo(copy.grid);
+    density_maps_.emplace(map_id + id_offset, std::move(copy));
+  }
+
+  // Feature layers (parallel layout: same layer types/order in both maps).
+  for (std::size_t i = 0; i < feature_layers_.size() && i < other.feature_layers_.size(); ++i) {
+    feature_layers_[i]->importFrom(*other.feature_layers_[i], id_offset);
+  }
+}
+
 ClosureCandidate MapClosures::validateClosureWithMatches(
     int reference_id, int query_id, const std::vector<Correspondence>& matches) const {
   // Filter correspondences for this reference map, track layer indices
@@ -155,6 +201,42 @@ std::vector<ClosureCandidate> MapClosures::getTopKClosures(
     }
   }
   closures.shrink_to_fit();
+
+  if (k != -1) {
+    const auto top_k = std::min(static_cast<std::size_t>(k), closures.size());
+    std::partial_sort(closures.begin(), closures.begin() + static_cast<std::ptrdiff_t>(top_k),
+                      closures.end(), compareByWeightedScore);
+    closures.resize(top_k);
+  }
+  return closures;
+}
+
+std::vector<ClosureCandidate> MapClosures::getStoredClosures(int query_id, int k,
+                                                             bool ignore_skip) {
+  // Match the stored query against all other stored segments (no re-extraction).
+  std::vector<Correspondence> correspondences;
+  for (auto& layer : feature_layers_) {
+    auto layer_correspondences = layer->matchAgainstAll(query_id, layer->matchRatio());
+    correspondences.insert(correspondences.end(),
+                           std::make_move_iterator(layer_correspondences.begin()),
+                           std::make_move_iterator(layer_correspondences.end()));
+  }
+
+  std::vector<int> ref_ids;
+  if (!feature_layers_.empty()) {
+    ref_ids = feature_layers_[0]->storedIds();
+  }
+
+  std::vector<ClosureCandidate> closures;
+  for (const int ref_id : ref_ids) {
+    if (ref_id == query_id || (!ignore_skip && !isFarEnough(ref_id, query_id))) {
+      continue;
+    }
+    auto closure = validateClosureWithMatches(ref_id, query_id, correspondences);
+    if (closure.weighted_score > static_cast<double>(MIN_NUMBER_OF_MATCHES)) {
+      closures.emplace_back(closure);
+    }
+  }
 
   if (k != -1) {
     const auto top_k = std::min(static_cast<std::size_t>(k), closures.size());

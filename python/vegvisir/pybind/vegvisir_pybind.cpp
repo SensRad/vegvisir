@@ -148,6 +148,8 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def("get_closures", &MapClosures::getClosures, "query_id"_a, "local_map"_a)
         .def("query_top_k_closures", &MapClosures::queryTopKClosures, "query_id"_a, "local_map"_a,
              "k"_a)
+        .def("get_stored_closures", &MapClosures::getStoredClosures, "query_id"_a, "k"_a,
+             "ignore_skip"_a)
         .def("query_closures", &MapClosures::queryClosures, "query_id"_a, "local_map"_a)
         .def("get_density_map_from_id",
              [](MapClosures& self, const int& map_id) {
@@ -197,6 +199,28 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
             },
             "file_path"_a, "keypose_ids"_a)
         .def("load_local_map_points", &MapClosures::loadLocalMapPoints, "file_path"_a)
+        .def(
+            "merge_maps",
+            [](MapClosures& self, int target_id, int source_id,
+               const Eigen::Matrix4d& relative_pose) {
+              self.mergeMaps(target_id, source_id, relative_pose);
+            },
+            "target_id"_a, "source_id"_a, "relative_pose"_a)
+        .def(
+            "set_ground_alignment",
+            [](MapClosures& self, int map_id, const Eigen::Matrix4d& ground_alignment) {
+              self.setGroundAlignment(map_id, ground_alignment);
+            },
+            "map_id"_a, "ground_alignment"_a)
+        .def(
+            "import_segments",
+            [](MapClosures& self, const MapClosures& other, int id_offset) {
+              self.importSegments(other, id_offset);
+            },
+            "other"_a, "id_offset"_a)
+        .def(
+            "get_feature_counts",
+            [](MapClosures& self, int map_id) { return self.getFeatureCounts(map_id); }, "map_id"_a)
         .def("get_sift_keypoints_viz", [](MapClosures& self, int map_id) {
           const auto& dm = self.getDensityMapFromId(map_id);
           const auto& lb = dm.lower_bound;

@@ -115,6 +115,50 @@ void LbdFeatureLayer::erase(int map_id) {
   database_.erase(map_id);
 }
 
+void LbdFeatureLayer::mergeInto(int target_id, int source_id,
+                                const Eigen::Matrix4d& ground_transform, double resolution) {
+  auto source_it = database_.find(source_id);
+  if (source_it == database_.end()) {
+    return;
+  }
+  Entry source_entry = std::move(source_it->second);
+  database_.erase(source_it);
+
+  // Rigid reframe of the line endpoints; lineLength is preserved.
+  for (auto& line : source_entry.lines) {
+    const auto start =
+        reframeGroundPixel(line.startPointX, line.startPointY, ground_transform, resolution);
+    const auto end =
+        reframeGroundPixel(line.endPointX, line.endPointY, ground_transform, resolution);
+    line.startPointX = start.x;
+    line.startPointY = start.y;
+    line.endPointX = end.x;
+    line.endPointY = end.y;
+  }
+
+  auto target_it = database_.find(target_id);
+  if (target_it == database_.end()) {
+    database_.insert_or_assign(target_id, std::move(source_entry));
+    return;
+  }
+
+  Entry& target_entry = target_it->second;
+  target_entry.lines.insert(target_entry.lines.end(), source_entry.lines.begin(),
+                            source_entry.lines.end());
+  if (target_entry.descriptors.empty()) {
+    target_entry.descriptors = source_entry.descriptors;
+  } else if (!source_entry.descriptors.empty()) {
+    cv::vconcat(target_entry.descriptors, source_entry.descriptors, target_entry.descriptors);
+  }
+}
+
+void LbdFeatureLayer::importFrom(const FeatureLayer& other, int id_offset) {
+  const auto& source = static_cast<const LbdFeatureLayer&>(other);
+  for (const auto& [map_id, entry] : source.database_) {
+    database_.insert_or_assign(map_id + id_offset, Entry{entry.lines, entry.descriptors.clone()});
+  }
+}
+
 std::size_t LbdFeatureLayer::featureCount(int map_id) const {
   auto it = database_.find(map_id);
   return it != database_.end() ? it->second.lines.size() : 0;
