@@ -79,6 +79,43 @@ void SiftFeatureLayer::erase(int map_id) {
   database_.erase(map_id);
 }
 
+void SiftFeatureLayer::mergeInto(int target_id, int source_id,
+                                 const Eigen::Matrix4d& ground_transform, double resolution) {
+  auto source_it = database_.find(source_id);
+  if (source_it == database_.end()) {
+    return;
+  }
+  Entry source_entry = std::move(source_it->second);
+  database_.erase(source_it);
+
+  for (auto& kp : source_entry.keypoints) {
+    kp.pt = reframeGroundPixel(kp.pt.x, kp.pt.y, ground_transform, resolution);
+  }
+
+  auto target_it = database_.find(target_id);
+  if (target_it == database_.end()) {
+    database_.insert_or_assign(target_id, std::move(source_entry));
+    return;
+  }
+
+  Entry& target_entry = target_it->second;
+  target_entry.keypoints.insert(target_entry.keypoints.end(), source_entry.keypoints.begin(),
+                                source_entry.keypoints.end());
+  if (target_entry.descriptors.empty()) {
+    target_entry.descriptors = source_entry.descriptors;
+  } else if (!source_entry.descriptors.empty()) {
+    cv::vconcat(target_entry.descriptors, source_entry.descriptors, target_entry.descriptors);
+  }
+}
+
+void SiftFeatureLayer::importFrom(const FeatureLayer& other, int id_offset) {
+  const auto& source = static_cast<const SiftFeatureLayer&>(other);
+  for (const auto& [map_id, entry] : source.database_) {
+    database_.insert_or_assign(map_id + id_offset,
+                               Entry{entry.keypoints, entry.descriptors.clone()});
+  }
+}
+
 std::size_t SiftFeatureLayer::featureCount(int map_id) const {
   auto it = database_.find(map_id);
   return it != database_.end() ? it->second.keypoints.size() : 0;

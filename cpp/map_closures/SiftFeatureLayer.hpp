@@ -23,6 +23,11 @@ class SiftFeatureLayer : public FeatureLayer {
 
   void erase(int map_id) override;
 
+  void mergeInto(int target_id, int source_id, const Eigen::Matrix4d& ground_transform,
+                 double resolution) override;
+
+  void importFrom(const FeatureLayer& other, int id_offset) override;
+
   std::size_t featureCount(int map_id) const override;
 
   bool save(std::ostream& os) const override;

@@ -82,6 +82,12 @@ class MapClosures {
     return queryTopKClosures(query_id, local_map, -1);
   }
 
+  // Match an ALREADY-STORED segment against the other stored segments (no
+  // re-extraction). Used to align two maps that were imported into one detector.
+  // ignore_skip disables the sequential LOCAL_MAPS_TO_SKIP filter, which is wrong
+  // across two maps whose ids are merely offset (not a single trajectory).
+  std::vector<ClosureCandidate> getStoredClosures(int query_id, int k, bool ignore_skip);
+
   const DensityMap& getDensityMapFromId(int map_id) const { return density_maps_.at(map_id); }
 
   std::vector<int> getAvailableMapIds() const {
@@ -106,6 +112,32 @@ class MapClosures {
   void setReferencePose(int map_id, const Eigen::Matrix4d& pose) {
     reference_poses_[map_id] = pose;
   }
+
+  void setGroundAlignment(int map_id, const Eigen::Matrix4d& ground_alignment) {
+    ground_alignments_[map_id] = ground_alignment;
+  }
+
+  // Per-feature-layer feature counts for a map (e.g. {sift, lbd}).
+  std::vector<std::size_t> getFeatureCounts(int map_id) const {
+    std::vector<std::size_t> counts;
+    counts.reserve(feature_layers_.size());
+    for (const auto& layer : feature_layers_) {
+      counts.push_back(layer->featureCount(map_id));
+    }
+    return counts;
+  }
+
+  // Merge the source map's features into the target map instead of re-extracting.
+  // Source keypoints are reframed by relative_pose (source-local -> target-local)
+  // composed with the stored ground alignments; the target's density map and
+  // ground alignment are kept, and the source map is removed.
+  void mergeMaps(int target_id, int source_id, const Eigen::Matrix4d& relative_pose);
+
+  // Copy all segments (features, density maps, ground alignments) from another map
+  // into this one, with their ids shifted by id_offset. Used to combine two maps
+  // into one: segments stay separate and keep their own local frames (the caller
+  // repositions their keyposes/points). ids must not collide with existing ones.
+  void importSegments(const MapClosures& other, int id_offset);
 
   const std::unordered_map<int, uint64_t>& getReferenceTimestampsNs() const {
     return reference_timestamps_ns_;
