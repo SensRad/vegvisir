@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 
 namespace vegvisir {
 
@@ -19,6 +20,13 @@ struct VegvisirConfig {
   int icp_max_iterations = 500;
   double icp_convergence_criterion = 5e-5;
   double icp_max_correspondence_distance = 3.0;
+
+  // Debug/evaluation: optionally dump each localization query (query clouds,
+  // ground plane, density map, metadata) to disk. Off by default so the
+  // production path is unaffected. Only active in LOCALIZATION mode and only
+  // when query_dump_dir is non-empty.
+  bool save_localization_queries = false;
+  std::string query_dump_dir;
 };
 
 }  // namespace vegvisir

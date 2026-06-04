@@ -31,7 +31,8 @@ class SlamBackend final : public VegvisirBackend {
   void runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) override;
 
   std::vector<map_closures::ClosureCandidate> retrieveCandidates(
-      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) override;
+      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc,
+      map_closures::QueryArtifacts* out_artifacts = nullptr) override;
 
   void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
                             const Eigen::Matrix4d& query_odom_base) override;

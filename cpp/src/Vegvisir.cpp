@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "LocalizationBackend.hpp"
+#include "QueryRecorder.hpp"
 #include "SlamBackend.hpp"
 #include "VegvisirPGO.hpp"
 
@@ -82,6 +83,12 @@ Vegvisir::Vegvisir(const std::string& map_database_path, Mode mode, const Vegvis
     backend_ = std::make_unique<LocalizationBackend>(*this);
   }
   backend_->initialize();
+
+  // Optional: enable localization query recording for offline evaluation.
+  if (mode_ == Mode::LOCALIZATION && config_.save_localization_queries &&
+      !config_.query_dump_dir.empty()) {
+    query_recorder_ = std::make_unique<LocalizationQueryRecorder>(config_.query_dump_dir);
+  }
 }
 
 // Destructor
@@ -161,19 +168,42 @@ void Vegvisir::update(const std::vector<Eigen::Vector3d>& points, const Sophus::
 void Vegvisir::processLoopClosures(int query_id,
                                    const std::vector<Eigen::Vector3d>& query_points_mc,
                                    const std::vector<Eigen::Vector3d>& query_points_icp,
-                                   const Eigen::Matrix4d& query_odom_base) {
+                                   const Eigen::Matrix4d& query_odom_base, uint64_t timestamp_ns) {
   if (!backend_ || !map_closer_) {
     return;
   }
 
-  // Retrieve closure candidates from MapClosures
+  const bool recording = (query_recorder_ != nullptr);
+
+  // Retrieve closure candidates from MapClosures. When recording, also capture
+  // the query's transient ground plane + density map before they are erased.
+  map_closures::QueryArtifacts artifacts;
   std::vector<map_closures::ClosureCandidate> closures =
-      backend_->retrieveCandidates(query_id, query_points_mc);
+      backend_->retrieveCandidates(query_id, query_points_mc, recording ? &artifacts : nullptr);
+
+  std::vector<QueryMatchRecord> match_records;
+  if (recording) {
+    match_records.reserve(closures.size());
+  }
 
   for (auto& closure : closures) {
+    QueryMatchRecord rec;
+    if (recording) {
+      rec.source_id = closure.source_id;
+      rec.number_of_inliers = closure.number_of_inliers;
+      rec.sift_inliers = closure.sift_inliers;
+      rec.lbd_inliers = closure.lbd_inliers;
+      rec.weighted_score = closure.weighted_score;
+      rec.ransac_pose = closure.pose;
+      rec.refined_pose = closure.pose;
+    }
+
     // Check minimum inliers and availability of local map points
     if (closure.number_of_inliers < config_.inliers_threshold ||
         !hasLocalMapPoints(closure.source_id)) {
+      if (recording) {
+        match_records.push_back(rec);
+      }
       continue;
     }
 
@@ -186,7 +216,17 @@ void Vegvisir::processLoopClosures(int query_id,
 
     //  Validate refined pose using overlap computation
     const bool is_valid = validateClosurePose(query_points_icp, reference_points, refined_pose);
+
+    if (recording) {
+      rec.icp_converged = converged;
+      rec.refined_pose = refined_pose;
+      rec.accepted = is_valid;
+    }
+
     if (!is_valid) {
+      if (recording) {
+        match_records.push_back(rec);
+      }
       continue;
     }
 
@@ -202,27 +242,44 @@ void Vegvisir::processLoopClosures(int query_id,
       // Mode-specific application (PGO vs KF)
       backend_->applyAcceptedClosure(closure, query_odom_base);
     }
+
+    if (recording) {
+      match_records.push_back(rec);
+    }
+  }
+
+  // Dump the query for offline evaluation (recording mode only).
+  if (recording) {
+    Eigen::Matrix4d tf_map_odom_snapshot;
+    {
+      const std::lock_guard<std::mutex> lock(closure_mutex_);
+      tf_map_odom_snapshot = tf_map_odom_;
+    }
+    query_recorder_->record(timestamp_ns, query_id, query_odom_base, tf_map_odom_snapshot,
+                            config_.voxel_size, query_points_mc, query_points_icp, artifacts,
+                            match_records);
   }
 }
 
 void Vegvisir::processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
                                         std::vector<Eigen::Vector3d> query_points_icp,
-                                        Eigen::Matrix4d query_odom_base) {
+                                        Eigen::Matrix4d query_odom_base, uint64_t timestamp_ns) {
   // Skip if a previous closure job is still running
   if (closure_future_.valid() &&
       closure_future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
     return;
   }
 
-  closure_future_ =
-      std::async(std::launch::async, [this, query_id, pts_mc = std::move(query_points_mc),
-                                      pts_icp = std::move(query_points_icp), query_odom_base]() {
+  closure_future_ = std::async(
+      std::launch::async,
+      [this, query_id, pts_mc = std::move(query_points_mc),
+       pts_icp = std::move(query_points_icp), query_odom_base, timestamp_ns]() {
         // Deprioritize this thread so it doesn't starve the main
         // pipeline
         const struct sched_param param{};
         pthread_setschedparam(pthread_self(), SCHED_BATCH, &param);
 
-        processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base);
+        processLoopClosures(query_id, pts_mc, pts_icp, query_odom_base, timestamp_ns);
       });
 }
 

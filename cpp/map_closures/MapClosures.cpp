@@ -248,8 +248,23 @@ std::vector<ClosureCandidate> MapClosures::getStoredClosures(int query_id, int k
 }
 
 std::vector<ClosureCandidate> MapClosures::queryTopKClosures(
-    int query_id, const std::vector<Eigen::Vector3d>& local_map, int k) {
+    int query_id, const std::vector<Eigen::Vector3d>& local_map, int k,
+    QueryArtifacts* out_artifacts) {
   auto closures = getTopKClosures(query_id, local_map, k);
+
+  // Capture transient query artifacts (ground plane + density map) before they
+  // are erased below, for the optional query recorder.
+  if (out_artifacts != nullptr) {
+    const auto ga_it = ground_alignments_.find(query_id);
+    const auto dm_it = density_maps_.find(query_id);
+    if (ga_it != ground_alignments_.end() && dm_it != density_maps_.end()) {
+      out_artifacts->valid = true;
+      out_artifacts->ground_alignment = ga_it->second;
+      out_artifacts->density_grid = dm_it->second.grid.clone();
+      out_artifacts->density_lower_bound = dm_it->second.lower_bound;
+      out_artifacts->density_resolution = dm_it->second.resolution;
+    }
+  }
 
   // Clean up temporary data (remove query from internal storage)
   density_maps_.erase(query_id);

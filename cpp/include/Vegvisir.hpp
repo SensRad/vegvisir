@@ -34,6 +34,9 @@ enum class Mode : std::uint8_t {
 // Forward declaration for backend base class
 class VegvisirBackend;
 
+// Forward declaration for optional localization query recorder
+class LocalizationQueryRecorder;
+
 class Vegvisir {
  public:
   Vegvisir(const std::string& map_database_path, Mode mode = Mode::LOCALIZATION,
@@ -205,6 +208,10 @@ class Vegvisir {
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
+  // Optional recorder for dumping localization queries to disk (off by default).
+  // Only created in LOCALIZATION mode when enabled in the config.
+  std::unique_ptr<LocalizationQueryRecorder> query_recorder_;
+
   // Shared algorithms: ICP refinement + overlap validation
   std::pair<bool, Eigen::Matrix4d> performICPRefinement(
       const std::vector<Eigen::Vector3d>& query_points,
@@ -218,15 +225,16 @@ class Vegvisir {
   // Shared closure processing: candidate gating + ICP refine + overlap
   // validate. Retrieval + application are delegated to backend.
   // query_odom_base: the odom pose at the time the query was built.
+  // timestamp_ns: stamp of the query (used by the optional query recorder).
   void processLoopClosures(int query_id, const std::vector<Eigen::Vector3d>& query_points_mc,
                            const std::vector<Eigen::Vector3d>& query_points_icp,
-                           const Eigen::Matrix4d& query_odom_base);
+                           const Eigen::Matrix4d& query_odom_base, uint64_t timestamp_ns);
 
   // Async wrapper: launches processLoopClosures on a background thread.
   // Skips if a previous closure job is still running.
   void processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
                                 std::vector<Eigen::Vector3d> query_points_icp,
-                                Eigen::Matrix4d query_odom_base);
+                                Eigen::Matrix4d query_odom_base, uint64_t timestamp_ns);
 
   friend class VegvisirBackend;
 };

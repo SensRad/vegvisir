@@ -57,16 +57,17 @@ void LocalizationBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base,
 
   // Shared closure processing (async — runs on background thread)
   processLoopClosuresAsync(Vegvisir::QUERY_ID_LOCALIZATION, std::move(query_points_mc),
-                           std::move(query_points_icp), pose_odom_base);
+                           std::move(query_points_icp), pose_odom_base, timestamp_ns);
 }
 
 std::vector<map_closures::ClosureCandidate> LocalizationBackend::retrieveCandidates(
-    int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) {
+    int query_id, const std::vector<Eigen::Vector3d>& query_points_mc,
+    map_closures::QueryArtifacts* out_artifacts) {
   if (!mapCloser()) {
     return {};
   }
   // Localization: Query current map only (no add)
-  return mapCloser()->queryTopKClosures(query_id, query_points_mc, 1);
+  return mapCloser()->queryTopKClosures(query_id, query_points_mc, 1, out_artifacts);
 }
 
 void LocalizationBackend::applyAcceptedClosure(const map_closures::ClosureCandidate& c,

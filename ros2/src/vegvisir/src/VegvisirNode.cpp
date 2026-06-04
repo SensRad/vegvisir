@@ -44,6 +44,18 @@ VegvisirNode::VegvisirNode() : Node("vegvisir_node") {
   config.inliers_threshold = static_cast<std::size_t>(this->declare_parameter<int>(
       "closure.inliers_threshold", static_cast<int>(config.inliers_threshold)));
 
+  // Debug/evaluation: optionally dump each localization query to disk. Off by
+  // default; only takes effect in localization mode with a non-empty dir.
+  config.save_localization_queries =
+      this->declare_parameter<bool>("debug.save_localization_queries", false);
+  config.query_dump_dir = this->declare_parameter<std::string>("debug.query_dump_dir", "");
+
+  if (!slam_mode && config.save_localization_queries) {
+    RCLCPP_INFO(get_logger(), "Localization query recording ENABLED -> %s",
+                config.query_dump_dir.empty() ? "(no dir set: disabled)"
+                                               : config.query_dump_dir.c_str());
+  }
+
   vegvisir_ = std::make_unique<Vegvisir>(map_database_path, mode, config);
 
   // Create the synchronizer — ExactTime matches identical timestamps on both
