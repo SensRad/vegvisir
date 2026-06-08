@@ -208,8 +208,7 @@ class Vegvisir {
   // Backend (mode-specific policy/state)
   std::unique_ptr<VegvisirBackend> backend_;
 
-  // Optional recorder for dumping localization queries to disk (off by default).
-  // Only created in LOCALIZATION mode when enabled in the config.
+  // Optional recorder for dumping localization queries to disk.
   std::unique_ptr<LocalizationQueryRecorder> query_recorder_;
 
   // Shared algorithms: ICP refinement + overlap validation
