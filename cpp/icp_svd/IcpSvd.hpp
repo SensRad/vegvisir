@@ -40,7 +40,10 @@ class IcpSvd {
  private:
   static constexpr double ROT_CONVERGENCE_SCALE = 2.0;
   static constexpr size_t MIN_CORRESPONDENCES = 6;
-  static constexpr double MSE_HYSTERESIS = 1.2;
+  // Allow the mean residual to rise up to this factor before bailing. During a
+  // genuine large correction the mean MSE legitimately grows as farther
+  // correspondences enter the gate, so a tight bound aborts mid-correction.
+  static constexpr double MSE_HYSTERESIS = 3.0;
   static constexpr double CAUCHY_SCALE = 4.0;
 
   // Build a 4x4 SE3 matrix from a 3x3 rotation and 3x1 translation.
