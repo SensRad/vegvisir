@@ -146,8 +146,11 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def("get_top_k_closures", &MapClosures::getTopKClosures, "query_id"_a, "local_map"_a,
              "k"_a)
         .def("get_closures", &MapClosures::getClosures, "query_id"_a, "local_map"_a)
-        .def("query_top_k_closures", &MapClosures::queryTopKClosures, "query_id"_a, "local_map"_a,
-             "k"_a)
+        .def(
+            "query_top_k_closures",
+            [](MapClosures& self, int query_id, const std::vector<Eigen::Vector3d>& local_map,
+               int k) { return self.queryTopKClosures(query_id, local_map, k); },
+            "query_id"_a, "local_map"_a, "k"_a)
         .def("get_stored_closures", &MapClosures::getStoredClosures, "query_id"_a, "k"_a,
              "ignore_skip"_a)
         .def("query_closures", &MapClosures::queryClosures, "query_id"_a, "local_map"_a)

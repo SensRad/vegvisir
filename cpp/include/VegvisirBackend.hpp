@@ -51,8 +51,11 @@ class VegvisirBackend {
 
   virtual void runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t timestamp_ns) = 0;
 
+  // out_artifacts, when non-null, receives the query's transient ground plane
+  // and density map (LOCALIZATION mode only; ignored by SLAM).
   virtual std::vector<map_closures::ClosureCandidate> retrieveCandidates(
-      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) = 0;
+      int query_id, const std::vector<Eigen::Vector3d>& query_points_mc,
+      map_closures::QueryArtifacts* out_artifacts = nullptr) = 0;
 
   virtual void applyAcceptedClosure(const map_closures::ClosureCandidate& c,
                                     const Eigen::Matrix4d& query_odom_base) = 0;
@@ -73,7 +76,7 @@ class VegvisirBackend {
   const std::unordered_map<int, Eigen::Matrix4d>& referencePoses() const;
   void processLoopClosuresAsync(int query_id, std::vector<Eigen::Vector3d> query_points_mc,
                                 std::vector<Eigen::Vector3d> query_points_icp,
-                                Eigen::Matrix4d query_odom_base);
+                                Eigen::Matrix4d query_odom_base, uint64_t timestamp_ns);
 
  private:
   Vegvisir& vegvisir_;

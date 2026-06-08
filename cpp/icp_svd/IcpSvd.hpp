@@ -40,7 +40,7 @@ class IcpSvd {
  private:
   static constexpr double ROT_CONVERGENCE_SCALE = 2.0;
   static constexpr size_t MIN_CORRESPONDENCES = 6;
-  static constexpr double MSE_HYSTERESIS = 1.2;
+  static constexpr double MSE_HYSTERESIS = 3.0;
   static constexpr double CAUCHY_SCALE = 4.0;
 
   // Build a 4x4 SE3 matrix from a 3x3 rotation and 3x1 translation.

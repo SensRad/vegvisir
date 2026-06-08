@@ -39,7 +39,8 @@ add_library(
   src/LocalMapGraph.cpp
   src/VegvisirBackend.cpp
   src/SlamBackend.cpp
-  src/LocalizationBackend.cpp)
+  src/LocalizationBackend.cpp
+  src/QueryRecorder.cpp)
 target_include_directories(vegvisir PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                                            ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(vegvisir PUBLIC cxx_std_20)

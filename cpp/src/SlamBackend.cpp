@@ -92,11 +92,13 @@ void SlamBackend::runQueryCycle(const Eigen::Matrix4d& pose_odom_base, uint64_t 
 }
 
 std::vector<map_closures::ClosureCandidate> SlamBackend::retrieveCandidates(
-    int query_id, const std::vector<Eigen::Vector3d>& query_points_mc) {
+    int query_id, const std::vector<Eigen::Vector3d>& query_points_mc,
+    map_closures::QueryArtifacts* /*out_artifacts*/) {
   if (!mapCloser()) {
     return {};
   }
-  // SLAM: Query current map and add to database (query + add)
+  // SLAM: Query current map and add to database (query + add). Query recording
+  // is localization-only, so out_artifacts is ignored here.
   return mapCloser()->getTopKClosures(query_id, query_points_mc, 1);
 }
 
@@ -203,7 +205,7 @@ void SlamBackend::generateNewNode(const Eigen::Matrix4d& pose_odom_base, uint64_
 
   // Shared closure processing (async — runs on background thread)
   processLoopClosuresAsync(query_id, std::move(query_points_mc), std::move(query_points_icp),
-                           pose_odom_base);
+                           pose_odom_base, timestamp_ns);
 }
 
 }  // namespace vegvisir

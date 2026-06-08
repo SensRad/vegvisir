@@ -83,6 +83,7 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
   Eigen::Vector3d translation = initial_guess.block<3, 1>(0, 3);
   Eigen::Matrix3d best_rotation = rotation_matrix;
   Eigen::Vector3d best_translation = translation;
+  size_t best_num_corr = 0;
   double best_mse = std::numeric_limits<double>::max();
   double prev_mse = std::numeric_limits<double>::max();
 
@@ -114,7 +115,9 @@ Result IcpSvd::pointToPointICP(const std::vector<Eigen::Vector3d>& source,
 
     mse /= static_cast<double>(num_corr);
 
-    if (mse < best_mse) {
+    // Fitness-aware best
+    if (num_corr > best_num_corr || (num_corr == best_num_corr && mse < best_mse)) {
+      best_num_corr = num_corr;
       best_mse = mse;
       best_rotation = rotation_matrix;
       best_translation = translation;

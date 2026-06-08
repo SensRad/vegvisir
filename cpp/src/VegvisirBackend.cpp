@@ -57,9 +57,10 @@ const std::unordered_map<int, Eigen::Matrix4d>& VegvisirBackend::referencePoses(
 void VegvisirBackend::processLoopClosuresAsync(int query_id,
                                                std::vector<Eigen::Vector3d> query_points_mc,
                                                std::vector<Eigen::Vector3d> query_points_icp,
-                                               Eigen::Matrix4d query_odom_base) {
+                                               Eigen::Matrix4d query_odom_base,
+                                               uint64_t timestamp_ns) {
   vegvisir_.processLoopClosuresAsync(query_id, std::move(query_points_mc),
-                                     std::move(query_points_icp), query_odom_base);
+                                     std::move(query_points_icp), query_odom_base, timestamp_ns);
 }
 
 }  // namespace vegvisir

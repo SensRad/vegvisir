@@ -55,6 +55,19 @@ struct ClosureCandidate {
   std::size_t lbd_inliers = 0;
 };
 
+// Transient per-query artifacts captured during a localization query, before
+// they are erased from the detector. Used by the optional query recorder to
+// dump the query's ground plane and density map to disk for offline
+// evaluation. The density map is the input from which SIFT/LBD features are
+// deterministically extracted, so features are reproducible from it offline.
+struct QueryArtifacts {
+  bool valid = false;
+  Eigen::Matrix4d ground_alignment = Eigen::Matrix4d::Identity();
+  cv::Mat density_grid;  // cloned (DensityMap is move-only)
+  Eigen::Vector2i density_lower_bound{0, 0};
+  double density_resolution = 0.0;
+};
+
 class MapClosures {
  public:
   MapClosures() : MapClosures(Config{}) {}
@@ -73,10 +86,13 @@ class MapClosures {
     return getTopKClosures(query_id, local_map, -1);
   }
 
-  // Query-only methods (match against database without adding to it)
+  // Query-only methods (match against database without adding to it).
+  // If out_artifacts is non-null, the query's ground plane and density map are
+  // copied into it before the transient query data is erased.
   std::vector<ClosureCandidate> queryTopKClosures(int query_id,
                                                   const std::vector<Eigen::Vector3d>& local_map,
-                                                  int k);
+                                                  int k,
+                                                  QueryArtifacts* out_artifacts = nullptr);
   std::vector<ClosureCandidate> queryClosures(int query_id,
                                               const std::vector<Eigen::Vector3d>& local_map) {
     return queryTopKClosures(query_id, local_map, -1);
