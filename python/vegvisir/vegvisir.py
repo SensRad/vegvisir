@@ -6,6 +6,7 @@ import numpy as np
 
 from .pybind.vegvisir_pybind import (
     Mode,  # noqa: F401
+    Vector3dVector,
     VegvisirConfigCore,
     VegvisirCore,
 )
@@ -128,7 +129,7 @@ class Vegvisir:
                 Stored on any keypose created during this update. Pass 0 if unknown.
         """
         self._impl.update(
-            np.ascontiguousarray(points, dtype=np.float64),
+            Vector3dVector(np.ascontiguousarray(points, dtype=np.float64)),
             np.ascontiguousarray(absolute_pose, dtype=np.float64),
             timestamp_ns,
         )
