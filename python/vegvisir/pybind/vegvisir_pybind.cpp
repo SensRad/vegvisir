@@ -333,7 +333,10 @@ PYBIND11_MODULE(vegvisir_pybind, m) {
         .def_readwrite("icp_max_iterations", &VegvisirConfig::icp_max_iterations)
         .def_readwrite("icp_convergence_criterion", &VegvisirConfig::icp_convergence_criterion)
         .def_readwrite("icp_max_correspondence_distance",
-                       &VegvisirConfig::icp_max_correspondence_distance);
+                       &VegvisirConfig::icp_max_correspondence_distance)
+        .def_readwrite("save_localization_queries",
+                       &VegvisirConfig::save_localization_queries)
+        .def_readwrite("query_dump_dir", &VegvisirConfig::query_dump_dir);
   }
 
   // ---- Vegvisir ----
