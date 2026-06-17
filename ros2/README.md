@@ -8,7 +8,7 @@ ROS2 nodes and launch files for running Vegvisir.
 git clone https://github.com/SensRad/vegvisir.git
 cd vegvisir/ros2
 vcs import src < vegvisir.repos
-colcon build
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --symlink-install
 source install/setup.bash
 ```
 

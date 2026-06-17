@@ -17,7 +17,12 @@ set(BUILD_SOPHUS_EXAMPLES
 
 # lint_cmake: -readability/wonkycase
 FetchContent_Declare(
-  sophus URL https://github.com/strasdat/Sophus/archive/refs/tags/1.24.6.tar.gz)
+  sophus
+  URL https://github.com/strasdat/Sophus/archive/refs/tags/1.24.6.tar.gz
+  # Ubuntu 22.04 ships CMake 3.22; patch away Sophus's 3.24 requirement.
+  PATCH_COMMAND sed -i
+    "s/cmake_minimum_required(VERSION 3.24)/cmake_minimum_required(VERSION 3.22)/"
+    CMakeLists.txt)
 
 # lint_cmake: -readability/wonkycase
 FetchContent_MakeAvailable(sophus)

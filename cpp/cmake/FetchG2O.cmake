@@ -6,9 +6,9 @@
 
 # lint_cmake: -readability/wonkycase
 
-# Skip install prefix to avoid finding stale/incomplete g2o configs from
-# previous builds
-find_package(g2o QUIET NO_MODULE NO_CMAKE_INSTALL_PREFIX)
+# NO_CMAKE_PATH skips CMAKE_PREFIX_PATH (where colcon injects the install
+# space) to avoid picking up stale/incomplete g2o configs from prior builds.
+find_package(g2o QUIET NO_MODULE NO_CMAKE_PATH)
 
 if(NOT TARGET g2o::core)
   message(STATUS "g2o not found on system, using FetchContent")
