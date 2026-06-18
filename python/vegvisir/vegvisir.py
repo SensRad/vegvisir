@@ -6,6 +6,7 @@ import numpy as np
 
 from .pybind.vegvisir_pybind import (
     Mode,  # noqa: F401
+    Vector3dVector,
     VegvisirConfigCore,
     VegvisirCore,
 )
@@ -24,6 +25,10 @@ class VegvisirConfig:
         overlap_threshold: Minimum overlap fraction to accept a loop closure.
         pgo_max_iterations: Maximum iterations for pose graph optimization.
         inliers_threshold: Minimum number of feature inliers to consider a closure candidate.
+        save_localization_queries: Dump each localization query to disk for offline
+            alignment KPIs. Only honoured in localization mode and when
+            ``query_dump_dir`` is set.
+        query_dump_dir: Directory the localization query dumps are written to.
     """
 
     def __init__(
@@ -34,6 +39,8 @@ class VegvisirConfig:
         overlap_threshold: float = 0.10,
         pgo_max_iterations: int = 10,
         inliers_threshold: int = 10,
+        save_localization_queries: bool = False,
+        query_dump_dir: str = "",
     ):
         self._impl = VegvisirConfigCore()
         self._impl.voxel_size = voxel_size
@@ -42,6 +49,8 @@ class VegvisirConfig:
         self._impl.overlap_threshold = overlap_threshold
         self._impl.pgo_max_iterations = pgo_max_iterations
         self._impl.inliers_threshold = inliers_threshold
+        self._impl.save_localization_queries = save_localization_queries
+        self._impl.query_dump_dir = query_dump_dir
 
     @property
     def voxel_size(self) -> float:
@@ -91,6 +100,22 @@ class VegvisirConfig:
     def inliers_threshold(self, value: int) -> None:
         self._impl.inliers_threshold = value
 
+    @property
+    def save_localization_queries(self) -> bool:
+        return self._impl.save_localization_queries
+
+    @save_localization_queries.setter
+    def save_localization_queries(self, value: bool) -> None:
+        self._impl.save_localization_queries = value
+
+    @property
+    def query_dump_dir(self) -> str:
+        return self._impl.query_dump_dir
+
+    @query_dump_dir.setter
+    def query_dump_dir(self, value: str) -> None:
+        self._impl.query_dump_dir = value
+
 
 class Vegvisir:
     """Python interface to the C++ Vegvisir (SLAM / Localization).
@@ -128,7 +153,7 @@ class Vegvisir:
                 Stored on any keypose created during this update. Pass 0 if unknown.
         """
         self._impl.update(
-            np.ascontiguousarray(points, dtype=np.float64),
+            Vector3dVector(np.ascontiguousarray(points, dtype=np.float64)),
             np.ascontiguousarray(absolute_pose, dtype=np.float64),
             timestamp_ns,
         )
