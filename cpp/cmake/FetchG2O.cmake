@@ -122,6 +122,16 @@ if(NOT TARGET g2o::core)
   set(G2O_BUILD_DATA_TYPES
       OFF
       CACHE BOOL "")
+  # g2o's apps/examples are EXCLUDE_FROM_ALL below, so they never get built,
+  # but their unconditional install(TARGETS) rules still get captured by
+  # ament_cmake's symlink install, which then fails to find the missing
+  # binaries. Disable them at the source so no install rule is generated.
+  set(G2O_BUILD_APPS
+      OFF
+      CACHE BOOL "")
+  set(G2O_BUILD_EXAMPLES
+      OFF
+      CACHE BOOL "")
 
   FetchContent_Declare(
     g2o
