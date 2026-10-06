@@ -31,6 +31,12 @@ def generate_launch_description():
         description="Input pointcloud topic (required)",
     )
 
+    odometry_topic_arg = DeclareLaunchArgument(
+        "odometry_topic",
+        default_value="odometry",
+        description="Input odometry topic (nav_msgs/Odometry)",
+    )
+
     namespace = LaunchConfiguration("namespace", default="")
 
     vegvisir_node = Node(
@@ -39,6 +45,9 @@ def generate_launch_description():
         name="vegvisir_node",
         namespace=namespace,
         output="screen",
+        remappings=[
+            ("odometry", LaunchConfiguration("odometry_topic")),
+        ],
         parameters=[
             {"map_database_path": LaunchConfiguration("map_path")},
             {"slam_mode": LaunchConfiguration("slam_mode")},
@@ -53,6 +62,7 @@ def generate_launch_description():
             map_path_arg,
             slam_mode_arg,
             pointcloud_topic_arg,
+            odometry_topic_arg,
             vegvisir_node,
         ]
     )
